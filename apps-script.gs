@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 220;
+var SCRIPT_VERSION = 221;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -360,7 +360,7 @@ var TM_KEYS_ = ['file', 'help', 'setup', 'fire', 'helpdone', 'conflictdone', 'sa
   'parstat', 'ltime', 'amdaneed', 'test', 'sayCount', 'inbox', 'mark', 'funnel', 'trails', 'arrived', 'push',
   'pairHist', 'pair', 'pairok', 'pairSeen', 'pairFor', 'idFor', 'amdaFor', 'whoIs', 'wid', 'acc', 'accset',
   'netbaks', 'netrun', 'netmarks', 'board', 'ov', 'team', 'recount', 'delrow', 'contactSave', 'archived',
-  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid', 'hasaa'];
+  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid', 'hasaa', 'hlpq'];
 /* שם הבקשה — המפתח הראשון ברשימה שקיים, ועם ערכו רק כשהוא מילה קצרה
    באנגלית (op של האתגר/ההגרלה). מזהה או מספר לעולם אינו נכנס. */
 function tmName_(e, post) {
@@ -1127,6 +1127,19 @@ function doGetMain_(e) {
          ההרשמה, ולכן השורה מתחברת לתלמיד גם אם יירשם רק אחריה.
      התשובה נושאת `help:2`. שרת ישן אינו מכיר את הערך, אינו
      עונה כך — והמסך אינו מציג אישור על כתיבה שלא נעשתה. */
+  /* ============================================================
+     "ביקשת עזרה בהתקנה — הסתדרת?" (8.99.515).
+     ============================================================
+     `?hlpq=me&id=&ph=&sa=` — מכשיר רשום שואל אם יש לו בקשת עזרה
+     פתוחה בלשונית "תקועים" (לפי `מזהה`, או לפי הטלפון כשהוא באמת
+     הטלפון של המזהה ב"לומדים"). `sa=1` = נפתח מהאפליקציה המותקנת:
+     נכתב `הותקן` בבקשות הפתוחות, והן יורדות מהרשימה בניהול. בתשובה
+     רק `ask` — בלי שם, בלי שורה. שאלה רק כשהבקשה בת שעתיים לפחות.
+     `?hlpq=ans&id=&ph=&a=1|0` — "כן" = `טופל`; "לא" = התשובה בלבד,
+     והבקשה חוזרת לראש הרשימה. התשובה — מקריאה חוזרת. */
+  if (e && e.parameter && e.parameter.hlpq) {
+    return reply_(e, helpAskRoute_(e.parameter));
+  }
   if (e && e.parameter && e.parameter.help === '2') {
     var H2 = e.parameter;
     var h2Name  = String(H2.name || '').trim();
@@ -2419,6 +2432,75 @@ function doGetMain_(e) {
 /* JSON רגיל, או JavaScript כשהתבקש callback. הסיבה: Apps Script
    מפנה את /exec לדומיין אחר, ודפדפנים חוסמים לעיתים את הקריאה
    הרגילה בגלל CORS. טעינה כתגית <script> עוקפת את זה תמיד. */
+/* ============================================================
+   בקשת עזרה בהתקנה — "הסתדרת?" (helpAskRoute_, 8.99.515).
+   ============================================================ */
+var HLP_ANS_ = 'תשובת התלמיד', HLP_AT_ = 'מועד התשובה', HLP_SA_ = 'הותקן';
+var HLP_AGE_ = 2 * 3600000;
+function helpAskRoute_(P) {
+  var op = String(P.hlpq || ''), id = String(P.id || '').trim().slice(0, 60);
+  var ph = phKey_(P.ph);
+  if (!id || /[^\w:-]/.test(id)) return { status: 'error', message: 'מזהה לא תקין' };
+  var sh = sheet_('תקועים');
+  if (sh.getLastRow() < 2) return { status: 'ok', ask: 0 };
+  var head = headers_(sh);
+  var rows = sh.getRange(2, 1, sh.getLastRow() - 1, head.length).getDisplayValues();
+  var I = function (n) { return head.indexOf(n); };
+  var iD = I('טופל'), iId = I('מזהה'), iP = I('טלפון'), iA = I(HLP_ANS_), iS = I(HLP_SA_), iT = I('תאריך');
+  var g = function (r, i) { return i < 0 ? '' : String(r[i] == null ? '' : r[i]).trim(); };
+  /* הבקשות הפתוחות של המכשיר הזה */
+  var byId = [], byPh = [];
+  for (var i = 0; i < rows.length; i++) {
+    if (g(rows[i], iD)) continue;
+    if (g(rows[i], iId) === id) byId.push(i);
+    else if (ph && phKey_(g(rows[i], iP)) === ph) byPh.push(i);
+  }
+  if (byPh.length) {
+    /* הטלפון נחשב רק כשהוא הטלפון של המזהה הזה ב"לומדים" */
+    var t = joinTable_(), r0 = rowOfId_(t, id);
+    if (r0 < 1 || phKey_(t.c(t.rows[r0], 'טלפון')) !== ph) byPh = [];
+  }
+  var mine = byId.concat(byPh);
+  if (!mine.length) return { status: 'ok', ask: 0 };
+  if (op === 'me') {
+    if (String(P.sa) === '1') {
+      var cS = idx_(sh, head, HLP_SA_), wrote = 0;
+      mine.forEach(function (k) {
+        if (iS >= 0 && g(rows[k], iS)) return;
+        sh.getRange(k + 2, cS + 1).setValue(new Date()); wrote = 1;
+      });
+      if (wrote) SpreadsheetApp.flush();
+    }
+    var now = Date.now(), ask = 0;
+    mine.forEach(function (k) {
+      if (g(rows[k], iA)) return;
+      var at = iT < 0 ? null : sh.getRange(k + 2, iT + 1).getValue();
+      var ms = at instanceof Date ? at.getTime() : 0;
+      if (!ms || now - ms >= HLP_AGE_) ask = 1;
+    });
+    return { status: 'ok', ask: ask };
+  }
+  if (op === 'ans') {
+    var yes = String(P.a) === '1';
+    var cA = idx_(sh, head, HLP_ANS_), cW = idx_(sh, head, HLP_AT_), cD = idx_(sh, head, 'טופל');
+    var v = yes ? 'הסתדר' : 'עדיין צריך עזרה';
+    mine.forEach(function (k) {
+      if (g(rows[k], iA)) return;
+      sh.getRange(k + 2, cA + 1).setValue(v);
+      sh.getRange(k + 2, cW + 1).setValue(new Date());
+      if (yes) sh.getRange(k + 2, cD + 1).setValue(new Date());
+    });
+    SpreadsheetApp.flush();
+    /* קריאה חוזרת */
+    var ok = mine.every(function (k) {
+      var x = String(sh.getRange(k + 2, cA + 1).getDisplayValue() || '').trim();
+      return !!x;
+    });
+    return ok ? { status: 'ok' } : { status: 'error', message: 'לא נשמר' };
+  }
+  return { status: 'error', message: 'פעולה לא מוכרת' };
+}
+
 function reply_(e, out) {
   /* `cb` וגם `callback`: pair.js שלח `cb`, והתשובה חזרה כ-JSON
      רגיל — כלומר מסך "למדתם יחד?" של ההורה לא נפתח מעולם. */

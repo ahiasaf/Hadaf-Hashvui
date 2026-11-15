@@ -2768,6 +2768,10 @@ button.yr-c.auto{cursor:pointer}
 .st-r.ok{opacity:.55}
 .st-w{flex:1;min-width:0}
 .st-w b{display:block;font-size:.92rem;font-weight:800}
+.st-w .st-no,.st-w .st-sa{display:inline-block;margin:2px 0 1px;padding:1px 8px;border-radius:99px;
+  font-style:normal;font-size:.72rem;font-weight:800}
+.st-w .st-no{background:#FCE4E4;color:#B3261E}
+.st-w .st-sa{background:rgba(74,130,28,.12);color:#3F7018}
 .st-w span{display:block;font-size:.74rem;font-weight:700;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .st-b.btn{width:auto;flex:none;margin:0;padding:8px 13px;font-size:.8rem}
 .st-d{flex:none;font-weight:800;color:#1A8F4C;padding:0 8px}
@@ -3175,7 +3179,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.514';
+var APP_VERSION = '8.99.515';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -11636,7 +11640,9 @@ function admSetupHelp() {
   if (!list.length) h += '<p class="st-ok">✓ ' + esc(UI.stNone) + '</p>';
   h += list.map(function (p) {
     var num = waNum(p.phone);
-    return '<div class="st-r' + (p.done ? ' ok' : '') + '"><div class="st-w"><b>' + esc(p.name || '—') + '</b>' +
+    var tag = !p.done && stuckNo(p) ? '<i class="st-no">' + esc(UI.stAnsNo) + '</i>'
+      : !p.done && p.sa ? '<i class="st-sa">' + esc(UI.stSaOk) + '</i>' : '';
+    return '<div class="st-r' + (p.done ? ' ok' : '') + '"><div class="st-w"><b>' + esc(p.name || '—') + '</b>' + tag +
       '<span>' + esc([p.inst, p.dev].filter(Boolean).join(' · ')) + '</span></div>' +
       (num
         ? '<a class="btn gr st-b" target="_blank" rel="noopener" href="https://wa.me/' + num + '?text=' +
@@ -11676,9 +11682,12 @@ function stuckFull(p) {
   if (hit.way === 'אבות ובנים' && !hit.par) return false;
   return !!hit.push && hit.pstate !== 'gone';
 }
+/* "לא, עדיין צריך עזרה" — גובר על כל ניקוי אוטומטי. */
+function stuckNo(p) { return p.ans === 'עדיין צריך עזרה'; }
 function stuckOpen() {
   return (stuckRows || []).filter(function (p) {
-    if (p.done || stuckFull(p)) return false;
+    if (p.done) return false;
+    if (!stuckNo(p) && (p.sa || stuckFull(p))) return false;
     return !ADM_INST || stuckInst(p) === ADM_INST;
   });
 }
@@ -16103,10 +16112,15 @@ function stuckParse(rows) {
                dev:g('מכשיר'), what:g('מה קרה'), diag:g('אבחון'),
                /* "אנדרואיד — המשך בדפדפן": ממשיך ללמוד בינתיים (join, help=2). */
                path:g('מסלול'),
+               /* 8.99.515 — הטלפון דיווח שנפתח מהאפליקציה המותקנת; התשובה ל"הסתדרת?" */
+               sa:!!g('הותקן'), ans:g('תשובת התלמיד'),
                done:!!g('טופל'), at:g('תאריך') });
   }
   /* מי שממתין קודם, והחדש שבהם ראשון. */
-  return out.filter(function (p) { return !p.done; }).reverse()
+  /* "עדיין צריך עזרה" (8.99.514) — בראש, לפני כל השאר. */
+  var no = function (p) { return !p.done && stuckNo(p); };
+  return out.filter(no).reverse()
+            .concat(out.filter(function (p) { return !p.done && !no(p); }).reverse())
             .concat(out.filter(function (p) { return p.done; }).reverse());
 }
 
