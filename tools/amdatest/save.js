@@ -50,9 +50,10 @@ function rows(c) { return c.amdaTable_('עמדת לימוד').rows.length - 1; }
 async function setup(p, staff) {
   await p.evaluate(function (staff) {
     if (!staff) CFG.readKey = 'k';
+    /* הדף של השבוע לפי התאריך — דף קבוע ('ו') נעשה "דף אחר" כשהשבוע התחלף, והמפתח קיבל סיומת (8.99.488). */
     var q = [], d = amdaDay();
     for (var i = 0; i < 30; i++) {
-      q.push({ id: 'aT' + i, w: 6, day: d, slot: 'S1', kind: 'd', track: 'taanit', daf: 'ו', inst: staff ? 'tapuah' : 'givat',
+      q.push({ id: 'aT' + i, w: 6, day: d, slot: 'S1', kind: 'd', track: 'taanit', daf: LDaf('taanit', amdaWkDay(amdaDay())), inst: staff ? 'tapuah' : 'givat',
                seat: '', lv: '', qz: false, oid: 'o1', dev: staff ? 'DEV1' : '', vk: 0, g: 'ז', c: '3', n: 'תלמיד ' + i,
                at: new Date().toISOString() });
     }
@@ -112,7 +113,7 @@ async function waitSv(p) {
   // ה: סימון בתוך העמדה — השליחה הרגילה (amdaFlush) מאומתת באימות הקל, בלי הורדה
   A.L.get = []; A.L.post = [];
   await p.evaluate(function () {
-    Store.set('amdaQ', [{ id: 'aS1', w: 6, day: amdaDay(), slot: 'S1', kind: 'd', track: 'taanit', daf: 'ו', inst: 'givat',
+    Store.set('amdaQ', [{ id: 'aS1', w: 6, day: amdaDay(), slot: 'S1', kind: 'd', track: 'taanit', daf: LDaf('taanit', amdaWkDay(amdaDay())), inst: 'givat',
       seat: '', lv: '', qz: false, oid: 'o1', dev: '', vk: 0, g: 'ז', c: '4', n: 'עוד אחד', at: new Date().toISOString() }]);
     amdaFlush();
   });
