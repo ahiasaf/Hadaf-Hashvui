@@ -91,6 +91,7 @@ main.wait{visibility:hidden}
 .cob a,.cob button,.cob select{font:inherit;font-size:.86rem;font-weight:700;padding:6px 12px;border-radius:10px;
   border:1px solid #D9CBAE;background:#fff;color:var(--ink);text-decoration:none;cursor:pointer}
 .cob .wa{background:#1FA637;border-color:#1FA637;color:#fff}
+.cob .wa.sent{background:#fff;border-color:#9DB8A2;color:#3F7A4A}
 </style>
 </head>
 <body>
@@ -152,24 +153,56 @@ function when(iso) {
   return isNaN(t.getTime()) ? '' : t.getDate() + '.' + (t.getMonth() + 1) + ' · ' + two(t.getHours()) + ':' + two(t.getMinutes());
 }
 function przNm(k) { return UI['przN_' + k] || k; }
-/* הוואטסאפ — כמו בניהול ← ההגרלה: לזוכה בנוסח שנערך שם, או לרכז (`na`) בשם התלמיד. */
-function coWa(x) {
+/* הוואטסאפ — לזוכה, או לרכז (`na`) בשם התלמיד. ההודעה לפי השלב (8.99.514):
+   אין פרס — הזמנה לבחור; יש שובר — השובר עצמו; פרס בלי שובר — בלי כפתור.
+   כפתור שנלחץ מסומן במכשיר (`df:zchWa`) לפי הזוכה וההגרלה והשלב —
+   כשהשלב מתחלף (נבחר פרס ושויך שובר) הכפתור חוזר להיות "לא נשלח". */
+var WAS = {};
+try { WAS = JSON.parse(ls('df:zchWa') || '{}') || {}; } catch (e) { WAS = {}; }
+function dmy(iso) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  return m ? (+m[3]) + '.' + (+m[2]) + '.' + m[1] : String(iso || '');
+}
+function fillT(t, v) {
+  var o = String(t || '');
+  for (var k in v) o = o.split('{' + k + '}').join(v[k] || '');
+  return o.split('\n').filter(function (l) { return l.replace(/[\s:·,]/g, '') !== '' && !/^בתוקף עד\s*$/.test(l.trim()); }).join('\n');
+}
+function coVch(x) {
+  if (x.v && x.v.c) return x.v;
+  var lk = x.lk || [];
+  return lk.length === 1 && lk[0].c ? { c: lk[0].c, p: lk[0].p } : null;
+}
+function waBtn(num, tx, lbl, key) {
+  var done = !!WAS[key];
+  return '<a class="wa' + (done ? ' sent' : '') + '" target="_blank" rel="noopener" data-b="' + esc(lbl) + '" onclick="coSent(this,\'' + esc(key) + '\')" href="' +
+    esc('https://wa.me/' + waNum(num) + '?text=' + encodeURIComponent(tx)) + '">' +
+    esc(done ? tp(UI.zchWaSent, { b: lbl }) : lbl) + '</a>';
+}
+function coSent(el, key) {
+  WAS[key] = Date.now();
+  try { localStorage.setItem('df:zchWa', JSON.stringify(WAS)); } catch (e) {}
+  el.className = 'wa sent';
+  el.textContent = tp(UI.zchWaSent, { b: el.getAttribute('data-b') || '' });
+}
+function coWa(x, rid) {
+  var vc = coVch(x);
+  if (!vc && x.p) return '';
+  var stage = vc ? 'v:' + vc.c : 'p', key = rid + '|' + x.code + '|' + stage;
+  var vv = vc ? { 'פרס': przNm(vc.p || x.p), 'קוד': vc.c, 'קישור': vc.u || '', 'תוקף': vc.x ? dmy(vc.x) : '' } : {};
   if (x.na) {
     var c = x.co || {};
     if (c.err) return '<span class="co">' + esc(UI.rafWaCoErr) + '</span>';
     if (!c.n) return '<span class="co">' + esc(UI.rafWaCoNone) + '</span>';
     if (digits(c.ph).length < 9) return '<span class="co">' + esc(tp(UI.rafWaCoNoPh, { name: c.n })) + '</span>';
-    var who = (x.name || '') + (x.gc ? ' (' + x.gc + ')' : '');
-    var tx = UI.rafWaCoTx.split('{רכז}').join(c.n).split('{שם}').join(who).split('{ישיבה}').join(x.inst || '');
-    return '<a class="wa" target="_blank" rel="noopener" href="' + esc('https://wa.me/' + waNum(c.ph) + '?text=' + encodeURIComponent(tx)) + '">' +
-      esc(tp(UI.rafWaCo, { name: c.n })) + '</a>';
+    vv['רכז'] = c.n; vv['שם'] = (x.name || '') + (x.gc ? ' (' + x.gc + ')' : ''); vv['ישיבה'] = x.inst || '';
+    return waBtn(c.ph, fillT(vc ? UI.rafWaCoVchTx : UI.rafWaCoTx, vv), tp(UI.rafWaCo, { name: c.n }), key);
   }
   if (digits(x.ph).length < 9) return '';
+  vv['שם'] = x.first || x.name || '';
   var t0 = '';
-  try { t0 = JSON.parse(ls('df:rafWaTx') || '""') || ''; } catch (e) {}
-  var t1 = String(t0 || UI.rafWaTx).split('{שם}').join(x.first || x.name || '');
-  return '<a class="wa" target="_blank" rel="noopener" href="' + esc('https://wa.me/' + waNum(x.ph) + '?text=' + encodeURIComponent(t1)) + '">' +
-    esc(UI.rafWaKid) + '</a>';
+  if (!vc) { try { t0 = JSON.parse(ls('df:rafWaTx') || '""') || ''; } catch (e) {} }
+  return waBtn(x.ph, fillT(vc ? UI.rafWaVchTx : (t0 || UI.rafWaTx), vv), UI.rafWaKid, key);
 }
 function coHtml(x, rid) {
   /* שובר שכבר נמסר ועוד לא קושר (`lk`, 8.99.486) — הפעולות שולחות את המזהה שלו. יותר מאחד — בלי פעולה. */
@@ -178,7 +211,7 @@ function coHtml(x, rid) {
   var pz = x.st === 'arr' ? UI.rafPrzArr : x.p ?
     tp(UI[x.how === 'הוגרל' ? 'rafPrzByAuto' : x.how === 'רכז' ? 'rafPrzByAdm' : 'rafPrzByMe'], { p: przNm(x.p) }) : '';
   var v = x.v, vs = lk.length ? tp(UI.vchStHeld, { c: lk.map(function (q) { return q.c; }).join(' · ') }) : !v ? UI.vchStNone : v.st === 'used' ? UI.vchStUsedZ : v.sn ? tp(UI.vchStSeen, { t: when(v.sn) }) : UI.vchStSet;
-  var b = coWa(x);
+  var b = coWa(x, rid);
   if (lk.length > 1) b += '';
   else if (!x.p) b += '<select onchange="coPrz(' + a + ',this)"><option value="">' + esc(UI.rafPrzSet) + '</option>' +
     PRZK.map(function (k) { return '<option value="' + k + '">' + esc(przNm(k)) + '</option>'; }).join('') + '</select>';
@@ -213,7 +246,7 @@ function coAtt(rid, code, vid) {
 function wl(r) {
   if (!r.w.length) return '<p class="note">' + esc(UI.zchNoWin) + '</p>';
   return '<ul class="wl">' + r.w.map(function (x) {
-    return '<li>' + esc(x.name) + ' <span>· ' + esc(x.inst) + '</span>' + (CO ? coHtml(x, r.rid) : '') + '</li>';
+    return '<li>' + esc(x.name) + ' <span>· ' + esc(x.inst) + '</span>' + (CO ? coHtml(x, x.rid || r.rid) : '') + '</li>';
   }).join('') + '</ul>';
 }
 /* הכותרת לפי המסלול: ההגרלה נערכת בגמר השבוע הקודם, ולכן השורה בלוח

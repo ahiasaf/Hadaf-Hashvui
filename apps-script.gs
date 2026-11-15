@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 219;
+var SCRIPT_VERSION = 220;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -11879,9 +11879,16 @@ function rafWadm_() {
       if (vr > 0) o.v = vchPub_(V, vr, true);
       /* שובר שנמסר ועוד לא קושר (8.99.486) — הרכז מקשר אותו לפי המזהה. */
       else if (V) { var hl = vchHeld_(V, rid, ws); if (hl.length) o.lk = hl.map(function (q) { return { id: V.c(q, 'מזהה'), p: V.c(q, 'פרס'), c: V.c(q, 'קוד') }; }); }
+      o.rid = rid;
       w.push(o);
     });
-    out.push({ day: rafDay_(T.ix['פורסם'] === undefined ? '' : T.rows[r][T.ix['פורסם']]), wk: d.wk, rid: rid, w: w });
+    /* אותו שבוע — רשימה אחת, כמו בציבורי (rafAll_): הכללית מצטרפת למוסדית.
+       לכל זוכה `rid` משלו — הפעולות שולחות את ההגרלה שלו. */
+    var e0 = { day: rafDay_(T.ix['פורסם'] === undefined ? '' : T.rows[r][T.ix['פורסם']]), wk: d.wk, rid: rid, w: w };
+    var hit0 = null;
+    out.forEach(function (q) { if (!hit0 && String(q.wk) === String(d.wk)) hit0 = q; });
+    if (hit0) { hit0.w = e0.w.concat(hit0.w); hit0.day = e0.day; }
+    else out.push(e0);
   }
   return { status: 'ok', list: out, von: vchOn_() ? 1 : 0, vs: V ? vchStock_(V).a : {} };
 }
