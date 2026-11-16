@@ -747,11 +747,8 @@ var GUIDE_UI = (function () {
             (PICS[key] ? pic(PICS[key]) : phone(art())) +
             '</div>';
         }).join('') +
-        '<button class="gu-go" id="gu-next">' + esc(g('fin')) + '</button>' +
       '</div>';
-
-    var b = document.getElementById('gu-next');
-    if (b) b.onclick = function () { if (ONDONE) ONDONE(); };
+    /* בלי "סיימתי" (8.99.521, אחיאסף) — השלב האחרון אומר מה עושים. */
   }
 
   /* ============================================================
@@ -798,10 +795,8 @@ var GUIDE_UI = (function () {
             '<p class="gut-t">' + esc(tx(key)) + '</p></div></li>';
         }).join('') +
         '</ol>' +
-        '<button class="gu-go gut-go" id="gu-next">' + esc(g('fin')) + '</button>' +
       '</div>';
-    var b = document.getElementById('gu-next');
-    if (b) b.onclick = function () { if (ONDONE) ONDONE(); };
+    /* בלי "סיימתי" (8.99.521, אחיאסף) — השלב האחרון אומר מה עושים. */
   }
 
   /* ============================================================
@@ -877,13 +872,11 @@ var GUIDE_UI = (function () {
           '<button class="gu-arw" id="gu-fwd" aria-label="' + esc(g('fwd')) + '">' + chev(-1) + '</button>' +
         '</div>' +
         '<div class="gu-end" id="gu-end">' +
-          '<button class="gu-go" id="gu-next">' + esc(g('fin')) + '</button>' +
           '<button class="gu-again" id="gu-again">' + esc(g('again')) + '</button>' +
         '</div>' +
       '</div>';
 
     var by = function (id) { return document.getElementById(id); };
-    by('gu-next').onclick = function () { playStop(); if (ONDONE) ONDONE(); };
     by('gu-again').onclick = function () { AUTO = true; playAt(0); };
     by('gu-prev').onclick = function () { AUTO = false; playAt(Math.max(0, PAT - 1)); };
     by('gu-fwd').onclick  = function () { AUTO = false; playAt(Math.min(L.length - 1, PAT + 1)); };
