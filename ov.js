@@ -477,6 +477,8 @@
       else {
         h += '<div class="ov-t' + (has(r.note) ? '' : ' no') + '">' +
           esc(has(r.note) ? r.note : U('ovNoteNone')) + '</div>' +
+          (has(r.note) && r.nat ? '<div class="ov-c' + agoCls(r.nat) + '" style="margin:-4px 2px 10px">' +
+            esc(fill(U('ovNoteAt'), { t:[agoTxt(r.nat)].concat(r.nby ? [r.nby] : []).join(' · ') })) + '</div>' : '') +
           (st.save ? '<button class="ov-e" data-ov="edit" data-i="' + i + '">' + esc(U('ovEdit')) + '</button>' : '');
       }
       if (st.extra) h += st.extra(r) || '';

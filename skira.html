@@ -110,7 +110,7 @@ function rowsOf(d) {
   return (d.rows || []).map(function (r) { r.k = r.code || r.name; return r; });
 }
 function save(r, f, v) {
-  return get({ ov:'set', key:KEY, code:r.code || '', name:r.name, f:f, v:v }).then(function (d) {
+  return get({ ov:'set', key:KEY, code:r.code || '', name:r.name, f:f, v:v, by:byName() }).then(function (d) {
     if (!d || !d.ov) throw new Error(T('ovOld'));
     if (d.status !== 'ok') throw new Error(d.message || d.status);
     return d.row;

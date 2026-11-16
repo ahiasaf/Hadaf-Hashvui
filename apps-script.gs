@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 221;
+var SCRIPT_VERSION = 222;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -17698,6 +17698,9 @@ function ovOwn_() {
         var at = h.indexOf(OV_OWN_F_[f]);
         o[f] = at >= 0 ? String(a[i][at] || '').trim() : '';
       });
+      var iNa = h.indexOf(OV_NOTE_AT_), iNb = h.indexOf(OV_NOTE_BY_);
+      o.nat = iNa >= 0 ? String(a[i][iNa] || '').trim() : '';
+      o.nby = iNb >= 0 ? String(a[i][iNb] || '').trim() : '';
       m[c] = o;
     }
     return { sh: sh, h: h, m: m };
@@ -17726,6 +17729,29 @@ function ovOwnSet_(code, f, v) {
   var isPh = f === 'pc' || f === 'pr' || f === 'ph';
   O.sh.getRange(hit.r, col + 1).setValue(v === '' ? '' : isPh ? "'" + v : +v);
   if (at >= 0) O.sh.getRange(hit.r, at + 1).setValue(new Date());
+}
+/* מתי ומי עדכנו את משפט הסיכום — שתי עמודות בלשונית הפרטית (נוספות
+   בכתיבה הראשונה). משפט שנכתב לפני כן — בלי תאריך (לא ידוע). */
+var OV_NOTE_AT_ = 'משפט סיכום — עודכן', OV_NOTE_BY_ = 'משפט סיכום — מי';
+function ovNoteMark_(code, by) {
+  var O = ovOwn_();
+  if (!O) return;
+  var col = function (nm) {
+    var c = O.h.indexOf(nm);
+    if (c < 0) { c = O.h.length; O.sh.getRange(1, c + 1).setValue(nm).setFontWeight('bold'); O.h.push(nm); }
+    return c;
+  };
+  var ca = col(OV_NOTE_AT_), cb = col(OV_NOTE_BY_);
+  var hit = O.m[code];
+  if (!hit) {
+    var row = [];
+    for (var i = 0; i < O.h.length; i++) row.push('');
+    row[O.h.indexOf('קוד')] = code;
+    O.sh.appendRow(row);
+    hit = { r: O.sh.getLastRow() };
+  }
+  O.sh.getRange(hit.r, ca + 1).setValue(new Date().toISOString());
+  O.sh.getRange(hit.r, cb + 1).setValue(by ? ovSafe_(by) : '');
 }
 /* ============================================================
    כפתורי שיחה בקישור למנהלים (19.10.2026).
@@ -17894,6 +17920,11 @@ function ovRow_(T, row, owner, L, own, reps, C) {
   var X = ovTotal_(o, own, reps);
   o.tot = X.tot; o.yn = X.yn;
   o.ppl = ovPpl_(T, row, own, owner);
+  var mNt = own && own.m && o.code ? own.m[o.code] : null;
+  if (mNt && mNt.nat && o.note) {
+    var tNt = Date.parse(mNt.nat);
+    if (tNt) { o.nat = tNt; if (owner && mNt.nby) o.nby = mNt.nby; }
+  }
   if (owner) {
     o.yesh = X.yesh; o.yset = X.yset; o.over = X.over; o.rep = X.rep;
     o.learn = L && o.code ? String(L[o.code] || 0) : '';
@@ -18138,6 +18169,11 @@ function ov_(p) {
       var cell = T.sh.getRange(hit.r, col + 1);
       cell.setValue(ovSafe_(v));
       SpreadsheetApp.flush();
+      /* משפט סיכום — מתי ומי עדכנו (16.11.2026, אחיאסף: "כשמעדכנים — מופיע
+         תאריך העדכון האחרון", כמו ביומן הקשר). בלשונית הפרטית, לא בטבלה. */
+      if (f === 'note' && ovCell_(T, hit, 'code')) {
+        try { ovNoteMark_(ovCell_(T, hit, 'code'), full ? String(p.by || '').slice(0, 40) : ''); } catch (eNm) {}
+      }
       /* הקריאה החוזרת היא האישור — מה שהטבלה מחזיקה עכשיו. */
       hit.v[col] = cell.getValue();
       if (v && (f === 'coord' || f === 'rosh' || f === 'head')) {
