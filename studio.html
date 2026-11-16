@@ -1970,7 +1970,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.516';
+var STUDIO_VER = '8.99.517';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2523,7 +2523,7 @@ function inspSplit() {
   }
   if (!CHV) { say('החברותא עוד לא נטענה — נסו שוב בעוד רגע.', 1); return; }
   if (!st.c || st.c.from == null || !(st.c.to > st.c.from)) {
-    say('לקטע הזה פסקה אחת בלבד בחברותא — אין מה לחלק בין שני קטעים.', 1);
+    say('לקטע הזה פסקה אחת בלבד בחברותא. קודם לפצל את הפסקה: ⋯ ← "✂ פיצול פסקה בחברותא", ואז ✂ כאן.', 1);
     return;
   }
   SPL = { k: INSP, st: st, cEnd: null };
