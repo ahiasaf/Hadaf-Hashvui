@@ -2593,7 +2593,11 @@ function applyRole() {
     $('l-dad-phone').textContent = JOIN.kidPhone;
     $('dad-note').textContent    = JOIN.kidNote;
   } else {
-    $('invWho').style.display = '';
+    /* אצל התלמיד אין בורר "אבא · הבן · חבר": את המוזמן כבר קבעה
+       דרך הלימוד שלמעלה ("עם אבא" — אבא/אמא, "בחבורה" — חבר),
+       והוא עצמו הבן. */
+    $('invWho').innerHTML = '';
+    $('invWho').style.display = 'none';
     $('f-dad-last').style.display = '';
     applyWays();
   }
@@ -2635,6 +2639,7 @@ function applyWays() {
   /* ברירת המחדל נקבעת **כשמשנים דרך לימוד**, ולא בכל ציור.
      כשהיא נקבעה כאן, כל לחיצה על "חבר" נדרסה מיד חזרה ל"אבא"
      — הכפתור נראה שבור. */
+  if (invRel !== 'kid') invRel = way === 'dad' ? 'dad' : 'friend';
   var isDad = invRel === 'dad', isKid = invRel === 'kid';
   /* "אבא" שבנוסחים מתחלף ב"אמא" למי שסימן כך. המילה מגיעה
      מ-`PAIR`, ולכן היא נערכת בניהול ככל נוסח אחר. */
@@ -2660,12 +2665,6 @@ function applyWays() {
                                    'ולהשלים אחר כך.';
   }
 
-  $('invWho').innerHTML = [['dad', JOIN.relDad], ['kid', JOIN.relKid],
-                           ['friend', JOIN.relFriend]]
-    .map(function (o) {
-      return '<button class="whob' + (invRel === o[0] ? ' on' : '') +
-        '" onclick="setRel(\'' + o[0] + '\')">' + esc(o[1]) + '</button>';
-    }).join('');
 }
 
 /* ============================================================
