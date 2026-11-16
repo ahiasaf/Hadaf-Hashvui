@@ -1970,7 +1970,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.515';
+var STUDIO_VER = '8.99.516';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -4572,9 +4572,16 @@ function nextStart() {
    העמוד (`splits`) ומוחל מחדש בכל בנייה של החברותא, אחרת הוא היה
    נעלם בטעינה הבאה והאינדקסים היו זזים תחת הקטעים ששמורים.
 
-   ומותר לפצל רק **קדימה**, מהפסקה הבאה ואילך: הסימון רץ ברצף,
-   וכל מה שכבר שובץ מקובע לאינדקס שלו. פיצול לאחור היה מזיז את
-   כולם ושובר את מה שכבר נשמר.
+   8.99.516 — "אני רוצה לפצל פסקה גם אחרי ששובצה". מותר בכל פסקה.
+   הקטעים זוכרים פסקאות לפי מספר, ולכן הפיצול מזיז את המספרים של כל
+   הקטעים שאחריה (בשני עמודי הדף — `shiftParas_`), והקטע שמחזיק את
+   הפסקה מחזיק עכשיו את שני החצאים. בטקסט ששמור לתלמיד (`c.h`) הפסקה
+   מוחלפת בשתיים — רק המראה משתנה. הפירוש, השאלות וההקלטות קשורים
+   למזהה הקטע ואינם זזים.
+
+   פיצול חדש נשמר עם הנוסח של הפסקה (`[i, at, key]`) ומוחל לפיו —
+   כך הוא נכון גם כשפוצלה קודם פסקה מוקדמת יותר. רשומות ישנות
+   (`[i, at]`) מוחלות לפי המספר, כמו קודם.
    ============================================================ */
 var SPLIT_MODE = false;
 var HIDE_MODE = false;
@@ -4605,13 +4612,33 @@ function cutRuns(runs, at) {
 }
 
 function applySplits(list) {
+  var keyed = [];
   allSplits().forEach(function (sp) {
+    if (sp[2]) { keyed.push(sp); return; }
     var i = sp[0];
     if (!list[i]) return;
     var two = cutRuns(list[i].runs, sp[1]);
     if (!two[0].runs.length || !two[1].runs.length) return;
     list.splice(i, 1, two[0], two[1]);
   });
+  /* לפי הנוסח: סבבים עד שאין עוד מה להחיל — פיצול של חצי שנוצר
+     בפיצול אחר מחכה לסבב שאחריו. נוסח זהה פעמיים — הקרוב למספר. */
+  keyed.sort(function (a, b) { return a[0] - b[0] || a[1] - b[1]; });
+  var go = true;
+  while (go && keyed.length) {
+    go = false;
+    for (var n = 0; n < keyed.length; n++) {
+      var sp = keyed[n], best = -1;
+      for (var j = 0; j < list.length; j++)
+        if (fixKey(list[j].runs) === sp[2] &&
+            (best < 0 || Math.abs(j - sp[0]) < Math.abs(best - sp[0]))) best = j;
+      if (best < 0) continue;
+      keyed.splice(n--, 1); go = true;
+      var two = cutRuns(list[best].runs, sp[1]);
+      if (!two[0].runs.length || !two[1].runs.length) continue;
+      list.splice(best, 1, two[0], two[1]);
+    }
+  }
   return list;
 }
 
@@ -4989,13 +5016,51 @@ function doSplit(i, at) {
   SPLIT_MODE = false;
   document.body.classList.remove('splitting');
   if (!CHV || !CHV[i]) return;
+  var p = CHV[i];
+  var two = cutRuns(p.runs, at);
+  if (!two[0].runs.length || !two[1].runs.length) return;
   var rec = BOOK[PKEY] || (BOOK[PKEY] = {});
-  (rec.splits = rec.splits || []).push([i, at]);
-  var two = cutRuns(CHV[i].runs, at);
+  (rec.splits = rec.splits || []).push([i, at, fixKey(p.runs)]);
+  var oldH = paraHtml_(p);
+  two[0].off = two[1].off = !!p.off;
   CHV.splice(i, 1, two[0], two[1]);
+  /* חצי שני של פסקה מוסתרת — מוסתר גם הוא (ההסתרה לפי תחילת הנוסח) */
+  if (p.off) {
+    var sig = paraSig(two[1]);
+    rec.hidden = rec.hidden || [];
+    if (rec.hidden.indexOf(sig) < 0) rec.hidden.push(sig);
+  }
+  shiftParas_(i, oldH, paraHtml_(two[0]) + paraHtml_(two[1]));
+  seal();
   redrawChav();
   touched();
   say('הפסקה פוצלה · ' + CHV.length + ' פסקאות');
+}
+/* פסקה i נעשתה שתיים: כל מספר פסקה שאחריה עולה באחד, והקטע שמחזיק
+   אותה מחזיק את שני החצאים — בכל עמודי הדף. בראש עמוד א׳, הביאור
+   של קטע המשך (`c`) הוא מקובץ החברותא של הדף הקודם — לא נוגעים. */
+function shiftParas_(i, oldH, newH) {
+  var now = Date.now();
+  var mv = function (c) {
+    if (!c || c.from == null) return false;
+    var to = c.to == null ? c.from : c.to, hit = false;
+    if (c.from > i) { c.from++; hit = true; }
+    if (to >= i) { c.to = to + 1; hit = true; }
+    if (oldH && c.h && c.h.indexOf(oldH) >= 0) { c.h = c.h.replace(oldH, newH); hit = true; }
+    return hit;
+  };
+  hiddenKeys().forEach(function (k) {
+    var pg = +k.split('|')[3] || 1, hit = false;
+    (BOOK[k].steps || []).forEach(function (st) {
+      if (!(st.cont && pg === 1) && mv(st.c)) hit = true;
+      if (mv(st.cj)) hit = true;
+    });
+    if (hit && k !== PKEY) { DIRTY[k] = 1; BOOK[k].t = now; }
+  });
+  if (CSEL_P) {
+    if (CSEL_P.a > i) CSEL_P.a++;
+    if (CSEL_P.b >= i) CSEL_P.b++;
+  }
 }
 
 function chavBind() {
@@ -5005,7 +5070,13 @@ function chavBind() {
       if (HIDE_MODE) { toggleHide(i); return; }
       if (FIX_MODE) { fixSheet(i); return; }
       if (SPLIT_MODE) {
-        if (i <= USED_C) { say('אפשר לפצל רק פסקה שטרם שובצה.', 1); return; }
+        /* הפיצול נשמר לפי הנוסח המקורי, והתיקון — לפי הנוסח של
+           הפסקה השלמה; יחד הם לא היו שורדים טעינה. בתיקון יש
+           "↵ פסקה חדשה", וזה אותו מראה. */
+        if (CHV[i] && CHV[i].orig) {
+          say('בפסקה הזו יש תיקון טקסט. לחלק אותה — ב"✎ תיקון טקסט", בכפתור "↵ פסקה חדשה".', 1);
+          return;
+        }
         splitSheet(i);
       } else pickPara(i);
     };
