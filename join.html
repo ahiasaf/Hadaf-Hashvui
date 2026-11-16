@@ -1121,15 +1121,13 @@ body.wz input[type=text],body.wz input[type=tel],body.wz select{
 .notebar b{display:block;font-size:.88rem;font-weight:800}
 .notebar span{display:block;font-size:.78rem;font-weight:600;color:var(--ink-2);margin-top:2px;line-height:1.5}
 .notebar .btn{margin-top:0;width:auto;flex:0 0 auto;padding:9px 14px;font-size:.84rem}
-/* ---------- פנייה לרכז (8.99.515) ----------
-   כרטיס חם ולא שורת קישור: רקע זהוב רך, בועת שיחה, כפתור וואטסאפ. */
-.tellme{margin-top:16px;padding:18px 16px;border-radius:var(--r);text-align:center;
-  background:linear-gradient(160deg,#FFF8E6,#FDEFD2);border:1px solid #F0D9A6}
-.tellme .tl-i{font-size:1.9rem;line-height:1;display:block}
-.tellme h3{margin-top:8px;font-size:1rem;font-weight:800;line-height:1.45;color:var(--ink)}
-.tellme .btn{margin-top:12px;width:auto;display:inline-block;padding:10px 26px;
-  background:#25D366;box-shadow:none;font-size:.95rem}
-.tellme .wa-i{width:19px;height:19px;vertical-align:-4px;margin-inline-end:7px;fill:#fff}
+/* ---------- פנייה לרכז (8.99.515 · 8.99.518) ----------
+   עדין ונוכח: שורה אחת קטנה, בלי כרטיס גדול. "כתוב!" — קישור וואטסאפ. */
+.tellme{margin:18px auto 0;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;
+  gap:4px 8px;width:fit-content;max-width:100%;padding:8px 16px;border-radius:99px;
+  border:1px solid var(--rule);font-size:.82rem;font-weight:600;color:var(--ink-2);text-align:center}
+.tellme a{display:inline-flex;align-items:center;gap:4px;font-weight:800;color:#1B8F45;text-decoration:none}
+.tellme .wa-i{width:15px;height:15px;fill:#1B8F45}
 .wagrp .ok{margin-top:11px;font-size:.86rem;font-weight:800;
   color:var(--green-d);text-align:center}
 
@@ -6055,8 +6053,8 @@ function drawTell() {
   var num = coordWaNum();
   if (!num || !JOIN.tellT || INTER || demoOn()) { box.innerHTML = ''; return; }
   var ic = '<svg class="wa-i" viewBox="0 0 24 24" aria-hidden="true"><path d="M17.5 14.4c-.3-.2-1.7-.9-2-1-.3-.1-.5-.2-.7.1s-.7 1-.9 1.2c-.2.2-.3.2-.6.1-1.6-.8-2.7-1.5-3.7-3.3-.3-.5.3-.5.8-1.5.1-.2 0-.4 0-.5s-.7-1.6-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.2 5.1 4.4 1.9.8 2.6.9 3.5.8.6-.1 1.7-.7 1.9-1.4.2-.7.2-1.2.2-1.4-.1-.2-.3-.2-.6-.4z"/><path d="M12 2C6.5 2 2 6.5 2 12c0 1.8.5 3.4 1.3 4.9L2 22l5.3-1.3c1.4.8 3 1.2 4.7 1.2 5.5 0 10-4.5 10-10S17.5 2 12 2zm0 18.2c-1.6 0-3.1-.4-4.4-1.2l-.3-.2-3.1.8.8-3-.2-.3c-.9-1.4-1.3-3-1.3-4.6C3.5 7.3 7.3 3.5 12 3.5S20.5 7.3 20.5 12 16.7 20.2 12 20.2z"/></svg>';
-  box.innerHTML = '<div class="tellme"><span class="tl-i" aria-hidden="true">💬</span><h3>' + esc(JOIN.tellT) + '</h3>' +
-    '<a class="btn" target="_blank" rel="noopener" href="https://wa.me/' + num + '">' + ic + esc(JOIN.tellBtn) + '</a></div>';
+  box.innerHTML = '<div class="tellme"><span>' + esc(JOIN.tellT) + '</span>' +
+    '<a target="_blank" rel="noopener" href="https://wa.me/' + num + '">' + ic + esc(JOIN.tellBtn) + '</a></div>';
 }
 
 /* ============================================================
