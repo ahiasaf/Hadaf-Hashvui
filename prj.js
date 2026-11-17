@@ -19,6 +19,7 @@
      קצר, בהדגמה בלבד); חידון — כשהאימות (`tkd`) נושא ציון שעובר.
      כרטיס אבא — תמיד ריק. מועד ההגרלה — כמו אצל תלמיד אמיתי.
    · **וואטסאפ** — במקום לפתוח, תצוגה מקדימה של ההודעה.
+   · **בלי תווית "הדגמה" על המסך** (17.11, אחיאסף).
    · **בלי חלונות מערכת:** בקשת ההתראות עונה "default" בלי לשאול.
 
    מחוץ להדגמה — הקובץ חוזר מיד ואינו נוגע בדבר.
@@ -314,9 +315,6 @@
     var s = document.createElement('style');
     s.id = 'prj-css';
     s.textContent =
-      '#prj-tag{position:fixed;top:8px;left:8px;z-index:2147483000;pointer-events:none;' +
-      'background:rgba(23,70,143,.86);color:#fff;font:700 .78rem/1.2 inherit;font-family:inherit;' +
-      'padding:5px 11px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.18)}' +
       '#prj-wa{position:fixed;inset:0;z-index:2147483001;background:rgba(10,25,50,.55);display:flex;' +
       'align-items:center;justify-content:center;padding:16px}' +
       '#prj-wa .prj-wa-in{background:#fff;border-radius:18px;max-width:30rem;width:100%;padding:20px 18px;' +
@@ -329,17 +327,9 @@
       'background:#17468F;color:#fff;font:inherit;font-size:1.08rem;font-weight:800;cursor:pointer}';
     (document.head || document.documentElement).appendChild(s);
   }
-  function tag() {
-    var U = window.UI || {};
-    css();
-    if (!U.prjTag || document.getElementById('prj-tag')) return;
-    var t = document.createElement('div');
-    t.id = 'prj-tag';
-    t.textContent = U.prjTag;
-    document.body.appendChild(t);
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tag);
-  else tag();
+  /* בלי תווית "הדגמה" על המסך (17.11, אחיאסף) — רק העיצוב של התצוגה המקדימה. */
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', css);
+  else css();
 
   /* מועד ההגרלה האחרונה — פעם בעמוד, אחרי ש-data.js נטען. */
   function lwGo() { lwLoad(F, window.APPS_SCRIPT_URL || ''); }

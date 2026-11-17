@@ -21,6 +21,9 @@ jobs:
             curl -sS -L -o out.txt -w "%{http_code} %{time_total}s" --max-time 60 "$API?$q" > meta.txt 2>&1 || true
             echo "$(cat meta.txt) · $q · $(head -c 160 out.txt | tr '\n' ' ')"
           }
+          # השולחן הזוכה בעמוד הזוכים (17.11) — אבחון בלי שמות, והרשימה הציבורית.
+          t "raffle=chw"; cat out.txt; echo
+          t "raffle=all"; head -c 1500 out.txt | grep -o '"ch":[^]]*]' | head -3; echo
           for i in 1 2 3; do
             t "pts=me&id=ZZPROBE$i"
             t "inbox=ZZPROBE$i"

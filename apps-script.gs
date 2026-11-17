@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 223;
+var SCRIPT_VERSION = 224;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -12522,6 +12522,19 @@ function chWinPub_() {
   });
   return out;
 }
+function chWinDiag_() {
+  var rc = chCache_(), M = chModelHit_(rc, 'chal:r', true), src = M ? 'cache' : 'build';
+  if (!M) { try { M = chModel_({ test: false }, false); } catch (e) { return { status: 'ok', err: String(e && e.message || e) }; } }
+  if (!M) return { status: 'ok', src: src, M: 0 };
+  var gOf = {};
+  (M.grp || []).forEach(function (g) { gOf[g.id] = g; });
+  return { status: 'ok', src: src, on: M.on ? 1 : 0, ng: (M.grp || []).length, npp: Object.keys(M.ppl || {}).length,
+           ms: (M.ms || []).map(function (m) {
+             var g = m.sel ? gOf[m.sel] : null;
+             return { k: m.k, st: m.st, man: m.man, sel: m.sel ? 1 : 0, g: g ? 1 : 0, gn: g ? [g.by].concat(g.f || []).filter(function (x) { return !!x; }).length : 0,
+                      wk: chWkOf_(chMs_(m.date) || m.frz || m.selAt || m.okAt || 0), okAt: m.okAt ? 1 : 0 };
+           }), pub: chWinPub_().length };
+}
 function chWkOf_(ms) {
   var d = Utilities.formatDate(new Date(ms), 'Asia/Jerusalem', 'yyyy-MM-dd');
   var days = Math.round((Date.parse(d + 'T00:00:00Z') - Date.parse(PROG_START + 'T00:00:00Z')) / 864e5);
@@ -13311,6 +13324,8 @@ function raffleRoute_(e) {
     if (op === 'vused') return reply_(e, rafVUsed_(P));
     if (op === 'vseen') return reply_(e, rafVSeen_(P));
     if (op === 'all') return reply_(e, rafAll_());
+    /* אבחון בלבד (17.11): למה השולחן הזוכה לא בעמוד הזוכים — מצבים ומספרים, בלי שמות ובלי מזהים. */
+    if (op === 'chw') return reply_(e, chWinDiag_());
     if (!READ_KEY || String(P.key || '') !== READ_KEY) return reply_(e, { status: 'denied', message: 'אין הרשאה' });
     if (op === 'pic') {
       var pc = rafPic_();
