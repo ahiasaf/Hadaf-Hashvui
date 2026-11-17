@@ -9,14 +9,15 @@
      ב-sessionStorage האמיתי תחת `prj:ls`/`prj:ss` — שורד מעבר בין
      עמודים (הבית ← הדף ← יציאה), ונמחק ב"התחלה מחדש" ובסגירת הלשונית.
      החשבון האמיתי במכשיר אינו נקרא ואינו משתנה.
-   · **תלמיד לדוגמה** (`PRJ_ID`) שנוצר מעצמו, בלי הרשמה. השם — מ-UI
-     (data.js), כשהוא נקרא לראשונה.
+   · **תלמיד חדש** (17.11, אחיאסף): בלי פרופיל — המסך הראשון הוא מסך הנחיתה
+     עם "אני מצטרף", והלחיצה מתחילה את התהליך של תלמיד (ההרשמה לא נשמרת בשרת).
    · **בלי כתיבה לשרת.** כל POST / sendBeacon לסקריפט — נבלע ומסומן
      כאן בלבד. JSONP/fetch לסקריפט — רק קריאות ציבוריות עוברות (`PASS`);
      הכרטיסים (`pts=me`) נבנים כאן; מצב חבר מביא חבר (`challenge=my`)
      — מהשרת, עם המזהה לדוגמה, וגלוי תמיד; כל השאר — תשובה ריקה.
-   · **הכרטיסים:** לימוד — מהשורה הראשונה שנשלחת ל"לימוד" (גם לימוד
-     קצר, בהדגמה בלבד); חידון — כשהאימות (`tkd`) נושא ציון שעובר.
+   · **הכרטיסים:** לימוד — מההתקדמות הראשונה בדף (`df:pos-mile`/`df:learned`,
+     או שורה ל"לימוד"; גם לימוד קצר, בהדגמה בלבד); חידון — ציון שעובר
+     (`df:qres:` במכשיר, או האימות `tkd`).
      כרטיס אבא — תמיד ריק. מועד ההגרלה — כמו אצל תלמיד אמיתי.
    · **וואטסאפ** — במקום לפתוח, תצוגה מקדימה של ההודעה.
    · **בלי תווית "הדגמה" על המסך** (17.11, אחיאסף).
@@ -49,8 +50,8 @@
     var has = function (k) { return Object.prototype.hasOwnProperty.call(m, k); };
     var save = function () { rp(key, JSON.stringify(m)); };
     var s = {
-      getItem: function (k) { k = String(k); if (key === 'prj:ls' && k === 'df:me' && !has(k)) meSeed(m); return has(k) ? m[k] : null; },
-      setItem: function (k, v) { m[String(k)] = String(v); save(); },
+      getItem: function (k) { k = String(k); return has(k) ? m[k] : null; },
+      setItem: function (k, v) { m[String(k)] = String(v); save(); if (key === 'prj:ls') watch(String(k), String(v)); },
       removeItem: function (k) { delete m[String(k)]; save(); },
       clear: function () { m = {}; save(); },
       key: function (i) { var ks = Object.keys(m); return i >= 0 && i < ks.length ? ks[i] : null; }
@@ -59,19 +60,17 @@
     save();
     return s;
   }
-  /* הפרופיל — בקריאה הראשונה, כשהנוסח (data.js) כבר נטען. */
-  function meSeed(m) {
-    var U = window.UI || {};
-    m['df:me'] = JSON.stringify({ id: PRJ_ID, first: U.prjFirst || '', last: U.prjLast || '', role: 'kid',
-                                  inst: '', instName: '', way: 'solo' });
-    rp('prj:ls', JSON.stringify(m));
+  /* מה שהדף כותב במכשיר — הסימן לכרטיסים (תלמיד בלי פרופיל אינו שולח לשרת). */
+  function watch(k, v) {
+    if (k === 'df:pos-mile' || k === 'df:learned') { try { setTimeout(function () { stSet('l'); }, 0); } catch (e) {} return; }
+    if (k.indexOf('df:qres:') === 0) {
+      var m = String(v).match(/^(\d+)\/(\d+)$/), r = m ? +m[1] : 0, n = m ? +m[2] : 0;
+      if (n > 0 && (r * 5 >= n * 4 || (n >= 3 && r >= n - 1))) setTimeout(function () { stSet('q'); }, 0);
+    }
   }
   var LS = store('prj:ls', function (m) {
     var j = function (v) { return JSON.stringify(v); };
-    /* האשף הסתיים, האפליקציה "מותקנת", חלון ההשקה של המבצע כבר נראה. */
-    m['df:wz-fin'] = j(PRJ_ID);
-    m['df:appAdded'] = '1';
-    m['df:noteOn'] = PRJ_ID;
+    /* חלון ההשקה של המבצע כבר נראה; קוד הזמנה לדוגמה (לתצוגה המקדימה של וואטסאפ). */
     m['df:chPromo'] = j('999999');
     m['df:chCodeR'] = j('DEMO');
     m['df:chCodeT'] = j('DEMO');
@@ -99,6 +98,7 @@
       if (c && c.nx) { c.nx = tk(); LS.setItem('df:ptsMe', JSON.stringify(c)); }
     } catch (e) {}
     if (typeof window.drawPts === 'function') { try { window.drawPts(); } catch (e2) {} }
+    if (typeof window.prjTk === 'function') { try { window.prjTk(); } catch (e3) {} }
   }
 
   /* ---------- מועד ההגרלה — כמו אצל תלמיד אמיתי (rafNext_) ---------- */

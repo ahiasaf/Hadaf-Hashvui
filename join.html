@@ -1528,6 +1528,9 @@ html.inter .masthead .m img{width:auto;height:52px}
    ============================================================ */
 #prjx[hidden]{display:none}
 #prjx{margin-top:18px}
+body:not(.land) #prjx{display:none}
+#prjx .mytk{margin-top:4px}
+.prj-gk + #gu-here{margin-top:12px}
 .prj-go{display:block;margin:4px 0 0;padding:16px 14px;border-radius:16px;background:var(--blue-d);color:#fff;
   font-size:1.15rem;font-weight:800;text-align:center;text-decoration:none;box-shadow:0 6px 16px rgba(11,37,80,.22)}
 .prj-card{margin-top:18px;background:#FFFDF8;border-radius:18px;padding:20px 16px;box-shadow:0 2px 10px rgba(11,37,80,.08);
@@ -1787,6 +1790,10 @@ html.inter .masthead .m img{width:auto;height:52px}
   </div><!-- /s-ways -->
 </main>
 
+<!-- הדגמה במקרן בלבד (/hatzaga): מתחת למסך הנחיתה — הכרטיסים, השולחן, הפרסים והזוכים, הברקוד,
+     התחלה מחדש. רק כשהנחיתה על המסך (body.land). prjDraw. -->
+<div class="wrap" id="prjx" hidden></div>
+
 <div id="done">
   <!-- מה שהתלמיד רואה הוא **בדיוק** מה שיש במסך הראשי, ובתווית
        יושב שמו שלו. זה הבאנר שלו.
@@ -1821,8 +1828,6 @@ html.inter .masthead .m img{width:auto;height:52px}
     <!-- הגרלת הרביעיות — ריק כשכבויה. ראו quad.js. -->
     <div id="quad"></div>
     <div id="wk-more"></div>
-    <!-- הדגמה במקרן בלבד (/hatzaga): הפרסים והזוכים, הברקוד, מדריך ההתקנה, התחלה מחדש. prjDraw. -->
-    <div id="prjx" hidden></div>
   </div>
 
   <!-- "איך זוכים בכרטיסים?" — מסך ההסבר (tkHowOpen). -->
@@ -5241,10 +5246,13 @@ function wzDraw() {
        המכשיר הזה) או standalone — כלומר `appInstalled()`, או brwOn.
        אין אות — המדריך נשאר כמו שהוא ונגלל לשלב האחרון שלו ("צאו
        מהדפדפן ולחצו על האייקון החדש"), בלי להתחיל מההתחלה. */
-    GUIDE_UI.mount(gbox, function () {
+    var guDone = function () {
       if (appInstalled() || brwOn()) { wzGo(wzWhere()); return; }
       wzToLast();
-    }, { play: true, go: WZ_WENT, sam: true, edge: true });
+    }, guOpt = { play: true, go: WZ_WENT, sam: true, edge: true };
+    GUIDE_UI.mount(gbox, guDone, guOpt);
+    /* ההדגמה במקרן — בחירת סוג הטלפון מעל המדריך (prjGu). */
+    if (window.PrjOn) prjGu(gbox, guOpt, guDone);
   }
   /* הסימון של אייקון סמסונג — רק בזמן שהמדריך שלו על המסך. */
   if (wzStep === 1 && gbox && APPX.addPage && APPX.addPage()) APPX.iconTag();
@@ -5292,7 +5300,9 @@ function wzToLast() {
    **והלשונית שנפתחה בכרום כבר לחצה.** היא נושאת `nointro=1`
    (ראו noIntroHref ב-getapp.js), ושם ההדגמה מוצגת מיד — אחרת
    היא הייתה מציגה שוב את אותו כפתור, ושולחת לעוד לשונית. */
-var WZ_WENT = /[?&]nointro=1\b/.test(location.search);
+var WZ_WENT = /[?&]nointro=1\b/.test(location.search) ||
+  /* ההדגמה במקרן — המדריך מיד, בלי מעבר לכרום (המחשב של המקרן אינו הטלפון). */
+  !!window.PrjOn;
 document.addEventListener('click', function (e) {
   var a = e.target && e.target.closest ? e.target.closest('#wz .wa-box a[href]') : null;
   if (!a || WZ_WENT) return;
@@ -6332,44 +6342,57 @@ stage();
 /* ============================================================
    הדגמה במקרן (בריף 17.11.2026) — /hatzaga, ראו prj.js.
    ============================================================
-   הבית של התלמיד לדוגמה, כמו שהוא. מתחת לשולחן: הפרסים והזוכים
-   (zochim, בלי מזהה), ברקוד וכפתור העתקה של קישור ההצטרפות הרגיל
-   (join, בלי שום פרמטר), מדריך ההתקנה עם כל המסלולים כמו בניהול,
-   ו"התחלה מחדש" — שמנקה רק את ההדגמה. */
+   תלמיד חדש (17.11, אחיאסף): מסך הנחיתה כמו שהוא — "אני מצטרף" מתחיל
+   את התהליך של תלמיד, ובשלב ההתקנה — המדריך, עם בחירת סוג הטלפון (prjGu).
+   מתחת לנחיתה: כרטיסי ההגרלה (tkCardHtml, מהמצב של ההדגמה), השולחן
+   (CHAL.card), הפרסים והזוכים (zochim, בלי מזהה), ברקוד וכפתור העתקה של
+   קישור ההצטרפות הרגיל (join, בלי שום פרמטר), ו"התחלה מחדש". */
 var PRJ_GK = 'ios';
 function prjUrl() {
   return location.origin + location.pathname.replace(/[^\/]*$/, '') + PageUrl('join');
+}
+function prjTk() {
+  var t = $('prj-tk');
+  if (!t || !window.__prjPts) return;
+  var r = window.__prjPts();
+  t.innerHTML = tkCardHtml({ v: 2, nx: r.nx, n: 0, l: [] });
 }
 function prjDraw() {
   var box = $('prjx');
   if (!box || !window.PrjOn) return;
   if (!/(^|\s)prjon(\s|$)/.test(document.body.className)) document.body.className += ' prjon';
+  /* "איך זוכים בכרטיסים?" — המסך יושב בתוך הבית (#done), שמוסתר בנחיתה. */
+  var how = $('tkhow');
+  if (how && how.parentNode !== document.body) document.body.appendChild(how);
   var svg = '';
   try { if (window.QR) svg = QR.svg(prjUrl(), { color: '#17468F', label: esc(UI.prjQrH || '') }); } catch (e) { svg = ''; }
-  var K = (window.GUIDE_UI && GUIDE_UI.kinds) ? GUIDE_UI.kinds() : [];
-  box.innerHTML = '<a class="prj-go" href="' + PageUrl('zochim') + '">' + esc(UI.prjWin) + ' ←</a>' +
+  box.innerHTML = '<div class="mytk" id="prj-tk"></div><div id="prj-ch"></div>' +
+    '<a class="prj-go" href="' + PageUrl('zochim') + '">' + esc(UI.prjWin) + ' ←</a>' +
     '<div class="prj-card"><h2>' + esc(UI.prjQrH) + '</h2>' + (svg ? '<div class="prj-qr">' + svg + '</div>' : '') +
     '<button type="button" class="prj-cp" onclick="prjCopy()">' + esc(UI.prjCopy) + '</button></div>' +
-    (K.length ? '<div class="prj-card"><h2>' + esc(UI.prjGuideH) + '</h2><div class="prj-gk">' +
-      K.map(function (k) {
-        return '<button type="button" data-k="' + k[0] + '"' + (k[0] === PRJ_GK ? ' class="on"' : '') +
-          ' onclick="prjGk(\'' + k[0] + '\')">' + esc(k[1]) + '</button>';
-      }).join('') + '</div><div id="prj-gu"></div></div>' : '') +
     '<button type="button" class="prj-rs" onclick="prjReset()">' + esc(UI.prjReset) + '</button>';
   box.hidden = false;
-  prjGuide();
+  prjTk();
+  if (window.CHAL && CHAL.card) CHAL.card($('prj-ch'));
 }
-function prjGuide() {
-  var g = $('prj-gu');
-  if (!g || !window.GUIDE_UI) return;
+/* בשלב ההתקנה של התהליך: בחירת סוג הטלפון מעל המדריך — המחשב של המקרן אינו טלפון. */
+function prjGu(gbox, opt, done) {
+  if (!window.PrjOn || !gbox || !window.GUIDE_UI || !GUIDE_UI.kinds) return;
+  var bar = $('prj-gk');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'prj-gk';
+    bar.className = 'prj-gk';
+    gbox.parentNode.insertBefore(bar, gbox);
+  }
+  bar.innerHTML = GUIDE_UI.kinds().map(function (k) {
+    return '<button type="button" data-k="' + k[0] + '"' + (k[0] === PRJ_GK ? ' class="on"' : '') + '>' + esc(k[1]) + '</button>';
+  }).join('');
+  [].forEach.call(bar.querySelectorAll('button'), function (b) {
+    b.onclick = function () { PRJ_GK = b.getAttribute('data-k'); prjGu(gbox, opt, done); };
+  });
   GUIDE_UI.force(PRJ_GK);
-  GUIDE_UI.mount(g, function () { prjGuide(); }, { trail: true });
-}
-function prjGk(k) {
-  PRJ_GK = k;
-  var b = document.querySelectorAll('#prjx .prj-gk button');
-  for (var i = 0; i < b.length; i++) b[i].className = b[i].getAttribute('data-k') === k ? 'on' : '';
-  prjGuide();
+  GUIDE_UI.mount(gbox, done, opt);
 }
 function prjCopy() {
   var u = prjUrl(), ok = function () { SayMsg(UI.prjCopied); };

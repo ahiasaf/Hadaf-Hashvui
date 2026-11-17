@@ -70,7 +70,8 @@
 
   /* ---- מי אני, ואיפה השרת ---- */
   function me() { var m = LMe(); return m && m.id ? m : null; }
-  function student() { var m = me(); return !!(m && m.first && m.role !== 'dad'); }
+  /* ההדגמה במקרן (prj.js) — תלמיד חדש בלי פרופיל, והשולחן מוצג מתחת לבאנר. */
+  function student() { var m = me(); return !!(m && m.first && m.role !== 'dad') || !!window.PrjOn; }
   function ids() {
     var m = me(), out = [];
     if (m) out.push(m.id);
