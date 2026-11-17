@@ -3179,7 +3179,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.525';
+var APP_VERSION = '8.99.526';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7520,7 +7520,7 @@ function pullCalls() {
        חדש יותר — כך ששיחה שתועדה במטוס לא נדרסת בטעינה. */
     var was = {};
     (log || []).slice(1).forEach(function (r2) {
-      if (!r2[0]) return;
+      if (!r2[0] || jnlRowIs(r2)) return;
       /* תגיות: מהעמודה החדשה, ואם היא ריקה (שורה ישנה, נכתבה
          לפני שהתגיות היו) — מתרגמים את "סבב" הישן ל-'called',
          בדיוק כמו במיגרציה של contacts(). שורה ישנה בלי אף אחת
@@ -7597,7 +7597,7 @@ function pullCalls() {
       var hasC = {};
       out.forEach(function (c) { hasC[nameKey(c.key || c.name)] = 1; });
       Store.set('callOrphans', log.slice(1).filter(function (r2) {
-        return r2 && String(r2[0] || '').trim() && !hasC[nameKey(r2[0])];
+        return r2 && String(r2[0] || '').trim() && !jnlRowIs(r2) && !hasC[nameKey(r2[0])];
       }).map(function (r2) {
         return r2.slice(0, 5).map(function (v) { return v == null ? '' : String(v); });
       }));
@@ -7703,6 +7703,8 @@ function tsOf(v) {
 }
 /* המיזוג: לכל ישיבה — החותמת החדשה יותר מנצחת. ישיבה שיש לה
    שורה בגיליון ואין לה כרטיס במכשיר — השורה נשארת כמות שהיא. */
+/* שורת תיעוד מהסקירה (17.11.2026) — "סטטוס" = "תיעוד". אינה מצב של ישיבה. */
+function jnlRowIs(r) { return !!r && String(r[1] || '').trim() === 'תיעוד'; }
 function callMergeRows(rows, list, sheet) {
   if (!sheet || sheet.length < 2) return rows;
   var W = 10, out = rows.slice(), at = {}, mine = {};
@@ -7712,6 +7714,8 @@ function callMergeRows(rows, list, sheet) {
     if (!r || !String(r[0] || '').trim()) return;
     var k = nameKey(r[0]), row = [];
     for (var x = 0; x < W; x++) row.push(r[x] == null ? '' : r[x]);
+    /* שורות התיעוד נשמרות כמו שהן — כל אחת (וגם השרת שומר אותן, ovJnlKeep_). */
+    if (jnlRowIs(r)) { out.push(row); return; }
     var c = mine[k];
     if (!c) { if (at[k] == null) { at[k] = out.length; out.push(row); } return; }
     if (tsOf(r[3]) > tsOf(c.at)) {
@@ -8096,6 +8100,38 @@ function blastText(c, q) {
   });
 }
 
+/* ============================================================
+   "מסר לישיבות" (17.11.2026) — כלי ההודעה המרוכזת של המוקד, כמות שהוא:
+   הקישורים לראש ישיבה, הנוסחים, "הודעה לכולם", ולכל ישיבה התצוגה
+   המקדימה וכפתור וואטסאפ (blastText/blastMark — אותם מהמוקד).
+   העריכה נשמרת במכשיר; כל שליחה — לחיצה ידנית. אין שליחה אוטומטית.
+   ============================================================ */
+function msgTab(list) {
+  var h = '<a class="btn p" style="margin:0 0 6px;text-decoration:none;display:block;text-align:center" target="_blank" ' +
+    'rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(fill(UI.kishWa,
+      { url: joinUrl('').replace('join.html', 'kishurim.html') })) + '">📨 ' + esc(UI.kishBtn) + '</a>' +
+    '<button class="back" style="margin:0 0 12px" onclick="admSubGo(\'links\')">✎ ' + esc(UI.kishTexts) + '</button>';
+  if (!list.length) {
+    return h + '<div class="msg">' + esc(UI.msgNoList) + '</div>' +
+      '<button class="btn g" onclick="pullCalls().then(renderCalls)">' + esc(UI.msgLoad) + '</button>';
+  }
+  h += blastCard(list);
+  var log = blastLog();
+  list.forEach(function (c) {
+    var q = mainOf(c);
+    if (!q || !q.phone) return;
+    var k = blastKey(c, q), sent = !!log[k], tx = blastText(c, q);
+    h += '<div class="card" style="margin:0 0 8px;padding:12px 14px">' +
+      '<div class="row" style="padding:0"><div><b>' + esc(c.name) + '</b><div class="sub">' + esc(q.name || '') + '</div></div>' +
+      '<a class="btn p" style="margin:0;flex:none;text-decoration:none;padding:8px 14px" target="_blank" rel="noopener" ' +
+        'href="https://wa.me/' + waNum(q.phone) + '?text=' + encodeURIComponent(tx) + '" data-bk="' + esc(k) +
+        '" onclick="blastMark(this.getAttribute(\'data-bk\'))">' + esc(sent ? UI.msgSent : UI.msgSend) + '</a></div>' +
+      '<details style="margin-top:6px"><summary style="cursor:pointer;font-size:.82rem;font-weight:800;color:var(--blue,#17468F)">' +
+        esc(UI.msgPeek) + '</summary><div class="cond" style="margin-top:6px">' + esc(tx).replace(/\n/g, '<br>') + '</div></details>' +
+      '</div>';
+  });
+  return h;
+}
 function blastCard(list) {
   var raw = textGet('ui.blastWa'), on = blastOn();
   var d = CFG.texts || {};
@@ -9059,8 +9095,12 @@ function ovLoad(force, fresh) {
     else if (d.status !== 'ok') ovState.msg = d.message || d.status;
     else {
       ovState.msg = '';
+      /* התיעוד, המצב והסבבים — רק כשנקראו (null בשרת = לא נקרא ← מה שבמכשיר נשאר). */
+      var D0 = Store.get('ovData', null) || {};
       Store.set('ovData', { rows:d.rows || [], other:d.other || [], sheet:d.sheet || '',
-                            hasKey:!!d.hasKey, actLeft:!!d.actLeft, at:d.at || '' });
+                            hasKey:!!d.hasKey, actLeft:!!d.actLeft, at:d.at || '',
+                            jn:d.jn || D0.jn || null, stg:d.stg || D0.stg || null,
+                            rounds:d.rounds || D0.rounds || null });
       Store.set('ovAt', Date.now());
       ovCodes(d.rows || []);
     }
@@ -9167,11 +9207,119 @@ function coTab() {
   groups.sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'he'); });
   return OV.coHtml(groups, UI.coNone);
 }
+/* ============================================================
+   פרישת מוקד השיחות (17.11.2026) — הסקירה היא מקום העבודה.
+   ============================================================
+   תיעוד שיחה (שורה ב"יומן שיחות"), מצב השתתפות (אותה עמודה שהמוקד
+   כתב, ומשם "הצטרפו"), וסבבים (לשונית "סבבים"). ראו ovJnlAdd_ /
+   ovStgSet_ / ovRnd_ ב-apps-script.gs. */
+/* תווית הפרשה של השבוע שבו נכתב — אותה שורה בלוח שהמסלול מציג (row[1]). */
+function ovParasha(ms) {
+  if (!ms || typeof CAL_TAANIT === 'undefined') return '';
+  var start = new Date(PROGRAM.startDate + 'T00:00:00'), d = new Date(ms);
+  d.setHours(0, 0, 0, 0);
+  var w = Math.floor(Math.round((d - start) / 864e5) / 7);
+  if (w < 0) {
+    var e = PROGRAM.earlyFrom ? new Date(PROGRAM.earlyFrom + 'T00:00:00') : null;
+    w = e && d >= e ? 0 : -1;
+  }
+  var row = w >= 0 ? CAL_TAANIT[w] : null;
+  return row ? String(row[1] || '') : '';
+}
+/* השמות של הישיבה — בטבלת הסקירה ובמוקד (לפי הקוד). */
+function ovNames(r) {
+  var out = [r.name];
+  contacts().forEach(function (c) {
+    var i = instByName(c.key || c.name);
+    if (i && r.code && i.code === r.code && out.indexOf(c.key || c.name) < 0) out.push(c.key || c.name);
+  });
+  return out;
+}
+function ovJnlOf(r) {
+  var D = Store.get('ovData', null) || {}, ks = {};
+  ovNames(r).forEach(function (n) { ks[nameKey(n)] = 1; });
+  return (D.jn || []).filter(function (j) {
+    if (ks[nameKey(j.n)]) return true;
+    var i = instByName(j.n);
+    return !!(i && r.code && i.code === r.code);
+  }).sort(function (a, b) { return (b.t || 0) - (a.t || 0); });
+}
+/* המצב — מהמוקד שבמכשיר (המקור של "הצטרפו"), ובלעדיו מהגיליון. '' = לא ידוע. */
+function ovStgOf(r) {
+  var v = '';
+  contacts().forEach(function (c) {
+    var i = instByName(c.key || c.name);
+    if (!v && i && r.code && i.code === r.code && c.stage) v = c.stage;
+  });
+  if (v) return v;
+  var D = Store.get('ovData', null) || {}, m = D.stg || {};
+  return m[nameKey(r.name)] || '';
+}
+function ovJnlAdd(r, text) {
+  return scriptGet({ ov:'jnl', key:(CFG.readKey || '').trim(), code:r.code || '', name:r.name, v:text }).then(function (d) {
+    if (!d || !d.ov) throw new Error(UI.ovOld);
+    if (d.status !== 'ok') throw new Error(d.message || d.status);
+    var D = Store.get('ovData', null);
+    if (D) { D.jn = d.jn || D.jn; Store.set('ovData', D); }
+    return true;
+  });
+}
+var RND = { ed:null, busy:false };
+function ovRnds() { return (Store.get('ovData', null) || {}).rounds || []; }
+function ovRndReq(q) {
+  q.ov = 'rnd'; q.key = (CFG.readKey || '').trim();
+  return scriptGet(q).then(function (d) {
+    if (!d || !d.ov) throw new Error(UI.ovOld);
+    if (d.status !== 'ok') throw new Error(d.message || d.status);
+    var D = Store.get('ovData', null) || {};
+    D.rounds = d.rounds || []; Store.set('ovData', D);
+    return d.rounds;
+  });
+}
+var OV_RND_C = ['g', 'y', 'r', 'b', 'p', 'n'];
+function ovRndBar() {
+  return OV.rbarHtml(ovRnds(), RND.ed, RND.busy, OV_RND_C);
+}
+function ovRndAdd() {
+  var E = RND.ed;
+  if (!E || RND.busy) return;
+  var n = String(E.n || '').trim();
+  if (!n) { var i0 = document.getElementById('rnd-n'); if (i0) i0.focus(); return; }
+  RND.busy = true; ovRepaint();
+  ovRndReq({ op:'add', n:n, cl:E.c }).then(function () { RND.busy = false; RND.ed = null; ovRepaint(); },
+    function (e) { RND.busy = false; ovRepaint(); SayMsg(fill(UI.ovSaveFail, { t:(e && e.message) || '' })); });
+}
+function ovRndDel(id) {
+  if (!SureLater(ovRndDel, this, arguments)) return;
+  ovRndReq({ op:'del', id:id }).then(function () { ovRepaint(); },
+    function (e) { SayMsg(fill(UI.ovSaveFail, { t:(e && e.message) || '' })); });
+}
+var OV_RND = {
+  list: ovRnds,
+  has: function (r, id) {
+    var x = ovRnds().filter(function (y) { return y.id === id; })[0];
+    return !!(x && r.code && x.y.indexOf(r.code) >= 0);
+  },
+  tog: function (r, id, on) { return ovRndReq({ op:'tog', id:id, code:r.code, on:on ? '1' : '0' }); }
+};
 function ovSave(r, f, v) {
-  return scriptGet({ ov:'set', key:(CFG.readKey || '').trim(), code:r.code || '', name:r.name, f:f, v:v })
+  var q = { ov:'set', key:(CFG.readKey || '').trim(), code:r.code || '', name:r.name, f:f, v:v };
+  if (f === 'stg') q.cn = JSON.stringify(ovNames(r).slice(1));
+  return scriptGet(q)
     .then(function (d) {
       if (!d || !d.ov) throw new Error(UI.ovOld);
       if (d.status !== 'ok') throw new Error(d.message || d.status);
+      if (f === 'stg') {
+        /* המוקד שבמכשיר — אותו מצב ואותה חותמת, כדי ש"הצטרפו" יתעדכן מיד. */
+        var l = contacts(), ch = false;
+        l.forEach(function (c) {
+          var i = instByName(c.key || c.name);
+          if (i && r.code && i.code === r.code) { c.stage = d.stg; c.at = d.at; jnl(c); ch = true; }
+        });
+        if (ch) saveContacts(l);
+        var D1 = Store.get('ovData', null);
+        if (D1) { D1.stg = D1.stg || {}; D1.stg[nameKey(d.n || r.name)] = d.stg; D1.stg[nameKey(r.name)] = d.stg; Store.set('ovData', D1); }
+      }
       var D = Store.get('ovData', null);
       if (D) {
         D.rows = (D.rows || []).map(function (x) {
@@ -9299,7 +9447,7 @@ function ovAdmTop() {
   /* עמודת "לומדים בפועל" נשארה בטבלה כי יש בה ערך — הסקריפט אינו
      מוחק נתון בשקט. ראו ovDropAct_. */
   if (D && D.actLeft) h += '<div class="msg" style="margin:0 0 10px">' + esc(UI.ovActLeft) + '</div>';
-  h += '<div id="ov-adm"></div>';
+  h += ovRndBar() + '<div id="ov-adm"></div>';
   if (rows) {
     var miss = INSTITUTIONS.filter(function (i) {
       return !rows.some(function (r) { return r.code === i.code || ovNk(r.name) === ovNk(i.name); });
@@ -9346,7 +9494,8 @@ function ovAdmMount() {
     if (!ovState.mem) ovState.mem = { open:{}, edit:{}, msg:{} };
     var cm = coMap();
     OV.mount(el, { rows:rows, other:D.other || [], owner:true, save:ovSave, call:ovCall, go:ovGoRow, extra:ovExtra, solo:false, sug:ovSug, mem:ovState.mem, map:true,
-                   act:function (r) { return coHas(r.code || ((instByName(r.name) || {}).code || ''), cm); } });
+                   act:function (r) { return coHas(r.code || ((instByName(r.name) || {}).code || ''), cm); },
+                   jnl:ovJnlOf, jnlAdd:ovJnlAdd, pr:ovParasha, rnd:OV_RND, stages:STAGES, stg:ovStgOf });
   }
   var one = document.getElementById('ov-one');
   if (one && rows) {
@@ -9368,8 +9517,11 @@ function ovOneTop(e) {
   return OV.navHtml(rows, e.k.replace(/^@/, ''), 'ovGoK') + '<div id="ov-one" style="margin:0 0 12px"></div>';
 }
 
+/* פרישת המוקד (17.11.2026): בניווט — הסקירה, הרכזים ו"מסר לישיבות". המוקד
+   הישן — "כלים" בתחתית הסקירה (`tools`, לא נזכר במכשיר). */
 function yshTabGo(t) {
-  Store.set('yshTab', t === 'calls' || t === 'co' ? t : 'ov');
+  state.yshTools = t === 'tools';
+  if (t !== 'tools') Store.set('yshTab', t === 'co' || t === 'msg' ? t : 'ov');
   ADM_GEN += 2;   /* מעבר כרטיסייה — כניסה לסקירה, כשחוזרים אליה */
   renderCalls();
   var el = document.getElementById('calls-body');
@@ -9378,9 +9530,26 @@ function yshTabGo(t) {
 function renderCalls() {
   var list = contacts();
   var el = document.getElementById('calls-body');
+  var yTab = state.yshTools ? 'tools' : Store.get('yshTab', 'ov');
+  if (['ov', 'co', 'msg', 'tools'].indexOf(yTab) < 0) yTab = 'ov';
+  var yBar = '<div class="tabs sub" style="margin-bottom:12px">' +
+    '<button class="' + (yTab === 'ov' ? 'on' : '') + '" onclick="yshTabGo(\'ov\')">' + esc(UI.yshTabOv) + '</button>' +
+    '<button class="' + (yTab === 'co' ? 'on' : '') + '" onclick="yshTabGo(\'co\')">' + esc(UI.yshTabCo) + '</button>' +
+    '<button class="' + (yTab === 'msg' ? 'on' : '') + '" onclick="yshTabGo(\'msg\')">' + esc(UI.yshTabMsg) + '</button></div>';
+  /* מסך הישיבה (מהחץ בסקירה) — כמו קודם, מעל כל כרטיסייה. */
+  if (!(list.length && state.yshOpen)) {
+    if (yTab === 'ov') {
+      el.innerHTML = yBar + ovAdmTop() +
+        '<button class="back" style="margin:14px 0 0" onclick="yshTabGo(\'tools\')">' + esc(UI.yshTools) + '</button>';
+      ovAdmMount(); return;
+    }
+    if (yTab === 'co') { el.innerHTML = yBar + coTab(); return; }
+    if (yTab === 'msg') { el.innerHTML = yBar + msgTab(list); return; }
+  }
+  var toolsTop = '<button class="back" style="margin:0 0 12px" onclick="yshTabGo(\'ov\')">' + esc(UI.yshToolsBack) + '</button>';
 
   if (!list.length) {
-    el.innerHTML = ovAdmTop() +
+    el.innerHTML = toolsTop +
       '<div class="hero" style="padding:22px 20px"><span class="glow g1"></span>' +
       '<span class="glow g3"></span><h2 style="font-size:1.35rem">מוקד שיחות</h2>' +
       '<div class="rule"></div><div class="sub">הרשימה נטענת מלשונית "' + CONTACT_TAB +
@@ -9415,6 +9584,7 @@ function renderCalls() {
     var open = ents.filter(function (e) { return e.k === state.yshOpen; })[0];
     if (open) { ctPaint(el, yshDetail(open, ctx)); ovAdmMount(); return; }
     state.yshOpen = '';
+    if (yTab !== 'tools') { renderCalls(); return; }
   }
 
   /* **סופרים ישיבות, לא רשומות.** שתי רשומות של אותה ישיבה
@@ -9436,30 +9606,14 @@ function renderCalls() {
   counts.talked = yCount(function (c) { return c.stage !== 'new'; });
 
   yshCtx = ctx;
-  /* שתי כרטיסיות בראש המסך (3.11.2026): "הסקירה מעולה, ואחרי זה מוקד
-     השיחות — אבל צריך לגלול כדי להגיע אליו." כל כרטיסייה — רק התוכן שלה.
-     הבחירה נזכרת במכשיר. */
-  var yTab = Store.get('yshTab', 'ov');
-  if (yTab !== 'calls' && yTab !== 'co') yTab = 'ov';
-  var yBar = '<div class="tabs sub" style="margin-bottom:12px">' +
-    '<button class="' + (yTab === 'ov' ? 'on' : '') + '" onclick="yshTabGo(\'ov\')">' + esc(UI.yshTabOv) + '</button>' +
-    '<button class="' + (yTab === 'calls' ? 'on' : '') + '" onclick="yshTabGo(\'calls\')">' + esc(UI.yshTabCalls) + '</button>' +
-    '<button class="' + (yTab === 'co' ? 'on' : '') + '" onclick="yshTabGo(\'co\')">' + esc(UI.yshTabCo) + '</button></div>';
-  if (yTab === 'ov') { el.innerHTML = yBar + ovAdmTop(); ovAdmMount(); return; }
-  if (yTab === 'co') { el.innerHTML = yBar + coTab(); return; }
-  /* שורה אחת במקום כרזה — הרשימה היא העיקר, ולא גוללים אליה. */
-  var h = yBar +
+  /* הכלים של המוקד הישן ("כלים" בתחתית הסקירה) — כמו שהיו, בלי ההודעה
+     המרוכזת והקישורים לראש ישיבה (עברו ל"מסר לישיבות"). */
+  var h = toolsTop +
           '<details class="adm-card" style="margin:12px 0 0"' + (Store.get('ovProcOpen', 0) ? ' open' : '') +
           ' ontoggle="Store.set(\'ovProcOpen\',this.open?1:0)"><summary>' + esc(UI.ovProcH) + '</summary>' +
           '<div class="my-top" style="margin:8px 0 0"><b>מוקד שיחות</b><span>' + counts.joined +
           ' מתוך ' + yEnts.length + ' ישיבות הצטרפו · ' +
           counts.talked + ' שיחות בוצעו</span></div>' +
-          /* "משהו בולט שיאללה אני שולח לראש ישיבה בלי מאמץ" — עמוד אחד
-             עם שלושת הקישורים (kishurim.html). וואטסאפ נפתח על בורר אנשי הקשר. */
-          '<a class="btn p" style="margin:10px 0 0;text-decoration:none;display:block;text-align:center" target="_blank" ' +
-          'rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(fill(UI.kishWa,
-            { url: joinUrl('').replace('join.html', 'kishurim.html') })) + '">📨 ' + esc(UI.kishBtn) + '</a>' +
-          '<button class="back" style="margin:6px 0 0" onclick="admSubGo(\'links\')">✎ ' + esc(UI.kishTexts) + '</button>' +
           '<div id="call-sync" class="msg" style="margin:10px 0 0">' +
           esc(callSync.state || 'נשמר על המכשיר') +
           (list.filter(function (c) {
@@ -9588,11 +9742,6 @@ function renderCalls() {
             : 'סמנו ✓ על כל מי שדיברתם איתו') + '</div></div>' +
        (did ? '<button class="back" onclick="roundReset()">סבב חדש</button>' : '') +
        '</div></div>';
-
-  /* ההודעה לכולם — בתחתית. היא מבצע שקורה פעם בכמה שבועות,
-     והמסך הזה נפתח כל יום כדי לדבר עם אנשים. והיא מחושבת על כל
-     הרשימה ולא על המסנן. */
-  h += blastCard(list);
 
   h += '<button class="btn g" style="margin-top:8px" onclick="bulkImportOpen()">' +
        '⇩ ייבוא מרשימה</button>' +

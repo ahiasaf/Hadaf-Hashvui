@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 226;
+var SCRIPT_VERSION = 227;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -146,7 +146,7 @@ var PRIVATE_ID_FALLBACK = '';
 /* `נשלחו` — מה שכבר יצא: מפתח אחד לכל שליחה מתוזמנת שהצליחה.
    הוא מה שמונע שליחה כפולה כשהרצה משלימה משבצות שנפספסו, והוא
    נושא מזהי מכשירים — ולכן פרטי כמו השאר. ראו tools/sched.js. */
-var PRIVATE_TABS = ['תמונת בית א', 'תמונת בית ב', 'עלונים להורדה', 'סקירה — אנשי קשר', 'סקירה — קשר', 'זמני שרת', 'לומדים', 'לימוד', 'זמן יומי', 'הרשמות', 'חידות', 'קודים', 'התראות',
+var PRIVATE_TABS = ['תמונת בית א', 'תמונת בית ב', 'עלונים להורדה', 'סקירה — אנשי קשר', 'סקירה — קשר', 'סבבים', 'זמני שרת', 'לומדים', 'לימוד', 'זמן יומי', 'הרשמות', 'חידות', 'קודים', 'התראות',
                     'הודעות', 'תקועים', 'תזכורות', 'נשלחו',
                     /* הלימוד המשותף — אבא ובן. שמות וטלפונים, ולכן פרטית. */
                     'זוגות',
@@ -758,7 +758,11 @@ function doPostMain_(e) {
         message: 'הלשונית ' + d.tab + ' נכתבת רק בגיליון — לא נדרסת מהאפליקציה' });
     }
     if (d.action === 'table') {
-      var wtr = writeTable_(d.tab, parse_(d.cols), parse_(d.rows), d.ss);
+      var wRows = parse_(d.rows);
+      /* "יומן שיחות" נכתב מחדש כולו מהמוקד הישן — שורות התיעוד מהסקירה
+         (סטטוס "תיעוד") נשמרות גם כשהמכשיר לא שלח אותן. ראו ovJnlKeep_. */
+      if (d.tab === OV_JNL_TAB_ && !d.ss) wRows = ovJnlKeep_(wRows || []);
+      var wtr = writeTable_(d.tab, parse_(d.cols), wRows, d.ss);
       /* רשימת בית הספר היא חלק מהרשימה של איש הצוות (netRoster_). */
       if (d.tab === NET_SCH_TAB_) netBumpVer_();
       return wtr;
@@ -18050,6 +18054,184 @@ function ovCallLast_(fresh) {
     return m;
   } catch (e) { Logger.log('ovCallLast_: ' + e); return null; }
 }
+/* ============================================================
+   פרישת מוקד השיחות (17.11.2026) — הסקירה היא מקום העבודה.
+   ============================================================
+   · **תיעוד שיחה** — שורה חדשה ב"יומן שיחות" (הלשונית של המוקד), עם
+     `סטטוס` = "תיעוד", הנוסח ב"הערה", הזמן ב"מתי", "מי" ב"איש קשר"
+     ומזהה ב"עדכון". המוקד הישן מדלג על השורות האלה (pullCalls), ו-
+     `table` עליה שומר אותן (ovJnlKeep_). שום שורה אינה נמחקת.
+   · **מצב השתתפות** — אותה עמודת `סטטוס` שהמוקד כתב בשורת הישיבה,
+     ו"מתי" = עכשיו (כך המכשיר רואה אותה כחדשה). אין שורה — שורה חדשה.
+     הספירה ("הצטרפו") ממשיכה מאותו מקור.
+   · **סבבים** — לשונית פרטית "סבבים": שורה לסבב (שם, צבע, הקודים).
+     הסרה מוחקת את השורה בלבד.
+   הכתיבה ל"יומן שיחות" — תחת נעילת הסקריפט, כמו `table` שם.
+   ============================================================ */
+var OV_JNL_TAB_ = 'יומן שיחות';
+var OV_JNL_MARK_ = 'תיעוד';
+var OV_JNL_COLS_ = ['ישיבה', 'סטטוס', 'הערה', 'מתי', 'איש קשר', 'עריכה', 'סבב', 'תגיות', 'עדכון', 'צוות'];
+var OV_STG_ = ['new', 'talked', 'warm', 'joined', 'no'];
+var OV_RND_TAB_ = 'סבבים';
+var OV_RND_COLS_ = ['מזהה', 'שם', 'צבע', 'ישיבות', 'נוצר', 'עודכן'];
+var OV_RND_C_ = ['g', 'y', 'r', 'b', 'p', 'n'];
+function ovJnlSh_() {
+  var sh = sheet_(OV_JNL_TAB_);
+  if (!sh.getLastRow()) headRow_(sh, OV_JNL_COLS_);
+  return sh;
+}
+function ovTs_(v) {
+  if (v instanceof Date) return v.getTime();
+  var t = Date.parse(String(v || '').replace(' ', 'T'));
+  return isNaN(t) ? 0 : t;
+}
+/* כל שורות התיעוד: [{ n, t, x, by, id }]. null — לא נקרא. */
+function ovJnlList_(fresh) {
+  var cache = CacheService.getScriptCache();
+  if (!fresh) { var hit = cache.get('ovJnl'); if (hit) { try { return JSON.parse(hit); } catch (e) {} } }
+  try {
+    var sh = ovJnlSh_(), n = sh.getLastRow();
+    var a = n > 1 ? sh.getRange(2, 1, n - 1, Math.max(9, Math.min(sh.getLastColumn(), 10))).getValues() : [];
+    var jn = [], stg = {};
+    a.forEach(function (r) {
+      var nm = String(r[0] || '').trim();
+      if (!nm) return;
+      if (String(r[1] || '').trim() === OV_JNL_MARK_) {
+        jn.push({ n: nm, t: ovTs_(r[3]), x: String(r[2] || ''), by: String(r[4] || ''), id: String(r[8] || '') });
+      } else if (OV_STG_.indexOf(String(r[1] || '').trim()) >= 0) {
+        /* המצב לפי השם — השורה האחרונה גוברת, כמו במוקד. */
+        stg[ckey_(nm)] = String(r[1]).trim();
+      }
+    });
+    var out = { jn: jn, stg: stg };
+    try { cache.put('ovJnl', JSON.stringify(out), 300); } catch (e2) {}
+    return out;
+  } catch (e) { Logger.log('ovJnlList_: ' + e); return null; }
+}
+/* `table` על "יומן שיחות": שורות תיעוד שבגיליון ואינן במה שנשלח — נוספות. */
+function ovJnlKeep_(rows) {
+  try {
+    var sh = ovJnlSh_(), n = sh.getLastRow();
+    if (n < 2) return rows;
+    var have = {};
+    rows.forEach(function (r) { if (r && String(r[1] || '') === OV_JNL_MARK_) have[String(r[8] || '') + '|' + String(r[2] || '')] = 1; });
+    var a = sh.getRange(2, 1, n - 1, Math.max(10, sh.getLastColumn())).getValues(), out = rows.slice();
+    a.forEach(function (r) {
+      if (String(r[1] || '').trim() !== OV_JNL_MARK_) return;
+      var k = String(r[8] || '') + '|' + String(r[2] || '');
+      if (have[k]) return;
+      have[k] = 1;
+      var row = [];
+      for (var i = 0; i < 10; i++) row.push(r[i] instanceof Date ? r[i].toISOString() : (r[i] == null ? '' : r[i]));
+      out.push(row);
+    });
+    CacheService.getScriptCache().remove('ovJnl');
+    return out;
+  } catch (e) { Logger.log('ovJnlKeep_: ' + e); return rows; }
+}
+function ovJnlAdd_(name, text, by) {
+  text = String(text || '').trim();
+  if (!text) return { status: 'error', message: 'אין מה לשמור' };
+  if (text.length > 600) text = text.slice(0, 600);
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(15000)) return { status: 'error', message: 'עומס — נסו שוב' };
+  var id = 'j' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+  try {
+    var sh = ovJnlSh_();
+    sh.appendRow([ovSafe_(name), OV_JNL_MARK_, ovSafe_(text), new Date().toISOString(), ovSafe_(String(by || '').slice(0, 40)),
+                  '', '', '', id, '']);
+    SpreadsheetApp.flush();
+  } finally { lock.releaseLock(); }
+  /* קריאה חוזרת — מה שנשמר באמת. */
+  var L = ovJnlList_(true);
+  if (!L || !L.jn.some(function (j) { return j.id === id; })) return { status: 'error', message: 'השמירה לא אומתה — נסו שוב' };
+  return { status: 'ok', jn: L.jn };
+}
+function ovStgSet_(names, v) {
+  if (OV_STG_.indexOf(v) < 0) return { status: 'error', message: 'מצב לא מוכר' };
+  var want = {};
+  names.forEach(function (n) { if (ckey_(n)) want[ckey_(n)] = 1; });
+  if (!Object.keys(want).length) return { status: 'error', message: 'חסר שם ישיבה' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(15000)) return { status: 'error', message: 'עומס — נסו שוב' };
+  var at = new Date().toISOString(), rowAt = 0;
+  try {
+    var sh = ovJnlSh_(), n = sh.getLastRow();
+    var a = n > 1 ? sh.getRange(2, 1, n - 1, 2).getValues() : [];
+    for (var i = a.length - 1; i >= 0; i--) {
+      if (String(a[i][1] || '').trim() === OV_JNL_MARK_) continue;
+      if (want[ckey_(a[i][0])]) { rowAt = i + 2; break; }
+    }
+    if (rowAt) {
+      sh.getRange(rowAt, 2).setValue(v);
+      sh.getRange(rowAt, 4).setValue(at);
+    } else {
+      sh.appendRow([ovSafe_(names[0]), v, '', at, '', '', '', '{}', '', '']);
+      rowAt = sh.getLastRow();
+    }
+    SpreadsheetApp.flush();
+    var back = String(sh.getRange(rowAt, 2).getValue()).trim();
+    CacheService.getScriptCache().remove('ovJnl');
+    if (back !== v) return { status: 'error', message: 'השמירה לא אומתה — נסו שוב' };
+  } finally { lock.releaseLock(); }
+  return { status: 'ok', stg: v, at: at };
+}
+function ovRndSh_() {
+  var sh = sheet_(OV_RND_TAB_);
+  if (!sh.getLastRow()) headRow_(sh, OV_RND_COLS_);
+  return sh;
+}
+/* [{ id, n, c, y:[קודים] }] לפי סדר היצירה. null — לא נקרא. */
+function ovRndList_() {
+  try {
+    var sh = ovRndSh_(), n = sh.getLastRow();
+    if (n < 2) return [];
+    return sh.getRange(2, 1, n - 1, 4).getValues().filter(function (r) { return String(r[0] || '').trim(); })
+      .map(function (r) {
+        return { id: String(r[0]).trim(), n: String(r[1] || ''), c: String(r[2] || 'n'),
+                 y: String(r[3] || '').split(',').map(function (x) { return x.trim(); }).filter(String) };
+      });
+  } catch (e) { Logger.log('ovRndList_: ' + e); return null; }
+}
+function ovRnd_(p) {
+  var op = String(p.op || ''), sh = ovRndSh_();
+  var rowOf = function (id) {
+    var n = sh.getLastRow();
+    if (n < 2) return 0;
+    var a = sh.getRange(2, 1, n - 1, 1).getValues();
+    for (var i = 0; i < a.length; i++) if (String(a[i][0]).trim() === id) return i + 2;
+    return 0;
+  };
+  var id = String(p.id || '').trim();
+  if (op === 'add') {
+    var nm = String(p.n || '').trim().slice(0, 40), c = String(p.cl || '');
+    if (!nm) return { status: 'error', message: 'חסר שם לסבב' };
+    if (OV_RND_C_.indexOf(c) < 0) c = 'n';
+    id = 'r' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36);
+    sh.appendRow([id, ovSafe_(nm), c, '', new Date(), new Date()]);
+  } else if (op === 'tog') {
+    var code = String(p.code || '').trim(), at = rowOf(id);
+    if (!at || !/^[a-z0-9_-]{2,30}$/.test(code)) return { status: 'error', message: 'הסבב או הישיבה לא נמצאו' };
+    var y = String(sh.getRange(at, 4).getValue() || '').split(',').map(function (x) { return x.trim(); }).filter(String);
+    var ix = y.indexOf(code);
+    if (p.on === '1' && ix < 0) y.push(code);
+    else if (p.on === '0' && ix >= 0) y.splice(ix, 1);
+    sh.getRange(at, 4, 1, 3).setValues([[y.join(','), sh.getRange(at, 5).getValue(), new Date()]]);
+  } else if (op === 'del') {
+    var atD = rowOf(id);
+    if (atD) sh.deleteRow(atD);
+  } else return { status: 'error', message: 'פעולה לא מוכרת' };
+  SpreadsheetApp.flush();
+  var L = ovRndList_();
+  if (!L) return { status: 'error', message: 'לא נקרא אחרי השמירה' };
+  var mine = L.filter(function (r) { return r.id === id; })[0];
+  if (op === 'add' && !mine) return { status: 'error', message: 'השמירה לא אומתה — נסו שוב' };
+  if (op === 'del' && mine) return { status: 'error', message: 'ההסרה לא אומתה — נסו שוב' };
+  if (op === 'tog' && mine && (mine.y.indexOf(String(p.code)) >= 0) !== (p.on === '1')) {
+    return { status: 'error', message: 'השמירה לא אומתה — נסו שוב' };
+  }
+  return { status: 'ok', rounds: L };
+}
 function ov_(p) {
   var key = String(p.key || ''), op = String(p.ov || '');
   var owner = !!READ_KEY && key === READ_KEY;
@@ -18156,6 +18338,40 @@ function ov_(p) {
       }
     }
 
+    /* --- פרישת המוקד (17.11.2026): תיעוד שיחה וסבבים — לבעלים. --- */
+    if (op === 'rnd') {
+      if (!owner) return { status: 'denied', message: 'רק לבעלים' };
+      return ovRnd_(p);
+    }
+    if (op === 'jnl') {
+      if (!owner) return { status: 'denied', message: 'רק לבעלים' };
+      var jh = null;
+      T.rows.forEach(function (row) {
+        if (jh) return;
+        if ((p.code && ovCell_(T, row, 'code') === String(p.code)) ||
+            ovNameKey_(ovCell_(T, row, 'name')) === ovNameKey_(p.name)) jh = row;
+      });
+      if (!jh) return { status: 'error', message: 'הישיבה לא נמצאה בטבלה' };
+      return ovJnlAdd_(ovCell_(T, jh, 'name'), p.v, full ? String(p.by || '') : '');
+    }
+    if (op === 'set' && String(p.f || '') === 'stg') {
+      if (!owner) return { status: 'denied', message: 'רק לבעלים' };
+      var sh2 = null;
+      T.rows.forEach(function (row) {
+        if (sh2) return;
+        if ((p.code && ovCell_(T, row, 'code') === String(p.code)) ||
+            ovNameKey_(ovCell_(T, row, 'name')) === ovNameKey_(p.name)) sh2 = row;
+      });
+      if (!sh2) return { status: 'error', message: 'הישיבה לא נמצאה בטבלה' };
+      /* שמות הישיבה במוקד (מהמכשיר) קודם, ואחריהם השם שבטבלה. */
+      var cn = (parse_(p.cn) || []).map(String).slice(0, 6);
+      cn.push(ovCell_(T, sh2, 'name'));
+      var sr = ovStgSet_(cn, String(p.v || ''));
+      if (sr.status !== 'ok') return sr;
+      return { status: 'ok', stg: sr.stg, at: sr.at, n: cn[0],
+               row: ovRow_(T, sh2, owner, ovLearners_(), ovOwn_(), ovReps_(), ovCounts_()) };
+    }
+
     /* --- עדכון שדה: לומדים בפועל / משפט סיכום (בעלים ומנהלים),
            רכז בשטח (בעלים בלבד — רק אחיאסף מסמן רכז פעיל). --- */
     if (op === 'set') {
@@ -18233,6 +18449,11 @@ function ov_(p) {
     if (owner) {
       var LC = ovCallLast_();
       if (LC) out.rows.forEach(function (o) { if (o.code && LC[o.code]) o.last = LC[o.code]; });
+      /* פרישת המוקד: התיעוד, המצב (לפי שם) והסבבים. null — לא נקרא, והמכשיר שומר את מה שיש. */
+      var JL = ovJnlList_();
+      if (JL) { out.jn = JL.jn; out.stg = JL.stg; }
+      var RL = ovRndList_();
+      if (RL) out.rounds = RL;
     }
     if (boss) {
       out.sheet = T.sh.getParent().getUrl(); out.hasKey = !!ovk; out.hasFull = !!fk; out.actLeft = !!T.actLeft;

@@ -141,7 +141,32 @@
       'border-inline-start:6px solid #4E9A2A}' +
     '.ov-co h4{margin:0 0 8px;font-size:.98rem;font-weight:800;color:#0B2550}' +
     '.ov-co .ov-ppl{margin:0}' +
-    '.ov-co0{font-size:.88rem;font-weight:700;color:#5A6780;padding:10px 2px}';
+    '.ov-co0{font-size:.88rem;font-weight:700;color:#5A6780;padding:10px 2px}' +
+    /* פרישת המוקד (17.11.2026): סבבים, תיעוד שיחה והיסטוריה — רק כשהעמוד מוסר אותם. */
+    '.ov-rk-g{--rc:#4E9A2A}.ov-rk-y{--rc:#B7871F}.ov-rk-r{--rc:#B23B3B}.ov-rk-b{--rc:#17468F}' +
+    '.ov-rk-p{--rc:#7A3E9D}.ov-rk-n{--rc:#5C687E}' +
+    '.ov-rps{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}' +
+    '.ov-rp{display:inline-block;padding:1px 8px;border-radius:999px;background:var(--rc);color:#fff;' +
+      'font-size:.68rem;font-weight:800;line-height:1.6;white-space:nowrap}' +
+    '.ov-rds{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}' +
+    '.ov-rd{border:1.5px solid var(--rc);background:#fff;color:var(--rc);border-radius:30px;padding:5px 12px;' +
+      'font:inherit;font-size:.8rem;font-weight:800;cursor:pointer}' +
+    '.ov-rd.on{background:var(--rc);color:#fff}' +
+    '.ov-rd:disabled{opacity:.6;cursor:default}' +
+    '.ov-c.jl{color:#1B2A45;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '.ov-jh{margin-top:10px}' +
+    '.ov-jh summary{cursor:pointer;font-size:.82rem;font-weight:800;color:#17468F;padding:4px 0}' +
+    '.ov-ji{border-top:1px solid #EFE7D7;padding:7px 2px}' +
+    '.ov-ji small{display:block;font-size:.72rem;font-weight:800;color:#8C681F}' +
+    '.ov-ji div{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.86rem}' +
+    '.ov-rbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 10px}' +
+    '.ov-rbar b{font-size:.86rem;color:#1B2A45}' +
+    '.ov-rbar .ov-rp{font-size:.78rem;padding:3px 6px 3px 10px}' +
+    '.ov-rbar .ov-rp button{background:none;border:0;color:#fff;font:inherit;font-weight:800;cursor:pointer;padding:0 4px}' +
+    '.ov-rnew{margin:0 0 12px}.ov-rnew .ov-rds{margin:8px 0 0}' +
+    '.ov-rd.ov-rc{width:34px;height:34px;padding:0}' +
+    '.ov-f select{width:100%;box-sizing:border-box;font:inherit;font-size:.95rem;border:1.5px solid #E5DAC3;' +
+      'border-radius:10px;padding:8px 10px;background:#fff;color:#1B2A45}';
 
   function U(k) { return (window.UI || {})[k] || ''; }
   function esc(t) {
@@ -214,6 +239,57 @@
     var d1 = new Date(ms); d1.setHours(0, 0, 0, 0);
     var n = Math.round((d0 - d1) / 864e5);
     return n <= 1 ? ' d0' : n <= 7 ? ' d1' : '';
+  }
+  /* תיעוד שיחה: התאריך הלועזי ותווית הפרשה מהעמוד (`pr`). */
+  function dmy(ms) { var d = new Date(ms); return d.getDate() + '.' + (d.getMonth() + 1) + '.' + d.getFullYear(); }
+  function jWhen(st, j) {
+    var p = st.pr ? st.pr(j.t) : '';
+    return dmy(j.t) + (p ? ' · ' + p : '');
+  }
+  function jLine(st, r) {
+    var L = st.jnl ? st.jnl(r) : [];
+    if (!L.length) return '';
+    var x = String(L[0].x || '').replace(/\s+/g, ' ').trim();
+    if (x.length > 60) x = x.slice(0, 60) + '…';
+    return '<span class="ov-c jl">' + esc(jWhen(st, L[0]) + ' · ' + x) + '</span>';
+  }
+  function rndPills(st, r) {
+    if (!st.rnd) return '';
+    var L = st.rnd.list().filter(function (x) { return st.rnd.has(r, x.id); });
+    if (!L.length) return '';
+    return '<div class="ov-rps">' + L.map(function (x) {
+      return '<span class="ov-rp ov-rk-' + esc(x.c) + '">' + esc(x.n) + '</span>';
+    }).join('') + '</div>';
+  }
+  function rndChips(st, r, i) {
+    if (!st.rnd || !r.code) return '';
+    var L = st.rnd.list();
+    if (!L.length) return '';
+    var busy = st.rbusy || {};
+    return '<div class="ov-rds">' + L.map(function (x) {
+      var on = st.rnd.has(r, x.id);
+      return '<button class="ov-rd ov-rk-' + esc(x.c) + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-ov="rtog" data-i="' + i +
+        '" data-rid="' + esc(x.id) + '"' + (busy[r.k + '|' + x.id] ? ' disabled' : '') + '>' + (on ? '✓ ' : '') + esc(x.n) + '</button>';
+    }).join('') + '</div>';
+  }
+  function jnlHtml(st, r, i) {
+    if (!st.jnlAdd) return '';
+    var h = '', jo = (st.jo || {})[r.k];
+    if (jo) {
+      h += '<div class="ov-f"><textarea id="ov-jt-' + i + '" maxlength="600" placeholder="' + esc(U('ovJnlPh')) + '">' +
+        esc(jo.tx || '') + '</textarea><div class="ov-fb">' + (jo.busy
+          ? '<button class="p busy" disabled>' + esc(U('ovSaving')) + '</button>'
+          : '<button class="p" data-ov="jsave" data-i="' + i + '">' + esc(U('ovSave')) + '</button>') +
+        '<button data-ov="jcancel" data-i="' + i + '"' + (jo.busy ? ' disabled' : '') + '>' + esc(U('ovCancel')) + '</button></div>' +
+        (jo.err ? '<div class="ov-msg bad">' + esc(jo.err) + '</div>' : '') + '</div>';
+    }
+    var L = st.jnl ? st.jnl(r) : [];
+    if (L.length) {
+      h += '<details class="ov-jh"><summary>' + esc(fill(U('ovJnlHist'), { n: L.length })) + '</summary>' + L.map(function (j) {
+        return '<div class="ov-ji"><small>' + esc(jWhen(st, j) + (j.by ? ' · ' + j.by : '')) + '</small><div>' + esc(j.x) + '</div></div>';
+      }).join('') + '</details>';
+    }
+    return h;
   }
   function lastHtml(r) {
     var L = r.last;
@@ -373,8 +449,8 @@
       if (ph) c.phone = ph.value.replace(/[^\d+]/g, '');
       if (ro) c.role = ro.value.trim();
     });
-    var y = document.getElementById('ov-y-' + i), nt = document.getElementById('ov-n-' + i);
-    if (y) E.yesh = y.value; if (nt) E.note = nt.value;
+    var y = document.getElementById('ov-y-' + i), nt = document.getElementById('ov-n-' + i), sg = document.getElementById('ov-sg-' + i);
+    if (y) E.yesh = y.value; if (nt) E.note = nt.value; if (sg) E.stg = sg.value;
     return E;
   }
   function formHtml(r, i, owner, st) {
@@ -412,13 +488,23 @@
       /* לומדים בישיבה — לבעלים. ריק = ברירת המחדל. */
       (owner && r.yesh !== undefined
         ? num0('ov-y-' + i, U('ovYesh'), E && E.yesh != null ? E.yesh : r.yset, fill(U('ovYeshPh'), { n:num(r.yesh) })) : '') +
-      cardsH +
+      cardsH + stgSel(r, i, st, E) +
       '<label for="ov-n-' + i + '">' + esc(U('ovOpen')) + '</label>' +
       '<textarea id="ov-n-' + i + '" placeholder="' + esc(U('ovNotePh')) + '">' + esc(E && E.note != null ? E.note : r.note) + '</textarea>' +
       '<div class="ov-fb">' + (busy
         ? '<button class="p busy" disabled>' + esc(U('ovSaving')) + '</button>'
         : '<button class="p" data-ov="save" data-i="' + i + '">' + esc(U('ovSave')) + '</button>') +
       '<button data-ov="cancel" data-i="' + i + '"' + (busy ? ' disabled' : '') + '>' + esc(U('ovCancel')) + '</button></div></div>';
+  }
+  /* מצב השתתפות — אותן אפשרויות של המוקד (`stages` מהעמוד). בלי ערך ידוע — "—",
+     ושמירה בלי בחירה אינה כותבת דבר. */
+  function stgSel(r, i, st, E) {
+    if (!st || !st.stages || !r.code) return '';
+    var cur = E && E.stg != null ? E.stg : (st.stg ? st.stg(r) || '' : '');
+    return '<label for="ov-sg-' + i + '">' + esc(U('ovStgL')) + '</label><select id="ov-sg-' + i + '">' +
+      (cur ? '' : '<option value="">—</option>') + st.stages.map(function (x) {
+        return '<option value="' + esc(x.k) + '"' + (x.k === cur ? ' selected' : '') + '>' + esc(x.t) + '</option>';
+      }).join('') + '</select>';
   }
   /* בחירת תפקיד ב"+": קבוע שכבר תפוס — הכרטיס שלו; אחרת כרטיס חדש. */
   function peRole(st, r, i, v) {
@@ -460,7 +546,7 @@
       '<div class="ov-nl">' + nm + (st.act && st.act(r) ? '<span class="ov-act">' + esc(U('yrAct')) + '</span>' : '') + tog + '</div>' +
       (has(r.coord) ? '<span class="ov-c">' + esc(U('ovCoord')) + ': <b>' + esc(r.coord) + '</b></span>'
                     : '<span class="ov-c no">' + esc(U('ovCoordNone')) + '</span>') +
-      (st.call ? lastHtml(r) : '') + '</div>' +
+      (st.call ? lastHtml(r) : '') + jLine(st, r) + rndPills(st, r) + '</div>' +
       '<div class="ov-k">' + bigV + learnV + '</div></div>';
     if (open) {
       h += '<div class="ov-b">';
@@ -470,7 +556,7 @@
       /* הכניסה למסך הישיבה (אנשי קשר, היסטוריה, עדכון) — כפתור ברור,
          ולא רק השם עם קו. */
       if (st.go && !st.solo) h += '<button class="ov-e ov-go" data-ov="go" data-i="' + i + '">' + esc(U('ovGoIn')) + '</button> ';
-      if (!ed) h += pplHtml(r, i, st);
+      if (!ed) h += rndChips(st, r, i) + pplHtml(r, i, st);
       if (!ed && st.call && r.last && r.last.note) h += '<div class="ov-x2" style="margin:0 0 10px">' +
         esc(fill(U('ovLastNote'), { t:r.last.note })) + '</div>';
       if (ed) { SUG = st.sug ? st.sug(r) : null; h += formHtml(r, i, st.owner, st); SUG = null; }
@@ -479,7 +565,11 @@
           esc(has(r.note) ? r.note : U('ovNoteNone')) + '</div>' +
           (has(r.note) && r.nat ? '<div class="ov-c' + agoCls(r.nat) + '" style="margin:-4px 2px 10px">' +
             esc(fill(U('ovNoteAt'), { t:[agoTxt(r.nat)].concat(r.nby ? [r.nby] : []).join(' · ') })) + '</div>' : '') +
-          (st.save ? '<button class="ov-e" data-ov="edit" data-i="' + i + '">' + esc(U('ovEdit')) + '</button>' : '');
+          (!ed && st.stg && st.stages && st.stg(r) ? '<div class="ov-x2" style="margin:-2px 2px 8px">' + esc(U('ovStgL')) + ': ' +
+            esc((st.stages.filter(function (x) { return x.k === st.stg(r); })[0] || {}).t || '') + '</div>' : '') +
+          (st.save ? '<button class="ov-e" data-ov="edit" data-i="' + i + '">' + esc(U('ovEdit')) + '</button>' : '') +
+          (st.jnlAdd && !(st.jo || {})[r.k] ? ' <button class="ov-e" data-ov="jopen" data-i="' + i + '">' + esc(U('ovJnlBtn')) + '</button>' : '') +
+          jnlHtml(st, r, i);
       }
       if (st.extra) h += st.extra(r) || '';
       if (st.msg[r.k] && st.msg[r.k].t) h += '<div class="ov-msg' + (st.msg[r.k].bad ? ' bad' : '') + '">' + esc(st.msg[r.k].t) + '</div>';
@@ -533,6 +623,8 @@
       todo.push(['pp', JSON.stringify({ id: c.id, role: c.role, name: c.name, phone: ph0(c.phone) })]);
     });
     if (y && y.value.replace(/[^\d]/g, '') !== String(r.yset || '')) todo.push(['yesh', y.value.replace(/[^\d]/g, '')]);
+    var sg = document.getElementById('ov-sg-' + i);
+    if (sg && sg.value && sg.value !== (st.stg ? st.stg(r) || '' : '')) todo.push(['stg', sg.value]);
     if (a && String(av) !== String(r.act || '')) todo.push(['act', av]);
     if (nv !== String(r.note || '')) todo.push(['note', nv]);
     if (!todo.length) { st.edit[r.k] = 0; if (st.pe) st.pe[r.k] = null; paint(st); return; }
@@ -615,6 +707,31 @@
           });
           return;
         }
+        if (act === 'rtog' && S.rnd) {
+          var rid = b.getAttribute('data-rid'), rk = r.k + '|' + rid, on0 = S.rnd.has(r, rid);
+          S.rbusy = S.rbusy || {};
+          if (S.rbusy[rk]) return;
+          S.rbusy[rk] = 1; paint(S);
+          S.rnd.tog(r, rid, !on0).then(function () { S.rbusy[rk] = 0; paint(S); },
+            function (err) { S.rbusy[rk] = 0; S.msg[r.k] = { t:fill(U('ovSaveFail'), { t:(err && err.message) || '' }), bad:1 }; paint(S); });
+          return;
+        }
+        if (act === 'jopen') { S.jo = S.jo || {}; S.jo[r.k] = { tx:'' }; paint(S);
+          var jt = document.getElementById('ov-jt-' + b.getAttribute('data-i')); if (jt) { try { jt.focus(); } catch (e) {} }
+          return; }
+        if (act === 'jcancel') { if (S.jo) S.jo[r.k] = null; paint(S); return; }
+        if (act === 'jsave' && S.jnlAdd) {
+          var J = (S.jo || {})[r.k];
+          if (!J || J.busy) return;
+          var ta2 = document.getElementById('ov-jt-' + b.getAttribute('data-i'));
+          J.tx = ta2 ? ta2.value : J.tx;
+          if (!String(J.tx || '').trim()) { S.jo[r.k] = null; paint(S); return; }
+          J.busy = 1; J.err = ''; paint(S);
+          S.jnlAdd(r, String(J.tx).trim()).then(function () {
+            S.jo[r.k] = null; S.msg[r.k] = { t:U('ovSaved') }; paint(S);
+          }, function (err) { J.busy = 0; J.err = fill(U('ovSaveFail'), { t:(err && err.message) || '' }); paint(S); });
+          return;
+        }
         if (act === 'padd') { var Ea = peGrab(S, r, +b.getAttribute('data-i')); if (Ea) { Ea.add = true; Ea.hl = -1; } paint(S); return; }
         if (act === 'prole') { peRole(S, r, +b.getAttribute('data-i'), b.getAttribute('data-v')); return; }
         if (act === 'tog') { S.open[r.k] = !S.open[r.k]; if (!S.open[r.k]) { S.edit[r.k] = 0; if (S.pe) S.pe[r.k] = null; } paint(S); }
@@ -622,6 +739,16 @@
         else if (act === 'cancel') { S.edit[r.k] = 0; S.msg[r.k] = null; if (S.pe) S.pe[r.k] = null; paint(S); }
         else if (act === 'save') saveRow(S, r, +b.getAttribute('data-i'));
         else if (act === 'go' && S.go) S.go(r);
+      });
+    }
+    if (!el._ovIn) {
+      el._ovIn = 1;
+      /* תיעוד שבהקלדה שורד ציור מחדש (טעינה שהגיעה באמצע). */
+      el.addEventListener('input', function (ev) {
+        var t = ev.target, m = t && t.id ? /^ov-jt-(\d+)$/.exec(t.id) : null, S = el._ov;
+        if (!m || !S || !S.jo) return;
+        var rr = S.shown[+m[1]];
+        if (rr && S.jo[rr.k]) S.jo[rr.k].tx = t.value;
       });
     }
     if (st.call && !el._ovVis) {
@@ -675,6 +802,28 @@
       '</label><input id="ov-by" type="text" maxlength="40" autocomplete="name"><div class="ov-msg">' + esc(U('ovBySub')) +
       '</div><div class="ov-fb"><button class="p" onclick="' + fn + '()">' + esc(U('ovByGo')) + '</button></div></div></div>';
   }
-  window.OV = { mount:mount, status:status, sorted:sorted, navHtml:navHtml, css:css,
+  /* פס הסבבים בראש הסקירה (פרישת המוקד, 17.11.2026). L — [{ id, n, c }];
+     E — סבב בעריכה { n, c } או null. הפעולות — פונקציות של העמוד
+     (ovRndDel / ovRndAdd / RND / ovRepaint ב-index.html). */
+  function rbarHtml(L, E, busy, colors) {
+    css();
+    var h = '<div class="ov-rbar"><b>' + esc(U('rndH')) + '</b>' + L.map(function (x) {
+      return '<span class="ov-rp ov-rk-' + esc(x.c) + '">' + esc(x.n) +
+        ' <button aria-label="' + esc(fill(U('rndDel'), { t:x.n })) + '" onclick="ovRndDel(\'' + esc(x.id) + '\')">✕</button></span>';
+    }).join('') +
+      (E ? '' : '<button class="ov-rd ov-rk-n" onclick="RND.ed={n:\'\',c:\'g\'};ovRepaint()">' + esc(U('rndAdd')) + '</button>') + '</div>';
+    if (E) {
+      h += '<div class="ov-f ov-rnew"><input id="rnd-n" type="text" maxlength="30" placeholder="' + esc(U('rndNamePh')) +
+        '" value="' + esc(E.n) + '" oninput="RND.ed.n=this.value"><div class="ov-rds">' + colors.map(function (c) {
+          return '<button class="ov-rd ov-rc ov-rk-' + c + (E.c === c ? ' on' : '') + '" aria-label="' + c + '" aria-pressed="' +
+            (E.c === c) + '" onclick="RND.ed.c=\'' + c + '\';ovRepaint()">' + (E.c === c ? '✓' : '') + '</button>';
+        }).join('') + '</div><div class="ov-fb">' +
+        '<button class="p' + (busy ? ' busy' : '') + '"' + (busy ? ' disabled' : '') + ' onclick="ovRndAdd()">' +
+          esc(busy ? U('ovSaving') : U('rndSave')) + '</button>' +
+        '<button onclick="RND.ed=null;ovRepaint()"' + (busy ? ' disabled' : '') + '>' + esc(U('rndCancel')) + '</button></div></div>';
+    }
+    return h;
+  }
+  window.OV = { mount:mount, rbarHtml:rbarHtml, status:status, sorted:sorted, navHtml:navHtml, css:css,
                 sugHtml:sugHtml, smallHtml:smallHtml, byHtml:byHtml, coHtml:coHtml };
 })();
