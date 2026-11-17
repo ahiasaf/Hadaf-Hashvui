@@ -17,10 +17,10 @@ function staff(dev, nm, role, ph, g, k) {
   c.appendCols_('התראות', [['מזהה', dev], ['שם', nm], ['טלפון', ph], ['ישיבה', 'ישיבת תפוח / מערב השומרון'],
     ['קוד ישיבה', 'tapuah'], ['תפקיד', role], ['שכבה', g || ''], ['כיתה', k || '']]);
 }
-staff('DRAM00001', 'הר"ם', 'רב ומחנך', '0550000011', 'ט׳', '3');
-staff('DHEAD0001', 'הר"ם', 'ראש חטיבה', '0550000011');
-staff('DRAM00002', 'ר"ם ב', 'רב ומחנך', '0550000022');
-staff('DRAM00003', 'ר"ם ג', 'רב ומחנך', '0550000033', 'י׳', '3');
+staff('DRAM00001', 'הר"ם', 'רב ומחנך', '055' + '0000011', 'ט׳', '3');
+staff('DHEAD0001', 'הר"ם', 'ראש חטיבה', '055' + '0000011');
+staff('DRAM00002', 'ר"ם ב', 'רב ומחנך', '055' + '0000022');
+staff('DRAM00003', 'ר"ם ג', 'רב ומחנך', '055' + '0000033', 'י׳', '3');
 ['DRAM00001', 'DHEAD0001', 'DRAM00002'].forEach(function (d) {
   var a = c.accAsk_('tapuah', d, false);
   c.upsertCols_(c.ACC_TAB, [['מזהה', d], ['מצב', 'אושר']], 'מזהה');
@@ -67,13 +67,13 @@ var nm = get({ netmarks: 'tapuah', dev: 'DRAM00001' });
 ok(nm.status === 'ok' && nm.rows.length === 2 && nm.rows[1][0] === 'm1', 'marks only his class', nm);
 // כתיבה לכיתה אחרת — נדחית; לכיתה שלו — עוברת
 var w1 = post({ action: 'amdarows', tab: c.AMDA_TAB_, dev: 'DRAM00001', inst: 'tapuah',
-  rows: [[['מזהה', 'x1'], ['שכבה', 'ט'], ['כיתה', '2'], ['שם', 'זר'], ['סוג', 'שיעור']]] });
+  rows: [[['מזהה', 'x1'], ['שכבה', 'ט'], ['כיתה', '2'], ['שם', 'Zar'], ['סוג', 'שיעור']]] });
 ok(w1.status === 'denied', 'write other class denied', w1);
 var w2 = post({ action: 'amdarows', tab: c.AMDA_TAB_, dev: 'DRAM00001', inst: 'tapuah',
-  rows: [[['מזהה', 'x2'], ['שכבה', 'ט'], ['כיתה', '3'], ['שם', 'שלו'], ['סוג', 'שיעור']]] });
+  rows: [[['מזהה', 'x2'], ['שכבה', 'ט'], ['כיתה', '3'], ['שם', 'Shelo'], ['סוג', 'שיעור']]] });
 ok(w2.status !== 'denied', 'write own class ok', w2);
 var w3 = post({ action: 'row', tab: c.AMDA_TAB_, dev: 'DRAM00001', inst: 'tapuah',
-  cols: [['מזהה', 'x3'], ['שכבה', 'י'], ['כיתה', '3'], ['שם', 'זר']] });
+  cols: [['מזהה', 'x3'], ['שכבה', 'י'], ['כיתה', '3'], ['שם', 'Zar']] });
 ok(w3.status === 'denied', 'single row other class denied', w3);
 var d1 = post({ action: 'amdadel', dev: 'DRAM00001', inst: 'tapuah', ids: ['m2'] });
 ok(d1.n === 0 && JSON.stringify(AT.d).indexOf('m2') >= 0, 'cannot delete other class', d1);

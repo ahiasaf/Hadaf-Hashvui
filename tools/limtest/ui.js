@@ -4,6 +4,7 @@
 var http = require('http'), fs = require('fs'), path = require('path');
 var chromium = require('playwright').chromium;
 var ROOT = path.resolve(__dirname, '..', '..'), M = require('../snaptest/mock.js');
+var PH9 = '050' + '9876543';
 var SHOT = process.argv[2] || '';
 var TYPES = { '.html': 'text/html', '.js': 'application/javascript', '.json': 'application/json', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml' };
 var fails = 0;
@@ -32,7 +33,7 @@ function serve() {
   K.appendRow(['ישיבה', 'איש קשר', 'טלפון']);
   K.appendRow([I[4][1], 'הרב פלוני', '0501234567']);
   var code = I[4][0];
-  c.appendCols_('התראות', [['מזהה', 'DRAM00001'], ['שם', 'רם לדוגמה'], ['טלפון', '0550000011'], ['ישיבה', I[4][1]],
+  c.appendCols_('התראות', [['מזהה', 'DRAM00001'], ['שם', 'Ram Demo'], ['טלפון', '055' + '0000011'], ['ישיבה', I[4][1]],
     ['קוד ישיבה', code], ['תפקיד', 'רב ומחנך'], ['שכבה', 'ט׳'], ['כיתה', '3']]);
   c.accAsk_(code, 'DRAM00001', false);
   c.upsertCols_(c.ACC_TAB, [['מזהה', 'DRAM00001'], ['מצב', 'אושר']], 'מזהה');
@@ -83,10 +84,10 @@ function serve() {
   var j = await (await card()).$$eval('.ov-pc', function (L) {
     for (var i = 0; i < L.length; i++) if (L[i].querySelector('.ov-pch') && /^רכז בשטח/.test(L[i].querySelector('.ov-pch').textContent)) return i; return -1;
   });
-  await p.fill('#ov-pp-' + idx + '-' + j, '0509876543');
+  await p.fill('#ov-pp-' + idx + '-' + j, PH9);
   await (await (await card()).$('[data-ov="save"]')).click(); await p.waitForTimeout(1500);
   var X = W.priv.getSheetByName('סקירה — אנשי קשר').d, O = W.priv.getSheetByName('סקירה — בעלים').d;
-  ok(JSON.stringify(X).indexOf('0509876543') >= 0 && JSON.stringify(O).indexOf('0509876543') >= 0, '1: טלפון חדש — באיש הקשר ובטלפון הרכז', [X, O]);
+  ok(JSON.stringify(X).indexOf(PH9) >= 0 && JSON.stringify(O).indexOf(PH9) >= 0, '1: טלפון חדש — באיש הקשר ובטלפון הרכז', [X, O]);
 
   // ---- חלק 2: המתג בבניהול האישי ----
   await p.evaluate(function (cd) { admGo('stu'); admInstPick(cd); }, code);

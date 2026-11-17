@@ -374,9 +374,16 @@ button.clsgrp{width:100%;background:none;border:0;border-bottom:1px solid var(--
 .ichip{border:1px solid var(--rule);background:var(--surface,#fff);color:var(--ink-2);
   border-radius:999px;padding:7px 13px;font:inherit;font-size:.82rem;font-weight:800;cursor:pointer}
 .ichip.on{background:var(--blue,#17468F);border-color:var(--blue,#17468F);color:#fff}
-.kudo.wa{border-color:rgba(37,211,102,.55);background:rgba(37,211,102,.1);color:#128C4A;text-decoration:none}
-/* וואטסאפ להורה — כחול (8.99.470, החלטת אחיאסף). */
-.kudo.wa.wap{border-color:#17468F;background:#17468F;color:#fff}
+.kudo.wa{border-color:#25D366;background:#25D366;color:#fff;text-decoration:none}
+/* וואטסאפ להורה — צבע אחר (8.99.528, החלטת אחיאסף): סגול. שניהם באותו גודל קטן. */
+.kudo.wa.wap{border-color:#6B3FA0;background:#6B3FA0;color:#fff}
+.was .kudo,.kudo.wa{padding:5px 10px;font-size:.72rem;line-height:1.2;white-space:nowrap}
+/* הסבר הכפתורים — מסגרת קטנה מעל הרשימה, ✕ מסיר (8.99.528). */
+.bdhelp{position:relative;margin:0 0 12px;padding:9px 12px 9px 34px;border:1px solid var(--rule);
+  border-radius:10px;font-size:.78rem;font-weight:600;color:var(--ink-2);line-height:1.6}
+.bdhelp i{font-style:normal;font-weight:800;color:var(--ink)}
+.bdhelp .x{position:absolute;top:4px;left:4px;width:26px;height:26px;border:0;background:none;
+  font:inherit;font-size:.9rem;color:var(--ink-3);cursor:pointer}
 /* שני כפתורי וואטסאפ — זה מתחת לזה, שהשורה לא תיחתך בטלפון. */
 .was{flex:none;display:flex;flex-direction:column;gap:4px;margin-inline-start:4px}
 .was .kudo{margin-inline-start:0!important;text-align:center}
@@ -1245,11 +1252,23 @@ function srchHit(p) {
   for (var i = 0; i < hay.length; i++) if (srchKey(hay[i]).indexOf(q) >= 0) return true;
   return false;
 }
+/* הסבר קצר על הכפתורים בשורה — עד שלוחצים ✕ (במכשיר). נוסח: ui.bdHelp, שורה לכל כפתור;
+   *מודגש* עד המקף. ריק = לא מוצג. */
+function helpHtml() {
+  var t = UI.bdHelp || '';
+  if (!t || SELMODE || LGet('bdHelpX', 0)) return '';
+  return '<div class="bdhelp" id="bdhelp"><button class="x" type="button" id="bdhelp-x">✕</button>' +
+    t.split('\n').map(function (l) {
+      var m = l.match(/^\*([^*]+)\*(.*)$/);
+      return m ? '<i>' + esc(m[1]) + '</i>' + esc(m[2]) : esc(l);
+    }).join('<br>') + '</div>';
+}
 function classesHtml() {
   var list = shown();
   if (!list.length) return '';
   return '<div class="card"><h2>' +
     (mineRam ? 'הכיתה שלך' : ALL && !FILT ? 'התלמידים לפי ישיבה' : 'התלמידים לפי כיתה') + '</h2>' +
+    helpHtml() +
     '<input class="srch" id="cls-q" type="search" value="' + esc(SRCH) + '" placeholder="' +
     (ALL ? 'חיפוש — שם, ישיבה או טלפון' : 'חיפוש לפי שם') + '">' +
     '<div id="cls-list">' + classesList() + '</div>' +
@@ -1535,6 +1554,12 @@ function ptsWire() {
   if (!body || body.getAttribute('data-pw')) return;
   body.setAttribute('data-pw', '1');
   body.addEventListener('click', function (e) {
+    if (e.target && e.target.id === 'bdhelp-x') {
+      LSet('bdHelpX', 1);
+      var h = $('bdhelp'); if (h && h.parentNode) h.parentNode.removeChild(h);
+    }
+  });
+  body.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-pts]');
     if (!b) return;
     var id = b.getAttribute('data-pts');
@@ -1663,7 +1688,7 @@ function kudoBtn(p, did) {
     if (KUDO_SENT[p.id]) return '<span class="kudo sent">' + esc(kt('kudoQueued')) + '</span>';
     /* מקבל התראות — ✉, ולצידו וואטסאפ ישיר בלי נוסח (8.99.376). */
     if (p.push || p.parPush) return '<button class="kudo" data-kudo="' + esc(p.id) + '" title="התראה אישית">✉</button>' +
-      waTwo(waNum(p.phone) ? '<a class="kudo" style="text-decoration:none;margin-inline-start:4px" target="_blank" rel="noopener" href="https://wa.me/' +
+      waTwo(waNum(p.phone) ? '<a class="kudo wa" style="text-decoration:none;margin-inline-start:4px" target="_blank" rel="noopener" href="https://wa.me/' +
                         waNum(p.phone) + '">' + esc(kt('kudoWa')) + '</a>' : '', waA(p.parPh, 1));
     /* **בלי טלפון — "אין מספר", לא כפתור שבור.** עם טלפון — תיבה עם
        נוסח מוכן וקישור להחזרת ההתראות (waBoxHtml). פתיחת וואטסאפ
