@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 225;
+var SCRIPT_VERSION = 226;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -12522,13 +12522,11 @@ function chWinPub_() {
   });
   return out;
 }
-/* השבוע של ההגרלה בעמוד הזוכים — כמו ההגרלה השבועית, שנערכת ביום ראשון שפותח את השבוע:
-   הגרלת שולחן באמצע השבוע (שישי) שייכת ליום ראשון שאחריה — אותה כותרת ואותה רשימה. */
+/* השבוע של הגרלת השולחן בעמוד הזוכים — שבוע התוכנית של מועד ההגרלה עצמו (אחיאסף, 17.11). */
 function chWkOf_(ms) {
   var d = Utilities.formatDate(new Date(ms), 'Asia/Jerusalem', 'yyyy-MM-dd');
   var days = Math.round((Date.parse(d + 'T00:00:00Z') - Date.parse(PROG_START + 'T00:00:00Z')) / 864e5);
-  if (!(days >= 0)) return 1;
-  return days % 7 === 0 ? days / 7 + 1 : Math.floor(days / 7) + 2;
+  return !(days >= 0) ? 1 : Math.floor(days / 7) + 1;
 }
 
 /* התוצאה לתלמיד. רק מה שפורסם, ורק למי שזוהה כתלמיד של מוסד
