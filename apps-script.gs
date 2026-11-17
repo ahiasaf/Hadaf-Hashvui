@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 227;
+var SCRIPT_VERSION = 228;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -175,6 +175,8 @@ var PRIVATE_TABS = ['תמונת בית א', 'תמונת בית ב', 'עלוני�
                     /* מי קיבל את אזור הניהול האישי, ומה הרכז החליט עליו.
                        שם וטלפון של איש צוות — פרטית. ראו `acc`. */
                     'גישה',
+                    /* הגבלת ר"ם לכיתה שלו — מזהי מכשיר, שכבה וכיתה. ראו accLim_. */
+                    'הגבלת כיתה',
                     /* עמדת הלימוד: רשימת התלמידים של בית הספר, ומי נרשם
                        שלמד. שמות של קטינים — פרטית. ראו amda* ב-index.html. */
                     'תלמידי בית הספר', 'עמדת לימוד',
@@ -360,7 +362,7 @@ var TM_KEYS_ = ['file', 'help', 'setup', 'fire', 'helpdone', 'conflictdone', 'sa
   'parstat', 'ltime', 'amdaneed', 'test', 'sayCount', 'inbox', 'mark', 'funnel', 'trails', 'arrived', 'push',
   'pairHist', 'pair', 'pairok', 'pairSeen', 'pairFor', 'idFor', 'amdaFor', 'whoIs', 'wid', 'acc', 'accset',
   'netbaks', 'netrun', 'netmarks', 'board', 'ov', 'team', 'recount', 'delrow', 'contactSave', 'archived',
-  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid', 'hasaa', 'hlpq'];
+  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid', 'hasaa', 'hlpq', 'acclim'];
 /* שם הבקשה — המפתח הראשון ברשימה שקיים, ועם ערכו רק כשהוא מילה קצרה
    באנגלית (op של האתגר/ההגרלה). מזהה או מספר לעולם אינו נכנס. */
 function tmName_(e, post) {
@@ -596,6 +598,15 @@ function doPostMain_(e) {
       if (accGate_(aInst, String(d.dev), true)) {
         return json_({ status: 'denied', message: 'המכשיר אינו מאושר לישיבה הזו' });
       }
+      var aLim = accLim_(String(d.dev), aInst);
+      if (aLim) {
+        var aGC = { g: '', c: '' };
+        (parse_(d.cols) || []).forEach(function (p) {
+          if (p && p[0] === 'שכבה') aGC.g = p[1];
+          if (p && p[0] === 'כיתה') aGC.c = p[1];
+        });
+        if (!limHit_(aLim, aGC.g, aGC.c)) return json_({ status: 'denied', message: LIM_DENY_ });
+      }
       var aOk = ['מזהה', 'שבוע', 'יום', 'עמדה', 'קוד עמדה', 'סוג', 'מסלול', 'דף', 'מקום',
                  'רמה', 'אישור חידון', 'שכבה', 'כיתה', 'שם', 'מתי', 'כותרת'];
       var aCols = (parse_(d.cols) || []).filter(function (p) {
@@ -609,7 +620,9 @@ function doPostMain_(e) {
       if (accGate_(String(d.inst), String(d.dev), true)) {
         return json_({ status: 'denied', message: 'המכשיר אינו מאושר לישיבה הזו' });
       }
-      return json_(amdaDel_(parse_(d.ids) || [], String(d.inst)));
+      var dLim = accLim_(String(d.dev), String(d.inst));
+      if (dLim && dLim.bad) return json_({ status: 'denied', message: LIM_DENY_ });
+      return json_(amdaDel_(parse_(d.ids) || [], String(d.inst), dLim));
     }
     /* כל הרישומים שבתור בבקשה אחת (amdaRows_) — לשונית העמדה בלבד. איש צוות
        (בלי סיסמה) — רק לישיבה שהמכשיר אושר אליה. */
@@ -622,6 +635,16 @@ function doPostMain_(e) {
       }
       if (accGate_(String(d.inst), String(d.dev), true)) {
         return json_({ status: 'denied', message: 'המכשיר אינו מאושר לישיבה הזו' });
+      }
+      /* ר"ם מוגבל — כל רישום בתור חייב להיות של הכיתה שלו; אחרת אף אחד לא נכתב. */
+      var rLim = accLim_(String(d.dev), String(d.inst));
+      if (rLim) {
+        var rBad = rLim.bad || arRows.some(function (cols) {
+          var g0 = '', c0 = '';
+          (cols || []).forEach(function (p) { if (p && p[0] === 'שכבה') g0 = p[1]; if (p && p[0] === 'כיתה') c0 = p[1]; });
+          return !limHit_(rLim, g0, c0);
+        });
+        if (rBad) return json_({ status: 'denied', message: LIM_DENY_ });
       }
       return json_(amdaRows_(AMDA_TAB_, arRows, String(d.inst)));
     }
@@ -2065,6 +2088,15 @@ function doGetMain_(e) {
                                    e.parameter.has === '1')); }
     catch (errA) { return reply_(e, { status: 'error', message: String(errA) }); }
   }
+  /* הגבלת ר"ם לכיתה שלו — רשימה והחלפה, בסיסמת הבעלים בלבד. ראו limList_. */
+  if (e && e.parameter && e.parameter.acclim) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
+      return reply_(e, { status: 'denied', message: 'אין הרשאה' });
+    }
+    try {
+      return reply_(e, String(e.parameter.acclim) === 'set' ? limSet_(e.parameter) : limList_());
+    } catch (errL) { return reply_(e, { status: 'error', message: String(errL) }); }
+  }
   if (e && e.parameter && e.parameter.accset) {
     if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
       return reply_(e, { status: 'denied', message: 'אין הרשאה' });
@@ -2123,6 +2155,8 @@ function doGetMain_(e) {
       if (!okInst || !e.parameter.dev) return reply_(e, { status: 'denied' });
       var gOk = accGate_(okInst, e.parameter.dev, true);
       if (gOk) return reply_(e, gOk);
+      var okLim = accLim_(e.parameter.dev, okInst);
+      if (okLim && okLim.bad) return reply_(e, { status: 'denied', message: LIM_DENY_ });
     }
     try { return reply_(e, amdaOk_(e.parameter, okAdm)); }
     catch (eOk) { return reply_(e, { status: 'error', message: String(eOk) }); }
@@ -2131,13 +2165,16 @@ function doGetMain_(e) {
   if (e && e.parameter && (e.parameter.netroster || e.parameter.netmarks)) {
     var nInst = String(e.parameter.netroster || e.parameter.netmarks);
     var nAdm = !!READ_KEY && String(e.parameter.key || '') === READ_KEY;
+    var nLim = null;
     if (!nAdm) {
       var gN = accGate_(nInst, e.parameter.dev, true);
       if (gN) return reply_(e, gN);
+      nLim = accLim_(e.parameter.dev, nInst);
+      if (nLim && nLim.bad) return reply_(e, { status: 'denied', message: LIM_DENY_ });
     }
     try {
-      return reply_(e, e.parameter.netroster ? netRoster_(nInst, String(e.parameter.dev || (nAdm ? 'רכז' : '')))
-                                             : netMarks_(nInst, e.parameter));
+      return reply_(e, e.parameter.netroster ? netRoster_(nInst, String(e.parameter.dev || (nAdm ? 'רכז' : '')), nLim)
+                                             : netMarks_(nInst, e.parameter, nLim));
     } catch (eN) {
       return reply_(e, { status: 'error', message: String(eN) });
     }
@@ -2161,10 +2198,17 @@ function doGetMain_(e) {
       var bInst = String(e.parameter.board);
       var gB = accGate_(bInst, e.parameter.dev, !!e.parameter.k);
       if (gB) return reply_(e, gB);
+      var bLim = accLim_(e.parameter.dev, bInst);
+      if (bLim && bLim.bad) return reply_(e, { status: 'denied', message: LIM_DENY_ });
       bk = ensureCode_(bInst, newCode_());
     }
     try { bd = boardData_(String(e.parameter.board), bk, e.parameter.test === '1'); }
     catch (err0) { bd = { status: 'error', message: String(err0) }; }
+    /* ר"ם מוגבל — רק התלמידים של הכיתה שלו יוצאים מכאן. */
+    if (bLim && bd && bd.status === 'ok' && bd.students) {
+      bd.students = bd.students.filter(function (p) { return limHit_(bLim, p.grade, p.klass); });
+      bd.lim = { g: bLim.gr, c: bLim.kl };
+    }
     /* **המשתתפים — מחושבים עכשיו**, באותה פונקציה של "מונים", והלשונית
        נכתבת מחדש באותה הזדמנות. כך המספר בניהול, באפליקציה ובמפה
        אחד, מאותו רגע. נכשל — אין `part`, והמסך אומר שהנתון ישן. */
@@ -3331,6 +3375,151 @@ function accGate_(inst, dev, hadCode) {
     message: 'כדי לראות את הלוח — הירשמו כאיש צוות באפליקציה. רכז התוכנית יאשר.' };
 }
 
+/* ============================================================
+   הגבלת ר"ם לכיתה שלו (8.99.527 · SCRIPT_VERSION 228, בריף 17.11).
+   ============================================================
+   מתג לבעלים, בשורה של ר"ם/רב ומחנך ב"בניהול האישי". דלוק — כל קריאה
+   וכתיבה של המכשיר הזה (הלוח, רשימת הכיתה, הנוכחות, ההודעה לתלמידים)
+   מצומצמת **בשרת** לישיבה + שכבה + כיתה שלו. אין שינוי אוטומטי: בלי
+   שורה דלוקה כאן — הכול כמו היום.
+   · לשונית פרטית `הגבלת כיתה` (מזהה מכשיר · קוד ישיבה · שכבה · כיתה ·
+     מוגבל · עודכן). השכבה והכיתה נלקחות בהדלקה מההרשמה ("התראות"),
+     או מה שהבעלים השלים ביד. לא נדרסת בשום סנכרון.
+   · חל רק כשהתפקיד של המכשיר ב"גישה" הוא ר"ם — תפקיד אחר של אותו מכשיר
+     (ראש ישיבה וכו') אינו מוגבל. מכשיר אחר של אותו אדם — לא נוגע.
+   · **נכשל סגור:** מוגבל בלי שכבה/כיתה, ישיבה אחרת, או לשונית שלא נקראה
+     — המכשיר אינו מקבל כלום. */
+var LIM_TAB_ = 'הגבלת כיתה';
+var LIM_COLS_ = ['מזהה', 'קוד ישיבה', 'שכבה', 'כיתה', 'מוגבל', 'עודכן'];
+function limRam_(role) { return /רב ומחנך|(^|\s)ר["״']?ם(\s|$)/.test(String(role || '').trim()); }
+/* { מזהה: {inst, g, c, on} } · null — לא נקרא. */
+function limRead_(fresh) {
+  var rc = CacheService.getScriptCache();
+  if (!fresh) { var hit = rc.get('limTab'); if (hit) { try { return JSON.parse(hit); } catch (e0) {} } }
+  try {
+    var sh = sheet_(LIM_TAB_);
+    if (!sh.getLastRow()) headRow_(sh, LIM_COLS_);
+    var a = sh.getDataRange().getDisplayValues(), h = a[0].map(function (x) { return String(x).trim(); });
+    var g = function (r, c) { var i = h.indexOf(c); return i < 0 ? '' : String(r[i] || '').trim(); };
+    var m = {};
+    for (var i = 1; i < a.length; i++) {
+      var id = g(a[i], 'מזהה');
+      if (!id) continue;
+      m[id] = { inst: g(a[i], 'קוד ישיבה'), g: g(a[i], 'שכבה'), c: g(a[i], 'כיתה'), on: g(a[i], 'מוגבל') === 'כן' };
+    }
+    rc.put('limTab', JSON.stringify(m), 120);
+    return m;
+  } catch (e) { return null; }
+}
+/* null — אין הגבלה. {g, c, gr, kl} — מוגבל לכיתה. {bad: 1} — מוגבל, ואין
+   כיתה שאפשר לסמוך עליה: לא מקבל כלום. */
+function accLim_(dev, inst) {
+  dev = String(dev || '').trim();
+  if (!dev) return null;
+  var a = accRow_(dev);
+  if (!a || !limRam_(a.role)) return null;
+  var M = limRead_();
+  if (!M) return { bad: 1 };
+  var o = M[dev];
+  if (!o || !o.on) return null;
+  var g = amdaNorm_(o.g), c = clsK_(o.c);
+  if (!g || !c || o.inst !== String(inst || '').trim()) return { bad: 1 };
+  return { g: g, c: c, gr: o.g, kl: o.c };
+}
+function limHit_(L, g, c) {
+  if (!L || L.bad) return false;
+  return amdaNorm_(g) === L.g && clsK_(c) === L.c;
+}
+var LIM_DENY_ = 'הגישה שלך מוגבלת לכיתה שלך, והכיתה לא ידועה. פנו לרכז התוכנית.';
+/* השכבה והכיתה מההרשמה — השורה האחרונה של המכשיר ב"התראות" בישיבה הזו. */
+function limRegOf_(pv, pi, dev, inst) {
+  for (var r = pv.length - 1; r >= 1; r--) {
+    if (String(pv[r][pi['מזהה']] || '').trim() !== dev) continue;
+    if (inst && String(pv[r][pi['קוד ישיבה']] || '').trim() !== inst) continue;
+    return { g: pi['שכבה'] === undefined ? '' : String(pv[r][pi['שכבה']] || '').trim(),
+             c: pi['כיתה'] === undefined ? '' : String(pv[r][pi['כיתה']] || '').trim() };
+  }
+  return { g: '', c: '' };
+}
+/* הרשימה לבעלים: כל ר"ם — מ"גישה", וגם מי שנרשם כר"ם ב"התראות" ואין לו
+   שורה ב"גישה". לכל אחד: השכבה והכיתה (ידני גובר על ההרשמה), המתג, ותפקידים
+   נוספים של אותו אדם (לפי טלפון) באותה ישיבה. */
+function limList_() {
+  var M = limRead_(true) || {};
+  var ps = sheet_('התראות');
+  var pv = ps.getLastRow() > 1 ? ps.getDataRange().getDisplayValues() : [[]], pi = {};
+  for (var i = 0; i < pv[0].length; i++) pi[String(pv[0][i]).trim()] = i;
+  var pg = function (r, k) { return pi[k] === undefined ? '' : String(pv[r][pi[k]] || '').trim(); };
+  var A = sheet_(ACC_TAB), av = A.getLastRow() > 1 ? A.getDataRange().getDisplayValues() : [[]], ai = {};
+  for (var j = 0; j < av[0].length; j++) ai[String(av[0][j]).trim()] = j;
+  var ag = function (r, k) { return ai[k] === undefined ? '' : String(av[r][ai[k]] || '').trim(); };
+  var ppl = {}, roles = [];   /* roles: [inst, ph9, role, dev] */
+  var addRole = function (inst, ph, role, dev) {
+    var d = String(ph || '').replace(/\D/g, '').slice(-9);
+    if (inst && d.length === 9 && role) roles.push([inst, d, role, dev]);
+  };
+  for (var a = 1; a < av.length; a++) {
+    var id = ag(a, 'מזהה');
+    if (!id) continue;
+    addRole(ag(a, 'קוד ישיבה'), ag(a, 'טלפון'), ag(a, 'תפקיד'), id);
+    if (!limRam_(ag(a, 'תפקיד'))) continue;
+    ppl[id] = { id: id, inst: ag(a, 'קוד ישיבה'), name: ag(a, 'שם'), phone: ag(a, 'טלפון'),
+                instName: ag(a, 'ישיבה'), role: ag(a, 'תפקיד'), acc: 1 };
+  }
+  var lastRow = {};
+  for (var r = 1; r < pv.length; r++) { var d0 = pg(r, 'מזהה'); if (d0) lastRow[d0] = r; }
+  for (var dv in lastRow) {
+    var q = lastRow[dv];
+    addRole(pg(q, 'קוד ישיבה'), pg(q, 'טלפון'), pg(q, 'תפקיד'), dv);
+    if (ppl[dv] || !limRam_(pg(q, 'תפקיד')) || !pg(q, 'קוד ישיבה')) continue;
+    ppl[dv] = { id: dv, inst: pg(q, 'קוד ישיבה'), name: pg(q, 'שם'), phone: pg(q, 'טלפון'),
+                instName: pg(q, 'ישיבה'), role: pg(q, 'תפקיד'), acc: 0 };
+  }
+  var out = [];
+  for (var k in ppl) {
+    var p = ppl[k], reg = limRegOf_(pv, pi, k, p.inst), o = M[k] || null;
+    p.rg = reg.g; p.rc = reg.c;
+    p.g = o && o.g ? o.g : reg.g; p.c = o && o.c ? o.c : reg.c;
+    p.on = !!(o && o.on); p.lInst = o ? o.inst : '';
+    var d9 = String(p.phone || '').replace(/\D/g, '').slice(-9), oth = [];
+    roles.forEach(function (x) {
+      if (x[0] !== p.inst || x[1] !== d9 || limRam_(x[2]) || x[2] === 'תלמיד' || x[2] === 'הורה') return;
+      if (oth.indexOf(x[2]) < 0) oth.push(x[2]);
+    });
+    p.oth = oth;
+    delete p.phone;
+    out.push(p);
+  }
+  return { status: 'ok', rows: out };
+}
+/* הדלקה/כיבוי, והשלמה ידנית של שכבה וכיתה. הדלקה בלי שכבה וכיתה — נדחית.
+   התשובה — מקריאה חוזרת של הלשונית. */
+function limSet_(P) {
+  var id = String(P.id || '').trim(), on = String(P.on) === '1';
+  if (!/^[\w:.\-]{6,60}$/.test(id)) return { status: 'error', message: 'מזהה לא תקין' };
+  var L = limList_(), me = null;
+  L.rows.forEach(function (x) { if (x.id === id) me = x; });
+  if (!me) return { status: 'error', message: 'לא נמצא ר"ם עם המזהה הזה' };
+  var g = String(P.g == null ? me.g : P.g).replace(/\s+/g, ' ').trim().slice(0, 8);
+  var c = String(P.c == null ? me.c : P.c).replace(/\s+/g, ' ').trim().slice(0, 8);
+  if (on && (!amdaNorm_(g) || !clsK_(c))) return { status: 'error', message: 'חסרות שכבה וכיתה' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(15000)) return { status: 'busy', message: 'עומס — נסו שוב' };
+  try {
+    var sh = sheet_(LIM_TAB_);
+    if (!sh.getLastRow()) headRow_(sh, LIM_COLS_);
+    upsertCols_(LIM_TAB_, [['מזהה', id], ['קוד ישיבה', me.inst], ['שכבה', g], ['כיתה', c],
+                           ['מוגבל', on ? 'כן' : 'לא'], ['עודכן', new Date()]], 'מזהה');
+    SpreadsheetApp.flush();
+  } finally { lock.releaseLock(); }
+  CacheService.getScriptCache().remove('limTab');
+  var back = (limRead_(true) || {})[id];
+  if (!back || back.on !== on || back.g !== g || back.c !== c) return { status: 'error', message: 'השמירה לא אומתה' };
+  var R = limList_();
+  R.saved = id;
+  return R;
+}
+
 /* פעם אחת: כל מכשיר של איש צוות שכבר רשום ב"התראות" ואין לו
    שורה ב"גישה" — נכנס כממתין, בלי לחכות שיפתח את הלוח. התראה
    אחת לרכז עם המספר, ולא אחת לכל אחד. */
@@ -3838,7 +4027,7 @@ function dtToday_(bam, withTest) {
    ועדיין לא חוברו לבן. כך "כל ההורים" אינו מצומצם ממה שהיה.
 
    מחזיר את כל המזהים (כולל מכשירים שנבלעו), ומספר האנשים. */
-function sayPeople_(scope, isAdm, withTest, f, grade, klass) {
+function sayPeople_(scope, isAdm, withTest, f, grade, klass, lim) {
   var bd = isAdm ? boardData_('*', '*', withTest, true)
                  : boardData_(scope, getCode_(scope), withTest, true);
   if (!bd || bd.status !== 'ok') return { ids: [], kids: 0, dads: 0 };
@@ -3854,6 +4043,7 @@ function sayPeople_(scope, isAdm, withTest, f, grade, klass) {
     if (!inScope(p.inst, p.instName)) return;
     if (grade && p.grade !== grade) return;
     if (klass && p.klass !== klass) return;
+    if (lim && !limHit_(lim, p.grade, p.klass)) return;
     if (f.way && p.way !== f.way) return;
     if (f.ids && !p._ids.some(function (x) { return f.ids.indexOf(x) >= 0; })) return;
     if (f.seg && wk) {
@@ -3862,10 +4052,10 @@ function sayPeople_(scope, isAdm, withTest, f, grade, klass) {
              : (Object.keys(p.pos).some(end) ? 'mid' : 'none');
       if (f.seg === 'todo' ? my === 'done' : my !== f.seg) return;
     }
-    if (f.par === 'pk') { add(p._ids); kidN++; }
-    if (p._par.length && !dadSeen[p._par[0]]) { dadSeen[p._par[0]] = 1; add(p._par); }
+    if (f.par === 'pk' || f.par === 'k') { add(p._ids); kidN++; }
+    if (f.par !== 'k' && p._par.length && !dadSeen[p._par[0]]) { dadSeen[p._par[0]] = 1; add(p._par); }
   });
-  var plain = !grade && !klass && !f.way && !f.ids && !f.seg;
+  var plain = !lim && !grade && !klass && !f.way && !f.ids && !f.seg;
   if (plain) {
     for (var d in bd.dads) {
       var dd = bd.dads[d];
@@ -5041,7 +5231,7 @@ function amdaUnlink_(keys) {
    שורות של הישיבה הזו (איש צוות: הישיבה שהמכשיר אושר אליה).
    מזהה שכבר לא קיים — אין מה למחוק; העמדה מאמתת בקריאה החוזרת.
    ההגרלה שכבר בוצעה לא זזה (תמונת כרטיסים). */
-function amdaDel_(ids, inst) {
+function amdaDel_(ids, inst, lim) {
   var want = {};
   (ids || []).forEach(function (i) { i = String(i || '').trim(); if (i) want[i] = 1; });
   if (!Object.keys(want).length) return { status: 'ok', n: 0 };
@@ -5054,6 +5244,7 @@ function amdaDel_(ids, inst) {
     var x = at.rows[r];
     if (!want[at.c(x, 'מזהה')]) continue;
     if (inst && at.c(x, 'קוד ישיבה') !== inst) continue;
+    if (lim && !limHit_(lim, at.c(x, 'שכבה'), at.c(x, 'כיתה'))) continue;
     del.push(r + 1);
     if (at.c(x, 'סוג') === 'דף') drop[key(at, x)] = 1;
   }
@@ -5096,7 +5287,7 @@ var NET_GR_ = { 'ז': 1, 'ח': 1, 'ט': 1, 'י': 1, 'יא': 1, 'יב': 1 };
    של ישיבה נשמרת במטמון של הסקריפט לשש שעות, תחת "גרסת מאגר" שמתחלפת
    בכל ייבוא ל"תלמידי הרשת" ובכל כתיבה ל"תלמידי בית הספר" (netBumpVer_
    ב-doPost) — מאגר חדש אינו מחכה למטמון ישן. */
-function netRoster_(inst, dev) {
+function netRoster_(inst, dev, lim) {
   var out = null, ck = '';
   try {
     var ver = PropertiesService.getScriptProperties().getProperty('netVer') || '0';
@@ -5114,7 +5305,9 @@ function netRoster_(inst, dev) {
                               ['תלמידים', out.rows.length],
                               ['מתלמידי הרשת', out.a], ['מתלמידי בית הספר', out.b]]);
   } catch (eL) {}
-  return { status: 'ok', inst: inst, rows: out.rows };
+  /* ר"ם מוגבל — רק השורות של הכיתה שלו. */
+  var nrRows = lim ? out.rows.filter(function (x) { return limHit_(lim, x[0], x[1]); }) : out.rows;
+  return { status: 'ok', inst: inst, rows: nrRows };
 }
 /* מחזיר { rows: [[שכבה, כיתה, שם]…], a: מתלמידי הרשת, b: מתלמידי בית הספר }. */
 function netRosterRead_(inst) {
@@ -5556,12 +5749,16 @@ function netRestore_(d, run, h) {
 }
 
 /* הרישומים של ישיבה אחת — לאימות התור במכשיר (no-cors תמיד "מצליח"). */
-function netMarks_(inst, p) {
+function netMarks_(inst, p, lim) {
   p = p || {};
   var t = amdaTable_(AMDA_TAB_);
   if (!t.rows.length) return { status: 'ok', rows: [] };
   var out = [t.rows[0]];
-  for (var r = 1; r < t.rows.length; r++) if (t.c(t.rows[r], 'קוד ישיבה') === inst) out.push(t.rows[r]);
+  for (var r = 1; r < t.rows.length; r++) {
+    if (t.c(t.rows[r], 'קוד ישיבה') !== inst) continue;
+    if (lim && !limHit_(lim, t.c(t.rows[r], 'שכבה'), t.c(t.rows[r], 'כיתה'))) continue;
+    out.push(t.rows[r]);
+  }
   /* `nosync` — הטלפון שולח את בקשת השיוך בנפרד (8.99.482), כדי שהרשימה לא תחכה לה. */
   if (!p.nosync) { try { amdaSyncSoon_(); } catch (eS) {} }
   return { status: 'ok', rows: colsPick_(out, p.cols) };
@@ -8082,6 +8279,8 @@ function saySay_(e) {
     if (ACC_ONLY) {
       var gS = accGate_(inst, P.dev, !!P.k);
       if (gS) return reply_(e, gS);
+      var sLim = accLim_(P.dev, inst);
+      if (sLim && sLim.bad) return reply_(e, { status:'denied', message: LIM_DENY_ });
     } else {
       var want = getCode_(inst);
       if (!want || String(P.k || '') !== want) {
@@ -8115,6 +8314,21 @@ function saySay_(e) {
   if (asHead) {
     if (P.aud === 'parents') flO.par = 'p';
     else if (P.aud === 'both') flO.par = 'pk';
+  }
+  /* ר"ם מוגבל — הנמענים נבנים כאן לפי מזהים, מתלמידי הכיתה שלו בלבד
+     (sayPeople_ עם lim): גם לתלמידים, כדי שהשוואת הכיתה תהיה לפי המפתח
+     המנורמל ולא לפי הנוסח שהמכשיר שלח. */
+  if (sLim) {
+    if (!flO.par) flO.par = 'k';
+    var whoL = sayPeople_(inst, false, P.test === '1', flO, '', '', sLim);
+    if (!whoL.ids.length) return reply_(e, { status:'empty', message:'אין בקבוצה הזו נמענים.' });
+    var flL = { ids: whoL.ids };
+    if (flO.per) flL.per = 1;
+    var rL = ghFire_(String(P.title || ''), String(P.body || ''), '', sLim.gr, sLim.kl,
+                     String(P.who || ''), link, '', '', JSON.stringify(flL), false, '', sayTo_(P));
+    if (rL.status !== 'ok') rL = { status:'ok', held: 1 };
+    rL.kids = whoL.kids; rL.dads = whoL.dads;
+    return reply_(e, rL);
   }
   if (flO.par) {
     var who0 = sayPeople_(asHead ? inst : String(P.only || ''), isAdm,
@@ -17723,7 +17937,9 @@ function ovLearners_() {
 var OV_OWN_TAB_ = 'סקירה — בעלים';
 /* השדות שהבעלים ממלא, לפי שם העמודה. עמודה חסרה נוספת בכתיבה הראשונה. */
 var OV_OWN_F_ = { yesh: 'לומדים בישיבה', over: 'חופפים',
-                  pc: 'טלפון רכז', pr: 'טלפון ראש ישיבה', ph: 'טלפון ראש חטיבה' };
+                  pc: 'טלפון רכז', pr: 'טלפון ראש ישיבה', ph: 'טלפון ראש חטיבה',
+                  /* הרכז בשטח = איש קשר מסומן (8.99.527): המזהה שלו ב"סקירה — אנשי קשר". */
+                  pcx: 'רכז — איש קשר' };
 var OV_OWN_COLS_ = ['קוד', 'לומדים בישיבה', 'חופפים', 'עודכן'];
 function ovOwn_() {
   try {
@@ -17770,7 +17986,7 @@ function ovOwnSet_(code, f, v) {
   }
   /* טלפון נכתב כמלל (גרש מוביל) — אחרת גוגל מוחקת את האפס שבראשו. */
   var isPh = f === 'pc' || f === 'pr' || f === 'ph';
-  O.sh.getRange(hit.r, col + 1).setValue(v === '' ? '' : isPh ? "'" + v : +v);
+  O.sh.getRange(hit.r, col + 1).setValue(v === '' ? '' : isPh ? "'" + v : f === 'pcx' ? v : +v);
   if (at >= 0) O.sh.getRange(hit.r, at + 1).setValue(new Date());
 }
 /* מתי ומי עדכנו את משפט הסיכום — שתי עמודות בלשונית הפרטית (נוספות
@@ -17807,14 +18023,94 @@ function ovPpl_(T, row, own, owner) {
   var code = ovCell_(T, row, 'code');
   var mine = own && own.m && code ? own.m[code] : null;
   var out = [];
+  /* רכז שסומן מתוך אנשי הקשר — השם והטלפון מאיש הקשר עצמו (מקור אחד). */
+  var lk = ovPcLink_(code, mine);
   [['pc', 'coord'], ['pr', 'rosh'], ['ph', 'head']].forEach(function (p) {
     var name = ovCell_(T, row, p[1]), phone = mine ? mine[p[0]] || '' : '';
+    if (p[0] === 'pc' && lk) {
+      if (!owner && !(lk.name && lk.phone)) return;
+      out.push(owner ? { k: 'pc', name: lk.name, phone: lk.phone, id: lk.id, role: lk.role, lk: 1 }
+                     : { k: 'pc', name: lk.name, phone: lk.phone });
+      return;
+    }
     if (!owner && !(name && phone)) return;
     out.push({ k: p[0], name: name, phone: phone });
   });
   /* אנשי קשר נוספים (8.99.449) — לבעלים בלבד. הקישור למנהלים לא מתרחב. */
-  if (owner && code) ovPplMore_(code, out);
+  if (owner && code) ovPplMore_(code, out, lk ? lk.id : '');
   return out;
+}
+/* איש הקשר שמסומן כרכז בשטח, או null. מזהה שכבר אינו בלשונית — null
+   (והשם/הטלפון בעמודות הקבועות נשארים כמו שהם). */
+function ovPcLink_(code, mine) {
+  var id = mine && mine.pcx ? String(mine.pcx).trim() : '';
+  if (!id || !code) return null;
+  var hit = null;
+  (ovXRead_().by[code] || []).forEach(function (q) { if (q.id === id) hit = q; });
+  return hit;
+}
+/* העמודות הקבועות של הרכז (השם בטבלה, הטלפון ב"סקירה — בעלים") — מראה של
+   איש הקשר המסומן, כדי שכל מה שקורא אותן היום (הלוח, הסקירה למנהלים,
+   הרכזים) יראה אותו דבר. נכתבות רק מכאן כשיש סימון. */
+function ovPcMirror_(T, hit, name, phone) {
+  var code = ovCell_(T, hit, 'code');
+  var col = T.cols.coord;
+  if (col !== undefined) {
+    var cell = T.sh.getRange(hit.r, col + 1);
+    cell.setValue(ovSafe_(name || ''));
+    hit.v[col] = cell.getValue();
+  }
+  ovOwnSet_(code, 'pc', String(phone || '').replace(/[^\d+]/g, ''));
+}
+/* סימון רכז מתוך אנשי הקשר / ביטול (8.99.527, בריף 17.11 חלק 1).
+   v = {id, name, phone, role, swap}. id ריק — איש קשר מהמוקד: נוצרת לו שורה
+   ב"סקירה — אנשי קשר" (nid מהמכשיר), כמו שהוא. רכז אחר כבר מסומן — בלי
+   `swap` חוזר `swap` עם שמו, ולא נכתב דבר. הרכז הקודם **אינו נמחק**: מסומן —
+   רק הסימון יורד; רכז ישן בעמודות הקבועות — הופך לאיש קשר רגיל. */
+function ovPcMark_(T, hit, v, unmark, by) {
+  var o = parse_(v) || {};
+  var code = ovCell_(T, hit, 'code');
+  if (!code) return { status: 'error', message: 'לישיבה אין קוד בטבלה' };
+  OVX_MEMO_ = null;
+  var own = ovOwn_();
+  if (!own) return { status: 'error', message: 'הלשונית הפרטית לא נקראה' };
+  var mine = own.m[code] || null, lk = ovPcLink_(code, mine);
+  var oldNm = lk ? lk.name : ovCell_(T, hit, 'coord'), oldPh = lk ? lk.phone : (mine ? mine.pc || '' : '');
+  var keep = function () {
+    /* רכז ישן (לא מסומן) — לאיש קשר רגיל, לפני שהעמודות מתרוקנות. */
+    if (lk || (!oldNm && !oldPh)) return null;
+    return ovPSet_(T, hit, JSON.stringify({ id: 'pc' + Date.now().toString(36), role: '', name: oldNm, phone: oldPh }), by);
+  };
+  if (unmark) {
+    var b0 = keep();
+    if (b0) return b0;
+    ovOwnSet_(code, 'pcx', '');
+    ovPcMirror_(T, hit, '', '');
+    SpreadsheetApp.flush();
+    return null;
+  }
+  var id = String(o.id || '').replace(/[^0-9A-Za-z_-]/g, '').slice(0, 30);
+  var cur = null;
+  if (id) (ovXRead_().by[code] || []).forEach(function (q) { if (q.id === id) cur = q; });
+  if (!cur) {
+    var nid = String(o.nid || '').replace(/[^0-9A-Za-z_-]/g, '').slice(0, 30);
+    if (!nid) return { status: 'error', message: 'איש הקשר לא נמצא' };
+    var name = String(o.name || '').trim(), phone = String(o.phone || '').replace(/[^\d+]/g, '');
+    if (!name && !phone) return { status: 'error', message: 'איש הקשר לא נמצא' };
+    var bN = ovPSet_(T, hit, JSON.stringify({ id: nid, role: String(o.role || ''), name: name, phone: phone }), by);
+    if (bN) return bN;
+    OVX_MEMO_ = null;
+    (ovXRead_().by[code] || []).forEach(function (q) { if (q.id === nid) cur = q; });
+    if (!cur) return { status: 'error', message: 'איש הקשר לא נשמר' };
+  }
+  if (lk && lk.id === cur.id) return null;
+  if ((lk || oldNm || oldPh) && String(o.swap) !== '1') return { status: 'swap', old: oldNm || oldPh };
+  var b1 = keep();
+  if (b1) return b1;
+  ovOwnSet_(code, 'pcx', cur.id);
+  ovPcMirror_(T, hit, cur.name, cur.phone);
+  SpreadsheetApp.flush();
+  return null;
 }
 /* ============================================================
    אנשי קשר בסקירה — תפקיד + שם + טלפון ביחד (8.99.449, בריף 3.11 חלק ג׳).
@@ -17857,7 +18153,7 @@ function ovXRead_() {
   return out;
 }
 function ovPhKey_(v) { var d = String(v || '').replace(/\D/g, ''); return d.length >= 9 ? d.slice(-9) : ''; }
-function ovPplMore_(code, out) {
+function ovPplMore_(code, out, skip) {
   var X = ovXRead_();
   var seen = function (name, phone) {
     var pk = ovPhKey_(phone);
@@ -17867,6 +18163,7 @@ function ovPplMore_(code, out) {
   };
   (X.by[code] || []).forEach(function (o) {
     if (!o.name && !o.phone) return;
+    if (skip && o.id === skip) return;
     out.push({ k: 'x' + o.id, id: o.id, role: o.role, name: o.name, phone: o.phone, x: 1 });
   });
   (X.con[code] || []).forEach(function (c, n) {
@@ -18377,7 +18674,7 @@ function ov_(p) {
     if (op === 'set') {
       var f = String(p.f || ''), v = String(p.v == null ? '' : p.v).trim();
       /* "לומדים בפועל" אינו נכתב לטבלה — הוא מחושב (ovLearners_). */
-      if (['note', 'coord', 'rosh', 'head', 'yesh', 'over', 'pc', 'pr', 'ph', 'pp'].indexOf(f) < 0) return { status: 'error', message: 'שדה לא מוכר' };
+      if (['note', 'coord', 'rosh', 'head', 'yesh', 'over', 'pc', 'pr', 'ph', 'pp', 'mark', 'unmark'].indexOf(f) < 0) return { status: 'error', message: 'שדה לא מוכר' };
       if (f !== 'note' && !owner) return { status: 'denied', message: 'רק לבעלים' };
       if (v.length > (f === 'note' ? 600 : 80)) v = v.slice(0, f === 'note' ? 600 : 80);
       var hit = null;
@@ -18387,11 +18684,30 @@ function ov_(p) {
             ovNameKey_(ovCell_(T, row, 'name')) === ovNameKey_(p.name)) hit = row;
       });
       if (!hit) return { status: 'error', message: 'הישיבה לא נמצאה בטבלה' };
+      /* סימון רכז מתוך אנשי הקשר / ביטול — ראו ovPcMark_. */
+      if (f === 'mark' || f === 'unmark') {
+        var mk = ovPcMark_(T, hit, String(p.v == null ? '' : p.v), f === 'unmark', full ? String(p.by || '') : '');
+        if (mk) return mk;
+        var C2 = ovCounts_(), own2m = ovOwn_(), reps2 = ovReps_();
+        if (C2 && own2m && reps2) ovPut_(T, hit, C2, own2m, reps2);
+        return { status: 'ok', row: ovRow_(T, hit, owner, ovLearners_(), own2m || ovOwn_(), reps2 || ovReps_(), C2) };
+      }
       /* איש קשר נוסף (ר״ם / אחר) — ראו ovPSet_. */
       if (f === 'pp') {
         var vRaw = String(p.v == null ? '' : p.v);
         var bad = ovPSet_(T, hit, vRaw, full ? String(p.by || '') : '');
         if (bad) return bad;
+        /* איש הקשר שמסומן כרכז — העמודות הקבועות מתעדכנות איתו. */
+        var poM = parse_(vRaw) || {}, ownM = ovOwn_(), mineM = ownM ? ownM.m[ovCell_(T, hit, 'code')] : null;
+        if (mineM && mineM.pcx && String(mineM.pcx) === String(poM.id || '')) {
+          OVX_MEMO_ = null;
+          var lkM = ovPcLink_(ovCell_(T, hit, 'code'), mineM);
+          if (lkM) {
+            ovPcMirror_(T, hit, lkM.name, lkM.phone); SpreadsheetApp.flush();
+            var CM = ovCounts_(), ownM2 = ovOwn_(), repM = ovReps_();
+            if (CM && ownM2 && repM) ovPut_(T, hit, CM, ownM2, repM);
+          }
+        }
         var po = parse_(vRaw) || {};
         var cw = ovConPush_(T, hit, String(po.name || '').trim(), String(po.phone || '').replace(/[^\d+]/g, ''));
         var outP = { status: 'ok', row: ovRow_(T, hit, owner, ovLearners_(), ovOwn_(), ovReps_(), ovCounts_()) };

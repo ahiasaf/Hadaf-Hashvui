@@ -1941,6 +1941,10 @@ select:focus,input:focus,textarea:focus{border-color:var(--blue)}
 .acc-n .sub{font-size:.78rem;color:var(--ink-3);font-weight:700;margin-top:3px}
 .acc-n .sub a{color:var(--blue);text-decoration:none;font-weight:800}
 .acc-b{display:flex;gap:6px;flex:0 0 auto}
+.acc-lim{flex:1 1 100%;font-size:.85rem}
+.acc-lim .sub{font-size:.78rem;color:var(--ink-3);font-weight:700;margin-top:3px}
+.acc-lim .btn{width:auto;margin:6px 0 0;padding:8px 13px;font-size:.8rem}
+.acc-lim input{padding:7px 9px;border:1px solid var(--rule-2);border-radius:8px;font:inherit}
 .acc-b .btn{width:auto;margin:0;padding:8px 13px;font-size:.8rem;text-decoration:none}
 .pr.all .pr-n{color:var(--blue)}
 .ppl-oh{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -3179,7 +3183,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.526';
+var APP_VERSION = '8.99.527';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -11182,7 +11186,7 @@ function admStudents(el) {
   el.innerHTML = '<div id="stu">' +
     '<div class="my-sec"><h3>' + esc(PANEL.brdH) + '</h3><p>' + esc(PANEL.brdSub) + '</p>' +
     '<div id="stu-brd"></div></div>' +
-    '<div class="my-sec" id="stu-det"><div id="stu-ls"></div><div id="stu-bar"></div><div id="stu-stf"></div>' +
+    '<div class="my-sec" id="stu-det"><div id="stu-ls"></div><div id="stu-bar"></div><div id="stu-stf"></div><div id="stu-acc"></div>' +
     '<div id="stu-head"></div><div id="ppl-conf"></div>' +
     '<iframe id="people-f" src="board.html?inst=all&embed=1' +
       (ADM_INST ? '&filt=' + encodeURIComponent(ADM_INST) : '') +
@@ -11631,6 +11635,8 @@ function stuLive() {
   STU.list = ADM_INST && ADM_INST !== '-' ? stuStaff(ADM_INST) : [];
   pplSet('stu-bar', ADM_INST ? stuBarHtml() : '');
   pplSet('stu-stf', ADM_INST ? stuStfHtml() : '');
+  /* הגבלת ר"ם לכיתה (8.99.527) — הר"מים של הישיבה שנבחרה. */
+  pplSet('stu-acc', ADM_INST && ADM_INST !== '-' ? accHtml(ADM_INST, 0, 1) : '');
   var t = document.getElementById('stu-txt');
   if (t && t.value !== STU.txt && document.activeElement !== t) t.value = STU.txt;
 }
@@ -14418,11 +14424,72 @@ function accPhUrl(a) {
                                           url: base + '#phone' });
   return 'https://wa.me/?text=' + encodeURIComponent(txt);
 }
-function accHtml(c, waitOnly) {
+/* ============================================================
+   הגבלת ר"ם לכיתה שלו (8.99.527). המתג בשורה של כל ר"ם ב"בניהול
+   האישי", וגם למי שנרשם כר"ם ולא ביקש גישה. השרת אוכף (accLim_).
+   ============================================================ */
+var limRows = null, limMsg = {}, limAt = 0;
+function limRam(role) { return /רב ומחנך|(^|\s)ר["״']?ם(\s|$)/.test(String(role || '').trim()); }
+function limLoad(force) {
+  var key = (CFG.readKey || '').trim();
+  if (!key || (!force && Date.now() - limAt < 120000)) return Promise.resolve(false);
+  limAt = Date.now();
+  return scriptGet({ acclim:'1', key:key }).then(function (d) {
+    /* קריאה שנכשלה אינה רשימה ריקה. */
+    if (!d || d.status !== 'ok' || !d.rows) return false;
+    limRows = d.rows; Store.set('limCache', limRows); admPane(); return true;
+  }).catch(function () { return false; });
+}
+function limOf(id) {
+  if (limRows === null) limRows = Store.get('limCache', null);
+  return (limRows || []).filter(function (x) { return x.id === id; })[0] || null;
+}
+function limSet(id, on) {
+  var key = (CFG.readKey || '').trim(), L = limOf(id);
+  if (!key || !L) return;
+  var q = { acclim:'set', id:id, on:on ? '1' : '0', key:key };
+  var g = document.getElementById('lim-g-' + id), k = document.getElementById('lim-c-' + id);
+  if (g && k) { q.g = g.value.trim(); q.c = k.value.trim(); }
+  limMsg[id] = UI.ovSaving; admPane();
+  scriptGet(q).then(function (d) {
+    if (!d || d.status !== 'ok' || !d.rows) { limMsg[id] = fill(UI.limErr, { m:(d && d.message) || '—' }); admPane(); return; }
+    delete limMsg[id]; limRows = d.rows; Store.set('limCache', limRows); admPane();
+  }).catch(function () { limMsg[id] = fill(UI.limErr, { m:'—' }); admPane(); });
+}
+function limHtml(L) {
+  if (!L) return '';
+  var has = String(L.g || '').trim() && String(L.c || '').trim();
+  var h = '<div class="sub">';
+  if (has) h += esc(fill(UI.limGC, { g:L.g, c:L.c }));
+  if (L.oth && L.oth.length) h += (has ? ' · ' : '') + esc(fill(UI.limOth, { r:L.oth.join(', ') }));
+  h += '</div>';
+  if (has) {
+    h += '<button class="btn ' + (L.on ? 'p' : 'g') + '" style="margin-top:6px" onclick="limSet(' + dq(L.id) + ',' +
+      (L.on ? 'false' : 'true') + ')">' + esc(L.on ? UI.limOn : UI.limOff) + '</button>';
+  } else {
+    h += '<div class="sub">' + esc(UI.limNoGC) + '</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">' +
+      '<input id="lim-g-' + esc(L.id) + '" placeholder="' + esc(UI.limG) + '" aria-label="' + esc(UI.limG) + '" value="' + esc(L.g || '') + '" style="width:5.5em">' +
+      '<input id="lim-c-' + esc(L.id) + '" placeholder="' + esc(UI.limC) + '" aria-label="' + esc(UI.limC) + '" value="' + esc(L.c || '') + '" style="width:5.5em">' +
+      '<button class="btn g" onclick="limSet(' + dq(L.id) + ',true)">' + esc(UI.limSaveOn) + '</button></div>';
+  }
+  if (limMsg[L.id]) h += '<div class="cond" style="margin:6px 0">' + esc(limMsg[L.id]) + '</div>';
+  return '<div class="acc-lim">' + h + '</div>';
+}
+/* `ramOnly` — רק הר"מים (התלמידים ← ישיבה שנבחרה): שם המתג לכל ר"ם, גם
+   מאושר וגם מי שלא ביקש גישה. */
+function accHtml(c, waitOnly, ramOnly) {
+  limLoad();
   var list = accList().filter(function (a) {
-    return (c === '' || pplCode(a.inst) === c) && (!waitOnly || a.st === 'ממתין');
+    return (c === '' || pplCode(a.inst) === c) && (!waitOnly || a.st === 'ממתין') && (!ramOnly || limRam(a.role));
   });
-  if (!list.length) return '';
+  /* ר"ם שנרשם ואין לו שורה ב"גישה" — גם לו אפשר להדליק את ההגבלה. */
+  var seen = {};
+  accRows && accRows.forEach(function (a) { seen[a.id] = 1; });
+  if (limRows === null) limRows = Store.get('limCache', null);
+  var extra = waitOnly ? [] : (limRows || []).filter(function (L) {
+    return !seen[L.id] && (c === '' || pplCode(L.inst) === c);
+  });
+  if (!list.length && !extra.length) return '';
   list.sort(function (x, y) { return (x.st === 'ממתין' ? 0 : 1) - (y.st === 'ממתין' ? 0 : 1); });
   return '<div class="acc"><div class="acc-h">בניהול האישי</div>' +
     (accMsg ? '<div class="cond" style="margin:6px 0">' + esc(accMsg) + '</div>' : '') +
@@ -14441,7 +14508,11 @@ function accHtml(c, waitOnly) {
         (a.st === 'ממתין' && a.phone ? '<a class="btn gr" target="_blank" rel="noopener" href="' + esc(accIdUrl(a)) + '">וואטסאפ לזיהוי</a>' : '') +
         (a.st === 'ממתין' && !a.phone ? '<a class="btn g" target="_blank" rel="noopener" href="' + esc(accPhUrl(a)) + '">בקשת טלפון</a>' : '') +
         (a.st !== 'נעול' ? '<button class="btn g" onclick="accSet(' + dq(a.id) + ',\'נעול\')">נעילה</button>' : '') +
-        '</div></div>';
+        '</div>' + (limRam(a.role) ? limHtml(limOf(a.id)) : '') + '</div>';
+    }).join('') + extra.map(function (L) {
+      return '<div class="acc-r"><div class="acc-n"><b>' + esc(L.name || '—') + '</b>' +
+        '<div class="sub">' + esc([L.role, c === '' ? (L.instName || '') : '', UI.limNoAcc].filter(Boolean).join(' · ')) +
+        '</div></div>' + limHtml(L) + '</div>';
     }).join('') + '</div>';
 }
 

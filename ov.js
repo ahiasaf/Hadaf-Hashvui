@@ -98,6 +98,8 @@
     '.ov-pc.hl{border-color:#17468F;box-shadow:0 0 0 2px rgba(23,70,143,.15)}' +
     '.ov-pch{font-size:.74rem;font-weight:800;color:#8C681F;letter-spacing:.02em;margin-top:6px}' +
     '.ov-pc label{margin-top:6px}' +
+    '.ov-pm{margin-top:8px;font-size:.8rem;padding:6px 10px}' +
+    '.ov-pq{margin-top:8px;font-size:.85rem;font-weight:700}' +
     '.ov-add{display:block;width:100%;margin-top:9px;border:1.5px dashed #17468F;background:#fff;border-radius:11px;' +
       'padding:9px;font:inherit;font-size:.88rem;font-weight:800;color:#17468F;cursor:pointer}' +
     '.ov-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}' +
@@ -433,7 +435,10 @@
       var fix = FIX_NM[p.k] ? p.k : '';
       var sug = fix && !p.phone && SUG ? (SUG[p.k] || '') : '';
       if (!has(p.name) && !has(p.phone) && !sug) return;
-      cards.push({ fix: fix, id: p.x ? p.id : '', role: fix ? '' : (p.role || ''), name: p.name || '',
+      /* רכז שסומן מתוך אנשי הקשר (`lk`) — הכרטיס הוא איש הקשר עצמו: עריכה
+         בו נשמרת לאיש הקשר, והשרת מעדכן את הרכז איתו. */
+      var lk = fix === 'pc' && p.lk;
+      cards.push({ fix: fix, lk: !!lk, id: p.x || lk ? p.id : '', role: fix && !lk ? '' : (p.role || ''), name: p.name || '',
                    phone: p.phone || sug, sug: !!sug, roleEd: !fix && p.role !== U('ovRoleRam'),
                    o: { name: p.name || '', phone: p.phone || '', role: p.role || '' }, m: !!p.m });
     });
@@ -467,12 +472,14 @@
           (c.roleEd
             ? '<label for="ov-pr-' + id + '">' + esc(U('ovPRole')) + '</label>' +
               '<input id="ov-pr-' + id + '" value="' + esc(c.role) + '" placeholder="' + esc(U('ovRoleOther')) + '">'
-            : '<div class="ov-pch">' + esc(c.fix ? U('ovRole_' + c.fix) : (c.role || U('ovRoleOther'))) + '</div>') +
+            : '<div class="ov-pch">' + esc(c.fix ? U('ovRole_' + c.fix) + (c.lk && c.role ? ' · ' + c.role : '')
+                                                 : (c.role || U('ovRoleOther'))) + '</div>') +
           '<label for="ov-pn-' + id + '">' + esc(U('ovPName')) + '</label>' +
           '<input id="ov-pn-' + id + '" value="' + esc(c.name) + '" autocomplete="off">' +
           '<label for="ov-pp-' + id + '">' + esc(U('ovPPhone')) +
             (c.sug ? '<span class="sug">' + esc(U('ovPhoneSug')) + '</span>' : '') + '</label>' +
           '<input id="ov-pp-' + id + '" type="tel" dir="ltr" value="' + esc(c.phone) + '">' +
+          pcBtn(E, c, i, j) +
           '</div>';
       }).join('') + '</div>' +
       (E.add
@@ -495,6 +502,48 @@
         ? '<button class="p busy" disabled>' + esc(U('ovSaving')) + '</button>'
         : '<button class="p" data-ov="save" data-i="' + i + '">' + esc(U('ovSave')) + '</button>') +
       '<button data-ov="cancel" data-i="' + i + '"' + (busy ? ' disabled' : '') + '>' + esc(U('ovCancel')) + '</button></div></div>';
+  }
+  /* סימון רכז מתוך אנשי הקשר (8.99.527): ליד כל איש קשר נוסף "סמן כרכז";
+     בכרטיס הרכז — "ביטול סימון". רכז אחר כבר מסומן — שאלה במקום, עם שני
+     כפתורים. כרטיס שעוד לא נשמר (בלי שם ובלי טלפון שמורים) — בלי כפתור. */
+  function pcBtn(E, c, i, j) {
+    if (!has(c.o.name) && !has(c.o.phone)) return '';
+    if (E.ask && E.ask.j === j) {
+      return '<div class="ov-pq">' + esc(fill(U('ovSwapPc'), { old:E.ask.old, 'new':c.o.name || c.o.phone })) +
+        '<div class="ov-fb"><button class="p" data-ov="pswap" data-v="1" data-j="' + j + '" data-i="' + i + '">' + esc(U('ovSwapYes')) +
+        '</button><button data-ov="pswap" data-v="0" data-j="' + j + '" data-i="' + i + '">' + esc(U('ovSwapNo')) + '</button></div></div>';
+    }
+    if (c.fix === 'pc') return '<button class="ov-add ov-pm" data-ov="punmark" data-j="' + j + '" data-i="' + i + '">' + esc(U('ovUnmarkPc')) + '</button>';
+    if (c.fix) return '';
+    return '<button class="ov-add ov-pm" data-ov="pmark" data-j="' + j + '" data-i="' + i + '">' + esc(U('ovMarkPc')) + '</button>';
+  }
+  function pcGo(st, r, i, j, mode) {
+    var E = peGrab(st, r, i);
+    if (!E || !E.cards[j] || (st.msg[r.k] && st.msg[r.k].busy)) return;
+    var c = E.cards[j];
+    if (mode === 'mark') {
+      var pc = E.cards.filter(function (x) { return x.fix === 'pc' && (has(x.o.name) || has(x.o.phone)); })[0];
+      if (pc && !(E.ask && E.ask.j === j)) { E.ask = { j: j, old: pc.o.name || pc.o.phone }; paint(st); return; }
+    }
+    E.ask = null;
+    if (!c.id && mode === 'mark') c.nid = peNewId();
+    var v = mode === 'mark'
+      ? JSON.stringify({ id: c.id || '', nid: c.nid || '', role: c.o.role || '', name: c.o.name, phone: String(c.o.phone || '').replace(/[^\d+]/g, ''), swap: 1 })
+      : '{}';
+    st.msg[r.k] = { t:'', busy:1 }; paint(st);
+    st.save(r, mode, v).then(function (back) {
+      if (back) for (var bk in back) if (back.hasOwnProperty(bk) && bk !== 'k') r[bk] = back[bk];
+      /* הכרטיסים מחדש מהשרת; מה שהוקלד בשדות הכלליים נשמר. */
+      var keep = { yesh: E.yesh, note: E.note, stg: E.stg };
+      if (st.pe) st.pe[r.k] = null;
+      var E2 = peInit(st, r);
+      E2.yesh = keep.yesh; E2.note = keep.note; E2.stg = keep.stg;
+      st.msg[r.k] = { t:U('ovSaved') }; paint(st);
+      if (st.changed) st.changed(r);
+    }, function (err) {
+      st.msg[r.k] = { t:fill(U('ovSaveFail'), { t:(err && err.message) || err || '' }), bad:1 };
+      paint(st);
+    });
   }
   /* מצב השתתפות — אותן אפשרויות של המוקד (`stages` מהעמוד). בלי ערך ידוע — "—",
      ושמירה בלי בחירה אינה כותבת דבר. */
@@ -610,6 +659,12 @@
     var todo = [], ph0 = function (v) { return String(v || '').replace(/[^\d+]/g, ''); };
     var E = peGrab(st, r, i);
     (E ? E.cards : []).forEach(function (c) {
+      if (c.lk) {
+        /* רכז מסומן — איש הקשר עצמו; השרת מעדכן את הרכז איתו. */
+        if (c.name === c.o.name && ph0(c.phone) === ph0(c.o.phone)) return;
+        todo.push(['pp', JSON.stringify({ id: c.id, role: c.o.role || '', name: c.name, phone: ph0(c.phone) })]);
+        return;
+      }
       if (c.fix) {
         /* תפקיד קבוע — השם לעמודה שלו בטבלה, הטלפון ללשונית הבעלים (כמו היום). */
         if (c.name !== String(c.o.name || '')) todo.push([FIX_NM[c.fix], c.name]);
@@ -734,6 +789,13 @@
         }
         if (act === 'padd') { var Ea = peGrab(S, r, +b.getAttribute('data-i')); if (Ea) { Ea.add = true; Ea.hl = -1; } paint(S); return; }
         if (act === 'prole') { peRole(S, r, +b.getAttribute('data-i'), b.getAttribute('data-v')); return; }
+        if (act === 'pmark' || act === 'punmark') { pcGo(S, r, +b.getAttribute('data-i'), +b.getAttribute('data-j'), act === 'pmark' ? 'mark' : 'unmark'); return; }
+        if (act === 'pswap') {
+          var Es = peGrab(S, r, +b.getAttribute('data-i'));
+          if (b.getAttribute('data-v') !== '1') { if (Es) Es.ask = null; paint(S); return; }
+          pcGo(S, r, +b.getAttribute('data-i'), +b.getAttribute('data-j'), 'mark');
+          return;
+        }
         if (act === 'tog') { S.open[r.k] = !S.open[r.k]; if (!S.open[r.k]) { S.edit[r.k] = 0; if (S.pe) S.pe[r.k] = null; } paint(S); }
         else if (act === 'edit') { S.edit[r.k] = 1; S.msg[r.k] = null; if (S.pe) S.pe[r.k] = null; paint(S); }
         else if (act === 'cancel') { S.edit[r.k] = 0; S.msg[r.k] = null; if (S.pe) S.pe[r.k] = null; paint(S); }
