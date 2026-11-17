@@ -2,6 +2,8 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
+<!-- ההדגמה במקרן (/hatzaga) — לפני כל קוד שקורא אחסון או פונה לשרת. מחוץ להדגמה אינו עושה דבר. -->
+<script src="prj.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <!-- מחשב עם "מצב כהה אוטומטי" צבע את העמוד בדהוי. הצבעים כאן קבועים. -->
 <meta name="color-scheme" content="only light">
@@ -1521,6 +1523,30 @@ html.inter .masthead .m img{width:auto;height:52px}
   border:2px solid var(--gold-l);border-radius:14px;box-shadow:0 6px 18px rgba(27,42,69,.16)}
 .imem i{display:block;font-style:normal;font-size:.84rem;font-weight:800;color:var(--gold-t)}
 .imem em{display:block;margin-top:4px;font-style:normal;font-size:.95rem;font-weight:800;color:var(--ink)}
+/* ============================================================
+   הדגמה במקרן (/hatzaga — prj.js, prjDraw). רק כש-`body.prjon`.
+   ============================================================ */
+#prjx[hidden]{display:none}
+#prjx{margin-top:18px}
+.prj-go{display:block;margin:4px 0 0;padding:16px 14px;border-radius:16px;background:var(--blue-d);color:#fff;
+  font-size:1.15rem;font-weight:800;text-align:center;text-decoration:none;box-shadow:0 6px 16px rgba(11,37,80,.22)}
+.prj-card{margin-top:18px;background:#FFFDF8;border-radius:18px;padding:20px 16px;box-shadow:0 2px 10px rgba(11,37,80,.08);
+  text-align:center}
+.prj-card h2{font-size:1.3rem;font-weight:800;color:var(--blue-d)}
+.prj-qr{width:min(78%,280px);margin:14px auto 0}
+.prj-qr svg{display:block;width:100%;height:auto}
+.prj-cp{display:block;width:100%;margin-top:14px;padding:15px;border-radius:14px;border:2px solid var(--blue);
+  background:#fff;color:var(--blue);font:inherit;font-size:1.08rem;font-weight:800;cursor:pointer}
+.prj-gk{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:14px}
+.prj-gk button{font:inherit;font-size:1rem;font-weight:800;padding:10px 16px;border-radius:999px;border:2px solid #D9CBAE;
+  background:#fff;color:var(--ink);cursor:pointer}
+.prj-gk button.on{background:var(--blue);border-color:var(--blue);color:#fff}
+#prj-gu{margin-top:14px;text-align:right}
+.prj-rs{display:block;margin:22px auto 6px;background:none;border:0;font:inherit;font-size:.95rem;font-weight:700;
+  color:var(--ink-2);text-decoration:underline;cursor:pointer;padding:8px 14px}
+/* מקרן: הכול גדול יותר — אותו מסך, בהגדלה. */
+@media (min-width:900px){ body.prjon{zoom:1.3} }
+@media (min-width:1500px){ body.prjon{zoom:1.6} }
 </style>
 <!-- ספירת כניסות של Vercel (Web Analytics) — מספרים בלבד, בלי עוגיות.
      הקובץ מוגש מהאתר עצמו, לא מ-CDN. עד שמפעילים בלוח הבקרה של
@@ -1795,6 +1821,8 @@ html.inter .masthead .m img{width:auto;height:52px}
     <!-- הגרלת הרביעיות — ריק כשכבויה. ראו quad.js. -->
     <div id="quad"></div>
     <div id="wk-more"></div>
+    <!-- הדגמה במקרן בלבד (/hatzaga): הפרסים והזוכים, הברקוד, מדריך ההתקנה, התחלה מחדש. prjDraw. -->
+    <div id="prjx" hidden></div>
   </div>
 
   <!-- "איך זוכים בכרטיסים?" — מסך ההסבר (tkHowOpen). -->
@@ -6293,6 +6321,66 @@ drawWays();
 drawWho();
 applyRole();          /* וזה קורא ל-applyWays כשהממלא אינו אבא */
 stage();
+
+/* ============================================================
+   הדגמה במקרן (בריף 17.11.2026) — /hatzaga, ראו prj.js.
+   ============================================================
+   הבית של התלמיד לדוגמה, כמו שהוא. מתחת לשולחן: הפרסים והזוכים
+   (zochim, בלי מזהה), ברקוד וכפתור העתקה של קישור ההצטרפות הרגיל
+   (join, בלי שום פרמטר), מדריך ההתקנה עם כל המסלולים כמו בניהול,
+   ו"התחלה מחדש" — שמנקה רק את ההדגמה. */
+var PRJ_GK = 'ios';
+function prjUrl() {
+  return location.origin + location.pathname.replace(/[^\/]*$/, '') + PageUrl('join');
+}
+function prjDraw() {
+  var box = $('prjx');
+  if (!box || !window.PrjOn) return;
+  if (!/(^|\s)prjon(\s|$)/.test(document.body.className)) document.body.className += ' prjon';
+  var svg = '';
+  try { if (window.QR) svg = QR.svg(prjUrl(), { color: '#17468F', label: esc(UI.prjQrH || '') }); } catch (e) { svg = ''; }
+  var K = (window.GUIDE_UI && GUIDE_UI.kinds) ? GUIDE_UI.kinds() : [];
+  box.innerHTML = '<a class="prj-go" href="' + PageUrl('zochim') + '">' + esc(UI.prjWin) + ' ←</a>' +
+    '<div class="prj-card"><h2>' + esc(UI.prjQrH) + '</h2>' + (svg ? '<div class="prj-qr">' + svg + '</div>' : '') +
+    '<button type="button" class="prj-cp" onclick="prjCopy()">' + esc(UI.prjCopy) + '</button></div>' +
+    (K.length ? '<div class="prj-card"><h2>' + esc(UI.prjGuideH) + '</h2><div class="prj-gk">' +
+      K.map(function (k) {
+        return '<button type="button" data-k="' + k[0] + '"' + (k[0] === PRJ_GK ? ' class="on"' : '') +
+          ' onclick="prjGk(\'' + k[0] + '\')">' + esc(k[1]) + '</button>';
+      }).join('') + '</div><div id="prj-gu"></div></div>' : '') +
+    '<button type="button" class="prj-rs" onclick="prjReset()">' + esc(UI.prjReset) + '</button>';
+  box.hidden = false;
+  prjGuide();
+}
+function prjGuide() {
+  var g = $('prj-gu');
+  if (!g || !window.GUIDE_UI) return;
+  GUIDE_UI.force(PRJ_GK);
+  GUIDE_UI.mount(g, function () { prjGuide(); }, { trail: true });
+}
+function prjGk(k) {
+  PRJ_GK = k;
+  var b = document.querySelectorAll('#prjx .prj-gk button');
+  for (var i = 0; i < b.length; i++) b[i].className = b[i].getAttribute('data-k') === k ? 'on' : '';
+  prjGuide();
+}
+function prjCopy() {
+  var u = prjUrl(), ok = function () { SayMsg(UI.prjCopied); };
+  var old = function () {
+    var t = document.createElement('textarea');
+    t.value = u; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select();
+    try { document.execCommand('copy'); ok(); } catch (e) {}
+    document.body.removeChild(t);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(u).then(ok, old);
+  else old();
+}
+function prjReset() {
+  if (window.PrjReset) PrjReset();
+  location.replace(PageUrl('join') + '?prj=1');
+}
+if (window.PrjOn) prjDraw();
 
 /* ============================================================
    מסך הפתיחה — הנראות של עמוד הצוות.

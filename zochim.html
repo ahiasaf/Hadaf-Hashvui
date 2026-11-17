@@ -2,6 +2,8 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
+<!-- ההדגמה במקרן (/hatzaga) — לפני כל קוד שקורא אחסון או פונה לשרת. מחוץ להדגמה אינו עושה דבר. -->
+<script src="prj.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#F6F1E6">
 <link rel="icon" href="icon-192.png">
@@ -78,6 +80,7 @@ main.wait{visibility:hidden}
 .past .wkh b{font-size:1.08rem}
 .wl li{list-style:none;padding:7px 0;border-bottom:1px solid #E5DAC3;font-weight:700;font-size:1.02rem}
 .wl li span{color:var(--ink-2);font-weight:500}
+.chh{margin:16px 0 2px;font-size:1rem;font-weight:800;color:var(--gold-t)}
 .go{display:block;margin:16px 0 4px;padding:15px 14px;border-radius:14px;background:var(--blue-d);color:#fff;
   font-size:1.12rem;font-weight:800;text-align:center;text-decoration:none;box-shadow:0 6px 16px rgba(11,37,80,.25)}
 .go .ar{display:inline-block;margin-right:10px;font-size:1.2em;line-height:1;vertical-align:-.08em}
@@ -244,10 +247,22 @@ function coAtt(rid, code, vid) {
   coCall(q).then(coDone, function () { SayMsg(UI.zchErr); load(); });
 }
 function wl(r) {
-  if (!r.w.length) return '<p class="note">' + esc(UI.zchNoWin) + '</p>';
+  return wl0(r) + chWl(r);
+}
+function wl0(r) {
+  if (!r.w.length) return r.ch && r.ch.length ? '' : '<p class="note">' + esc(UI.zchNoWin) + '</p>';
   return '<ul class="wl">' + r.w.map(function (x) {
     return '<li>' + esc(x.name) + ' <span>· ' + esc(x.inst) + '</span>' + (CO ? coHtml(x, x.rid || r.rid) : '') + '</li>';
   }).join('') + '</ul>';
+}
+/* השולחן שזכה בחבר מביא חבר באותו שבוע (`ch` מ-rafAll_) — כותרת, וארבעת השמות. */
+function chWl(r) {
+  if (!r.ch || !r.ch.length || !UI.zchCh) return '';
+  return r.ch.map(function (c) {
+    return '<h3 class="chh">' + esc(UI.zchCh) + '</h3><ul class="wl">' + (c.w || []).map(function (x) {
+      return '<li>' + esc(x.name) + (x.inst ? ' <span>· ' + esc(x.inst) + '</span>' : '') + '</li>';
+    }).join('') + '</ul>';
+  }).join('');
 }
 /* הכותרת לפי המסלול: ההגרלה נערכת בגמר השבוע הקודם, ולכן השורה בלוח
    היא של השבוע שלפני שבוע ההגרלה (`wk` מהשרת — 1 = השבוע הראשון).

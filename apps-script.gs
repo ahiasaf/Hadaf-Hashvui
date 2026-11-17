@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 222;
+var SCRIPT_VERSION = 223;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -12485,9 +12485,47 @@ function rafAll_() {
     if (hit0) { hit0.w = e0.w.concat(hit0.w); hit0.day = e0.day; }
     else out.push(e0);
   }
+  /* **השולחן הזוכה בחבר מביא חבר** (17.11, אחיאסף) — באותה רשימה, לפי השבוע של ההגרלה.
+     רק הגרלה שאושרה (או נמסרה), ורק בעולם האמיתי. כישלון — הרשימה כמו קודם. */
+  try {
+    chWinPub_().forEach(function (c) {
+      var o = null;
+      out.forEach(function (x) { if (!o && String(x.wk) === String(c.wk)) o = x; });
+      if (!o) { o = { day: c.day, wk: c.wk, w: [] }; out.push(o); }
+      o.ch = (o.ch || []).concat([{ w: c.w }]);
+    });
+    out.sort(function (a, b) { return (parseInt(b.wk, 10) || 0) - (parseInt(a.wk, 10) || 0); });
+  } catch (xC) {}
   var res = { status: 'ok', list: out };
   try { rc.put('raf:all', JSON.stringify(res), 60); } catch (x2) {}
   return res;
+}
+
+/* השולחנות שזכו בחבר מביא חבר — לעמוד הזוכים (rafAll_). שם מלא ומוסד, כמו בהגרלה
+   השבועית. המודל מהמטמון (גם ישן); בלעדיו — בנייה רגילה. שבוע = שבוע התוכנית של
+   מועד ההגרלה (כמו "שבוע" בהגרלה השבועית — היא ביום ראשון שפותח אותו). */
+function chWinPub_() {
+  var M = chModelHit_(chCache_(), 'chal:r', true);
+  if (!M) { try { M = chModel_({ test: false }, false); } catch (e) { M = null; } }
+  if (!M || !M.on && !(M.ms || []).length) return [];
+  var nm = rafInstNm_(), gOf = {}, out = [];
+  (M.grp || []).forEach(function (g) { gOf[g.id] = g; });
+  (M.ms || []).forEach(function (m) {
+    if ((m.st !== CH_M_.ok && m.st !== CH_M_.dlv) || !m.sel || !gOf[m.sel]) return;
+    var g = gOf[m.sel], t = chMs_(m.date) || m.frz || m.selAt || m.okAt;
+    if (!t) return;
+    var w = [g.by].concat(g.f || []).filter(function (id) { return !!id; }).map(function (id) {
+      var p = (M.ppl || {})[id] || {};
+      return { name: ((p.f || '') + ' ' + (p.l || '')).trim(), inst: nm[p.i] || '' };
+    }).filter(function (x) { return !!x.name; });
+    if (w.length) out.push({ wk: chWkOf_(t), day: rafDay_(new Date(t)), w: w });
+  });
+  return out;
+}
+function chWkOf_(ms) {
+  var d = Utilities.formatDate(new Date(ms), 'Asia/Jerusalem', 'yyyy-MM-dd');
+  var days = Math.round((Date.parse(d + 'T00:00:00Z') - Date.parse(PROG_START + 'T00:00:00Z')) / 864e5);
+  return !(days >= 0) ? 1 : Math.floor(days / 7) + 1;
 }
 
 /* התוצאה לתלמיד. רק מה שפורסם, ורק למי שזוהה כתלמיד של מוסד

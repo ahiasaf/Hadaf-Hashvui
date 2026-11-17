@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="only light">
+<meta name="robots" content="noindex">
+<title>.</title>
+<style>html,body{margin:0;background:#F6F1E6}</style>
+<!-- ============================================================
+     הדגמה במקרן — הכניסה (בריף 17.11.2026).
+     ============================================================
+     כל פתיחה של הקישור — הדגמה חדשה: מה שנשאר מהדגמה קודמת בלשונית
+     נמחק, ואז הבית של התלמיד לדוגמה (join?prj=1). הכול — prj.js. -->
+<script>
+(function () {
+  try {
+    ['prj:ls', 'prj:ss', 'prj:st'].forEach(function (k) { sessionStorage.removeItem(k); });
+    sessionStorage.setItem('prj:on', '1');
+  } catch (e) {}
+  location.replace((/\.html$/.test(location.pathname) ? 'join.html' : 'join') + '?prj=1');
+})();
+</script>
+</head>
+<body></body>
+</html>
