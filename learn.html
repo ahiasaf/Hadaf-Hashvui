@@ -2608,17 +2608,30 @@ function ownPsuk_() {
   }
   if (!ed) return;
   if (ps) {
+    /* הבולד שנוסף עם הפסוק יורד יחד איתו */
+    var only = ps.firstChild && !ps.firstChild.nextSibling ? ps.firstChild : null;
+    if (only && only.nodeType === 1 && /^(b|strong)$/i.test(only.nodeName)) {
+      while (only.firstChild) ps.insertBefore(only.firstChild, only);
+      ps.removeChild(only);
+    }
     while (ps.firstChild) ps.parentNode.insertBefore(ps.firstChild, ps);
     ps.parentNode.removeChild(ps);
     return;
   }
   if (sel.isCollapsed) return;
-  var r = sel.getRangeAt(0), sp = document.createElement('span');
+  /* פסוק = גופן של פסוק + בולד. הבולד יורד בכפתור B, והפסוק נשאר. */
+  var r = sel.getRangeAt(0), sp = document.createElement('span'), bb = document.createElement('b');
+  var fr = r.extractContents(), olds = fr.querySelectorAll ? fr.querySelectorAll('b,strong') : [];
+  for (var k = 0; k < olds.length; k++) {
+    while (olds[k].firstChild) olds[k].parentNode.insertBefore(olds[k].firstChild, olds[k]);
+    olds[k].parentNode.removeChild(olds[k]);
+  }
   sp.className = 'psuk';
-  sp.appendChild(r.extractContents());
+  bb.appendChild(fr);
+  sp.appendChild(bb);
   r.insertNode(sp);
   sel.removeAllRanges();
-  var r2 = document.createRange(); r2.selectNodeContents(sp); sel.addRange(r2);
+  var r2 = document.createRange(); r2.selectNodeContents(bb); sel.addRange(r2);
 }
 
 /* ============================================================
