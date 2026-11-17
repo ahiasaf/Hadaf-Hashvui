@@ -2679,6 +2679,13 @@ function applyWays() {
                            : isKid ? JOIN.invAskKid  : JOIN.invAskFriend;
   $('dad-sub').textContent = isDad ? pw(JOIN.invSubDad)
                            : isKid ? JOIN.invSubKid  : JOIN.invSubFriend;
+  /* "בחבורה" כשחבר מביא חבר פעיל (17.11, אחיאסף): ההזמנה היא לשולחן — הכפתור בבית נפתח אצל
+     החבר הזה (chal.js, frOf). כבוי / לא ידוע — הנוסח הקודם. */
+  if (!isDad && !isKid && JOIN.invSubFriendCh && window.CHAL && CHAL.live && !INTER) {
+    CHAL.live(function (on) {
+      if (on && invRel === 'friend') $('dad-sub').textContent = JOIN.invSubFriendCh;
+    });
+  }
   $('l-dad-first').textContent = isDad ? pw(JOIN.invNameDad)
                                : isKid ? JOIN.invNameKid : JOIN.invNameFriend;
   drawFlip();

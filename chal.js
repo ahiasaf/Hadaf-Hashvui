@@ -494,7 +494,11 @@
   /* רשום (ותיק) עם קישור, ויש מקום: הצעה לשבת — השולחן שישב בו (`refT`). "הצטרפת" —
      רק מתשובת השרת (?challenge=sit), לא מהלחיצה. */
   /* כפתור הוואטסאפ נשאר גלוי גם כשיש הזמנה שממתינה לבחירה — פותחים שולחן משלך. */
-  function waOwn(d) { return d.ended ? '' : waBtn(U('chGoWa'), '', 'ch-wa'); }
+  /* **החבר מההרשמה** (17.11, אחיאסף): מי שבחר "בחבורה" ומסר חבר — כפתור ההזמנה לשולחן נפתח
+     קודם אצל החבר הזה (הטלפון שמסר), עם אותו קישור לשולחן. אחרי לחיצה — כמו קודם (בחירת איש קשר).
+     החבר אינו יושב מעצמו: כשנרשם מהקישור הוא בוחר כן/לא, כמו כל הזמנה. */
+  function frPh() { var f = frOf(); return f ? f.p : ''; }
+  function waOwn(d) { return d.ended ? '' : waBtn(U('chGoWa'), frPh(), 'ch-wa'); }
   /* הזמנה אחת: של מי, לאיזה שולחן, ומה אפשר — כפתור, או שורת מצב ברורה. */
   /* הזמנה אחת לבחירה — השולחן של המזמין (האיור, 8.99.448) והכפתור. */
   function invItem(h) {
@@ -679,7 +683,7 @@
       box.innerHTML = noteHtml(d) + ch;
       wireSit(function (x) { cardDraw(box, x); });
       plusWire(d, function (x) { cardDraw(box, x || cached() || d); });
-      waWire('ch-wa', null);
+      waWire('ch-wa', d.ended ? null : frOf(), function () { cardDraw(box, cached() || d); });
       if (!d.ended) codeWarm();
       return;
     }
@@ -689,7 +693,7 @@
     plusWire(d, function (x) { cardDraw(box, x || cached() || d); });
     tabWire(d, function () { cardDraw(box, cached() || d); });
     wireSit(function (x) { cardDraw(box, x); });
-    waWire('ch-wa', null);
+    waWire('ch-wa', d.ended ? null : frOf(), function () { cardDraw(box, cached() || d); });
     if (!d.ended) codeWarm();
   }
   function card(box) {
@@ -802,7 +806,7 @@
     if (d.ended || (v && !v.t.mine)) return '';
     /* 8.99.460 (אחיאסף): הבהרה ליד ההזמנה — אפשר להזמין גם חברים רשומים. ריק = לא מוצג. */
     var any = U('chWaAny');
-    return waBtn(U('chWaMore'), '', 'ch-wa') + (any ? '<p class="ch-tline">' + esc(any) + '</p>' : '');
+    return waBtn(U('chWaMore'), frPh(), 'ch-wa') + (any ? '<p class="ch-tline">' + esc(any) + '</p>' : '');
   }
   /* **שולחן אחד** (מסך 2 בבריף). מעליו — לשוניות "שולחן 1 · שולחן 2 · ＋" (8.99.455). */
   function oneHtml(d, home) {
@@ -970,7 +974,7 @@
     plusWire(d, redraw);
     tabWire(d, function () { redraw(); });
     wireSit(redraw);
-    waWire('ch-wa', null);
+    waWire('ch-wa', d.ended ? null : frOf(), redraw);
     waWire('ch-fr', d.ended ? null : frOf(), redraw);
     if (!d.ended) codeWarm();
   }
@@ -1087,5 +1091,17 @@
   }
 
   /* `table`/`ic` — לשולחן של הרביעייה (quad.js, 8.99.328): אותו ציור. */
-  window.CHAL = { card: card, page: page, grabRef: grabRef, ref: ref, strip: strip, table: tableOld, ic: IC, promoMsg: promoMsg };
+  /* האם המבצע פעיל עכשיו — לנוסח בטופס ההרשמה (join.html, applyWays). מהמצב שבמכשיר,
+     ואם אין — פנייה אחת לשרת (?challenge=state). `cb(true)` רק כשפעיל ולא הסתיים. */
+  var LIVE = null, LIVE_Q = [];
+  function live(cb) {
+    var c = cached();
+    if (c && c.on != null) { cb(!!(c.on && !c.ended)); return; }
+    if (LIVE !== null) { cb(LIVE); return; }
+    LIVE_Q.push(cb);
+    if (LIVE_Q.length > 1) return;
+    var done = function (v) { LIVE = v; var q = LIVE_Q; LIVE_Q = []; q.forEach(function (f) { try { f(v); } catch (e) {} }); };
+    api('state', {}).then(function (d) { done(!!(d && d.status === 'ok' && d.on && !d.ended)); }, function () { done(false); });
+  }
+  window.CHAL = { live: live, card: card, page: page, grabRef: grabRef, ref: ref, strip: strip, table: tableOld, ic: IC, promoMsg: promoMsg };
 })();
