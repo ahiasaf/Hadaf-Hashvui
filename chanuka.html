@@ -249,6 +249,17 @@ if (TST) { $('tstTag').textContent = UI.chnTestTag; $('tstTag').hidden = false; 
 /* פרויקט מקומי של ישיבת לפיד — הישיבה קבועה. השכבות — ז׳–י״א. */
 var INST = 'lapid';
 var GRADES = ['ז', 'ח', 'ט', 'י', 'יא'];
+/* הכיתות של לפיד (מספרים בלבד, בלי שמות) — מוצגות גם כשרשימת הר"מים עוד לא נשמרה ואין רשימת תלמידים. */
+var KNOWN = { 'ז': 7, 'ח': 8, 'ט': 6, 'י': 7, 'יא': 6 };
+function addKnown(cls) {
+  var have = {};
+  cls.forEach(function (x) { have[x[0] + '|' + x[1]] = 1; });
+  GRADES.forEach(function (g) {
+    for (var i = 1; i <= KNOWN[g]; i++) if (!have[g + '|' + i]) cls.push([g, String(i), null, '']);
+  });
+  cls.sort(function (x, y) { return GRADES.indexOf(x[0]) - GRADES.indexOf(y[0]) || (+x[1] || 0) - (+y[1] || 0); });
+  return cls;
+}
 function instName() {
   for (var i = 0; i < INSTITUTIONS.length; i++) if (INSTITUTIONS[i].code === INST) return INSTITUTIONS[i].name;
   return '';
@@ -320,7 +331,7 @@ function load() {
     S.open = d.open; S.close = d.close || '';
     if (d.open === 'closed') return say(tp(UI.chnClosed, { d: dateD(S.close) }));
     S.failed = d.status !== 'ok' || !d.cls;
-    S.cls = S.failed ? [] : d.cls;
+    S.cls = S.failed ? [] : addKnown(d.cls.slice());
     show('f');
     paint();
   })['catch'](function () {
@@ -366,7 +377,7 @@ function paint() {
       var v = x[0] + '|' + x[1];
       return '<button type="button" class="cr" data-c="' + esc(v) + '">' +
         '<span class="bg">' + esc(clsD(x[0], x[1])) + '</span>' +
-        '<span class="rv' + (x[3] ? '' : ' no') + '">' + esc(x[3] || tp(UI.chnClsLine, { cls: clsD(x[0], x[1]) })) + '</span>' +
+        '<span class="rv' + (x[3] ? '' : ' no') + '">' + esc(x[3] || '') + '</span>' +
         '<span class="go2">‹</span></button>';
     }).join('') + '</div>';
   } else if (S.g) {

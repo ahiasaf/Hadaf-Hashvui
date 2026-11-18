@@ -64,8 +64,8 @@ function tabRows(W) { var s = W.priv.getSheetByName('חוברות חנוכה'); 
     if (SHOT) await p.screenshot({ path: SHOT + '/0-grades.png', fullPage: true });
     await p.click('#grs [data-g="ז"]');
     var rows = await p.$$eval('.cr', function (a) { return a.map(function (x) { return x.textContent; }); });
-    ok(rows.length === 2 && /ז׳3/.test(rows[0]) && /ר"ם בדיקה/.test(rows[0]) && !/תלמידים/.test(rows[0]), 'class row: class + ram, no count', rows);
-    ok(/ז׳6/.test(rows[1]), 'class without ram still listed', rows);
+    ok(rows.length === 7 && /ז׳3/.test(rows[2]) && /ר"ם בדיקה/.test(rows[2]) && !/תלמידים/.test(rows[2]), 'class row: class + ram, no count', rows);
+    ok(rows[0] === 'ז׳1‹' && /ז׳6/.test(rows[5]), 'known classes listed, no duplicate label', rows);
     if (SHOT) await p.screenshot({ path: SHOT + '/1-list.png', fullPage: true });
     await p.click('.cr[data-c="ז|3"]');
     ok(await p.isHidden('#pickStep') && /ר"ם בדיקה/.test(await p.textContent('#who')), 'order screen with class + ram');
@@ -91,7 +91,7 @@ function tabRows(W) { var s = W.priv.getSheetByName('חוברות חנוכה'); 
     await p.click('#grs [data-g="ז"]'); await p.click('.cr[data-c="ז|3"]');
     await p.click('#chg');
     await p.waitForSelector('#pickStep:not([hidden])');
-    ok((await p.$$('.cr')).length === 2, 'change returns to the list');
+    ok((await p.$$('.cr')).length === 7, 'change returns to the list');
     await p.click('.cr[data-c="ז|3"]'); await p.click('#yN'); await p.click('#go');
     await p.waitForSelector('#ok:not([hidden])', { timeout: 20000 });
     ok(/בלי חוברות תרגול/.test(await p.textContent('#okB')) && tabRows(W).length === 1, 'update, still one row');
@@ -103,6 +103,13 @@ function tabRows(W) { var s = W.priv.getSheetByName('חוברות חנוכה'); 
     await p.click('#yY'); await p.click('#go');
     await p.waitForSelector('#ok:not([hidden])', { timeout: 20000 });
     ok(!(await p.isHidden('#okA')) && tabRows(W).length === 2, 'second requester → ask');
+    await p.context().close();
+
+    // 2ב. בלי רשימת ר"מים בגיליון — י״א עדיין מראה את הכיתות 1–6
+    var W0 = world(false); W0.ss = W0.ss || null;
+    p = await page(b, port, W0, '/chanuka');
+    await p.waitForSelector('#grs [data-g="יא"]'); await p.click('#grs [data-g="יא"]');
+    ok((await p.$$('.cr')).length === 6, 'יא shows 6 classes');
     await p.context().close();
 
     // 3. י״א — בלי מספר תלמידים: אין שדה כמות
