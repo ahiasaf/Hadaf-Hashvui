@@ -6,35 +6,39 @@
 <meta name="color-scheme" content="only light">
 <title>הדף השבועי של בני עקיבא</title>
 <link rel="icon" href="icon-192.png">
-<meta name="theme-color" content="#0E2E63">
+<meta name="theme-color" content="#241B3A">
 <meta name="robots" content="noindex">
 <!-- ============================================================
-     הזמנת חוברות חנוכה — פרויקט מקומי של ישיבת לפיד (8.99.530–533).
+     הזמנת חוברות חנוכה — פרויקט מקומי של ישיבת לפיד (8.99.530–535).
      ============================================================
      נפתח מקישור בלבד (/chanuka) — בלי התקנה, בלי הרשמה ובלי זיהוי צוות.
-     8.99.533 (אחיאסף): שלבים — שכבה (ז׳–י״א) ← רשימת הכיתות של השכבה, ולכל
-     כיתה שם הר"ם (?chn=cls — הר"מים מהלשונית הפרטית, ומספר התלמידים מרשימות
-     התלמידים: הגבוה מבין שתיהן, לא הסכום). הר"ם לוחץ על השורה שלו; הרשימה
-     מתקפלת לשורה אחת עם "שינוי". כיתה בלי מספר תלמידים — אין שדה כמות, והיא
-     נשמרת "תושלם" (אחיאסף ישלים). חוברות תרגול — כן/לא, באותה כמות.
-     שמירה: POST {action:'chn', op, rq} (no-cors) → ?chn=chk&op= → "נקלטה" רק
-     ממה שנקרא בלשונית. op לכל שליחה (ניסיון חוזר — אותו op); rq קבוע במכשיר
-     (df:chnRq) — שליחה חוזרת מעדכנת. השם נכתב בשרת מרשימת הר"מים. השרת: chnPut_.
-     הכיתות לא נטענו — שכבה, מספר כיתה וכמות ביד. מועד סגירה (ניהול) — אחריו סגור.
-     ?tst=1 — שורות בדיקה, לא נספרות.
+     8.99.535 (אחיאסף: "עיצוב מושקע, כמו עמוד רכישה"): בצבעי הכריכות (סגול לילה,
+     טורקיז, זהב), כותרות ושמות בפרנק-רוהל (fonts/, בלי CDN).
+     מסך 1 — שכבה (ז׳–י״א) ← הכיתות: תווית הכיתה ושם הרב בלבד (בלי מספר תלמידים).
+     מסך 2 (אחרי בחירה, pushState — "חזרה" של הטלפון חוזר לרשימה) — "עמוד רכישה":
+     הכיתה והרב למעלה עם "שינוי", כרטיס ספר הלימוד עם הכריכה ובורר כמות (−/+, ממולא
+     לפי רשימת התלמידים — הגבוה מבין שתי הרשימות), כרטיס חוברת התרגול עם השאלה וכן/לא
+     (באותה כמות), סיכום וכפתור הזמנה. כיתה בלי מספר תלמידים — בלי בורר כמות ("תושלם").
+     שמירה: POST {action:'chn', op, rq} (no-cors) → ?chn=chk&op= → "נקלטה" רק ממה שנקרא
+     בלשונית. op לכל שליחה (ניסיון חוזר — אותו op); rq קבוע במכשיר (df:chnRq). השרת: chnPut_.
+     הכיתות לא נטענו — מספר כיתה וכמות ביד. מועד סגירה (ניהול) — אחריו סגור. ?tst=1 — בדיקה.
      ============================================================ -->
 <style>
 html,body{touch-action:manipulation;overflow-x:clip;overscroll-behavior-x:none}
+@font-face{font-family:'FrankRuhlDaf';font-style:normal;font-weight:400 900;font-display:swap;
+  src:url(fonts/frank-ruhl-hebrew.woff2) format('woff2')}
 :root{
-  --blue:#17468F; --blue-d:#0B2550; --blue-l:#E8EEF8; --gold:#C9A13B; --gold-t:#8C681F; --green-d:#467B1A;
-  --paper:#F6F1E6; --surface:#FFFDF8; --ink:#1B2A45; --ink-2:#5A6780;
-  --rule:#E5DAC3; --stop:#A5382D;
+  --night:#241B3A; --night-2:#33285A; --teal:#2C7A86; --teal-l:#E3F1F2;
+  --gold:#E3B341; --gold-l:#F7E7B8; --gold-d:#8A6512;
+  --paper:#F6F1E6; --card:#FFFDF8; --ink:#231C33; --ink-2:#6B6480; --rule:#E8DFCC;
+  --blue-d:#0B2550; --stop:#A5382D; --green-d:#3F7A2A;
+  --serif:'FrankRuhlDaf','Frank Ruhl Libre','David',serif;
 }
 *{box-sizing:border-box;margin:0;padding:0;
   font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 img:not([src]){visibility:hidden}
 body{background:var(--paper);color:var(--ink);line-height:1.5;
-  padding-bottom:calc(env(safe-area-inset-bottom) + 28px)}
+  padding-bottom:calc(env(safe-area-inset-bottom) + 32px)}
 header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 .masthead{display:flex;align-items:center;gap:13px;padding:14px 16px 10px;max-width:32rem;margin:0 auto}
 .masthead .m{width:58px;height:58px;border-radius:50%;background:#fff;flex:none;
@@ -42,78 +46,98 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
   box-shadow:0 2px 5px rgba(37,29,12,.07),0 8px 22px rgba(37,29,12,.09)}
 .masthead .m img{width:38px;height:38px;display:block;object-fit:contain}
 .masthead h1{font-size:1.24rem;font-weight:800;letter-spacing:-.035em;line-height:1.2;color:var(--blue-d)}
-.masthead .yr{font-size:.76rem;font-weight:800;color:var(--gold-t);letter-spacing:.05em;margin-top:3px}
+.masthead .yr{font-size:.76rem;font-weight:800;color:var(--gold-d);letter-spacing:.05em;margin-top:3px}
 .wrap{max-width:32rem;margin:0 auto;padding:0 16px}
-/* הבאנר — הכותרת, והכריכות לצידה */
-.ban{display:flex;gap:14px;align-items:center;margin:8px 0 16px;padding:16px;border-radius:18px;color:#fff;
-  background:linear-gradient(160deg,var(--blue-d),var(--blue));box-shadow:0 8px 22px rgba(11,37,80,.22)}
-.ban .tx{flex:1;min-width:0}
-.ban h2{font-size:1.32rem;font-weight:800;letter-spacing:-.02em;line-height:1.25}
-.ban p{font-size:.92rem;font-weight:600;opacity:.9;margin-top:4px}
-.covers{display:flex;gap:6px;flex:none;align-items:flex-end}
-.covers figure{width:58px;text-align:center}
-.covers img{display:block;width:100%;height:auto;border-radius:4px;box-shadow:0 4px 10px rgba(0,0,0,.35)}
-.covers figcaption{font-size:.66rem;font-weight:700;margin-top:4px;line-height:1.2;opacity:.92}
+/* ---- הבאנר: לילה של חנוכה, הכריכות בזווית ---- */
+.hero{position:relative;overflow:hidden;margin:8px 0 18px;padding:22px 18px 20px;border-radius:22px;color:#fff;
+  background:radial-gradient(120% 90% at 85% 0%,rgba(227,179,65,.28),transparent 55%),
+             linear-gradient(155deg,var(--night) 0%,var(--night-2) 55%,var(--teal) 130%);
+  box-shadow:0 14px 34px rgba(36,27,58,.32)}
+.hero .tx{position:relative;z-index:1;max-width:58%}
+.hero h2{font-family:var(--serif);font-size:1.85rem;font-weight:900;line-height:1.12;color:#FFF3D1}
+.hero p{font-size:.92rem;font-weight:600;opacity:.88;margin-top:8px}
+.covers{position:absolute;left:12px;bottom:14px;width:40%;height:calc(100% - 28px)}
+.covers img{position:absolute;bottom:0;width:62%;height:auto;border-radius:5px;
+  box-shadow:0 10px 22px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.12)}
+.covers .c1{left:30%;transform:rotate(5deg);z-index:2}
+.covers .c2{left:0;transform:rotate(-7deg);bottom:8px;opacity:.96}
 .tst{background:#FFF3C4;border:1px solid #E5C76B;color:#6B5310;border-radius:10px;padding:6px 10px;
   font-weight:800;font-size:.86rem;margin-bottom:12px;text-align:center}
-/* שלב */
-.step{background:var(--surface);border:1px solid var(--rule);border-radius:16px;padding:14px;margin-bottom:12px;
-  box-shadow:0 1px 3px rgba(37,29,12,.05)}
-.step h3{font-size:1.02rem;font-weight:800;color:var(--blue-d);margin-bottom:10px}
+/* ---- כרטיס ---- */
+.card{background:var(--card);border:1px solid var(--rule);border-radius:20px;padding:18px 16px;margin-bottom:14px;
+  box-shadow:0 2px 6px rgba(36,27,58,.05),0 10px 26px rgba(36,27,58,.06)}
+.card h3{font-family:var(--serif);font-size:1.32rem;font-weight:800;color:var(--night);margin-bottom:12px}
 /* השכבות */
 .grs{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
-.grs button{border:2px solid var(--rule);border-radius:12px;background:#fff;color:var(--blue-d);
-  font:inherit;font-weight:800;font-size:1.15rem;padding:12px 0;cursor:pointer}
-.grs button.on{border-color:var(--blue);background:var(--blue);color:#fff}
-/* הכיתות */
-.cl{display:flex;flex-direction:column;gap:8px}
-.cr{display:flex;align-items:center;gap:12px;width:100%;text-align:right;border:2px solid var(--rule);border-radius:14px;
-  background:#fff;color:var(--ink);font:inherit;padding:10px 12px;cursor:pointer}
-.cr.on{border-color:var(--blue);background:var(--blue-l)}
-.cr .bd{flex:none;min-width:52px;height:44px;padding:0 6px;border-radius:12px;background:var(--blue-l);color:var(--blue-d);
-  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.08rem}
-.cr.on .bd{background:var(--blue);color:#fff}
-.cr .nm{flex:1;min-width:0;font-weight:800;font-size:1.02rem}
-.cr .st2{flex:none;font-size:.82rem;font-weight:700;color:var(--ink-2)}
-/* 8.99.534 — שם הרב הוא העיקר; הכיתה ומספר התלמידים בשורה קטנה מתחתיו */
-.cr .who{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-.cr .rv{font-weight:800;font-size:1.16rem;color:var(--blue-d);line-height:1.3}
-.cr .sb{font-size:.86rem;font-weight:700;color:var(--ink-2)}
-.cr .ck{flex:none;width:28px;height:28px;border-radius:50%;border:2px solid var(--rule);display:flex;
-  align-items:center;justify-content:center;font-weight:800;color:#fff}
-.cr.on .ck{background:var(--blue);border-color:var(--blue)}
-.ok .rvn{font-size:1.15rem;font-weight:800;color:var(--blue-d);margin-top:10px}
-.chg{border:0;background:none;color:var(--blue);font:inherit;font-weight:800;text-decoration:underline;padding:8px 2px 0;cursor:pointer}
-/* ההזמנה */
-.fl{display:block;margin-bottom:14px}
-.fl > span{display:block;font-size:.92rem;font-weight:800;color:var(--blue-d);margin-bottom:4px}
-.fl input,.fl select{display:block;width:100%;border:1px solid var(--rule);border-radius:12px;background:#fff;
-  padding:11px 13px;font:inherit;font-size:16px;color:var(--ink)}
-.fl input:focus,.fl select:focus{outline:2px solid var(--blue);outline-offset:1px}
-.fl small{display:block;font-size:.82rem;font-weight:600;color:var(--ink-2);margin-top:4px}
-.fl .num{max-width:8rem;font-size:1.3rem;font-weight:800;text-align:center}
-.two{display:flex;gap:10px}
-.two .fl{flex:1}
-.yn{display:flex;gap:10px}
-.yn button{flex:1;border:2px solid var(--rule);border-radius:12px;background:#fff;color:var(--ink);
-  font:inherit;font-weight:800;font-size:1.05rem;padding:11px;cursor:pointer}
-.yn button.on{border-color:var(--green-d);background:#EEF6E4;color:var(--green-d)}
+.grs button{border:1.5px solid var(--rule);border-radius:14px;background:#fff;color:var(--night);
+  font-family:var(--serif);font-weight:800;font-size:1.3rem;padding:12px 0;cursor:pointer;transition:all .15s}
+.grs button.on{border-color:var(--night);background:var(--night);color:var(--gold);box-shadow:0 6px 14px rgba(36,27,58,.25)}
+/* הכיתות: התווית ושם הרב */
+.cl{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.cr{display:flex;align-items:center;gap:14px;width:100%;text-align:right;border:1.5px solid var(--rule);border-radius:16px;
+  background:#fff;color:var(--ink);font:inherit;padding:10px 12px;cursor:pointer;transition:all .15s}
+.cr:active{transform:scale(.99)}
+.cr .bg{flex:none;width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(150deg,var(--night),var(--night-2));color:var(--gold);
+  font-family:var(--serif);font-weight:900;font-size:1.25rem;box-shadow:inset 0 0 0 2px rgba(227,179,65,.55)}
+.cr .rv{flex:1;min-width:0;font-family:var(--serif);font-weight:700;font-size:1.22rem;color:var(--night);line-height:1.25}
+.cr .rv.no{color:var(--ink-2);font-weight:500}
+.cr .go2{flex:none;color:var(--gold-d);font-size:1.3rem;font-weight:800}
+/* ---- עמוד ההזמנה ---- */
+.who{display:flex;align-items:center;gap:14px;background:linear-gradient(150deg,var(--night),var(--night-2));color:#fff;
+  border-radius:20px;padding:14px 16px;margin-bottom:14px;box-shadow:0 10px 24px rgba(36,27,58,.25)}
+.who .bg{flex:none;width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:var(--gold);color:var(--night);font-family:var(--serif);font-weight:900;font-size:1.3rem}
+.who .t{flex:1;min-width:0}
+.who .t small{display:block;font-size:.8rem;font-weight:700;opacity:.75}
+.who .t b{display:block;font-family:var(--serif);font-size:1.32rem;font-weight:800;color:#FFF3D1;line-height:1.2}
+.chg{flex:none;border:1px solid rgba(255,255,255,.35);border-radius:999px;background:transparent;color:#fff;
+  font:inherit;font-size:.86rem;font-weight:700;padding:6px 12px;cursor:pointer}
+.prod{display:flex;gap:16px;align-items:flex-start}
+.prod img{flex:none;width:92px;height:auto;border-radius:6px;box-shadow:0 8px 18px rgba(0,0,0,.25)}
+.prod .pi{flex:1;min-width:0}
+.prod .pk{font-size:.76rem;font-weight:800;color:var(--teal);letter-spacing:.04em}
+.prod h4{font-family:var(--serif);font-size:1.3rem;font-weight:800;color:var(--night);line-height:1.2;margin:2px 0 10px}
+.qty{display:flex;align-items:center;gap:0;border:1.5px solid var(--rule);border-radius:14px;overflow:hidden;
+  width:max-content;background:#fff}
+.qty button{width:44px;height:46px;border:0;background:var(--teal-l);color:var(--teal);font:inherit;font-size:1.4rem;
+  font-weight:800;cursor:pointer}
+.qty input{width:66px;height:46px;border:0;text-align:center;font:inherit;font-size:1.35rem;font-weight:800;
+  color:var(--night);background:#fff;-moz-appearance:textfield;appearance:textfield}
+.qty input::-webkit-outer-spin-button,.qty input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.qty input:focus{outline:none}
+.hint{font-size:.8rem;font-weight:600;color:var(--ink-2);margin-top:6px}
+.yn{display:flex;gap:10px;margin-top:4px}
+.yn button{flex:1;border:1.5px solid var(--rule);border-radius:14px;background:#fff;color:var(--ink);
+  font:inherit;font-weight:800;font-size:1.05rem;padding:11px;cursor:pointer;transition:all .15s}
+.yn button.on{border-color:var(--teal);background:var(--teal);color:#fff}
 .yn.need button{border-color:var(--stop)}
-.err{color:var(--stop);font-weight:800;font-size:.86rem;margin-top:4px}
-.sum{border:2px solid var(--gold);border-radius:14px;padding:12px 14px;margin:4px 0 10px;background:#FFFBEF;
-  font-weight:800;font-size:1.02rem;color:var(--blue-d)}
-.due{font-size:.84rem;font-weight:700;color:var(--ink-2);margin:0 0 12px}
-.go{display:block;width:100%;border:0;border-radius:14px;background:var(--blue);color:#fff;
-  font:inherit;font-weight:800;font-size:1.08rem;padding:15px;cursor:pointer;box-shadow:0 6px 16px rgba(23,70,143,.25)}
+.same{font-size:.86rem;font-weight:700;color:var(--teal);margin-top:8px}
+.err{color:var(--stop);font-weight:800;font-size:.86rem;margin-top:6px}
+.fl{display:block;margin-top:14px}
+.fl > span{display:block;font-size:.92rem;font-weight:800;color:var(--night);margin-bottom:4px}
+.fl input{display:block;width:100%;border:1.5px solid var(--rule);border-radius:12px;background:#fff;
+  padding:11px 13px;font:inherit;font-size:16px;color:var(--ink)}
+/* הסיכום והכפתור */
+.sumc{background:var(--gold-l);border:1.5px solid var(--gold);border-radius:18px;padding:14px 16px;margin-bottom:12px}
+.sumc .sum{font-family:var(--serif);font-weight:800;font-size:1.15rem;color:var(--night)}
+.due{font-size:.82rem;font-weight:700;color:var(--gold-d);margin-top:6px}
+.go{display:block;width:100%;border:0;border-radius:16px;background:linear-gradient(150deg,#F0C75A,var(--gold));
+  color:var(--night);font:inherit;font-weight:900;font-size:1.15rem;padding:16px;cursor:pointer;
+  box-shadow:0 10px 22px rgba(227,179,65,.4)}
 .go[disabled]{opacity:.7;cursor:default}
-.go.g{background:#fff;color:var(--blue);border:1px solid var(--rule);box-shadow:none;margin-top:8px}
+.go.g{background:#fff;color:var(--night);border:1px solid var(--rule);box-shadow:none;margin-top:8px}
 .st{margin-top:12px;text-align:center}
 .st p{font-weight:800;color:var(--stop);margin-bottom:8px}
-.msg{text-align:center;font-size:1.1rem;font-weight:800;color:var(--blue-d);padding:28px 8px}
-.ok{text-align:center;padding:26px 16px;background:var(--surface);border:1px solid var(--rule);border-radius:16px}
-.ok h3{font-size:1.4rem;font-weight:800;color:var(--green-d)}
-.ok p{font-size:1.05rem;font-weight:700;margin-top:8px}
-.ok .ask{color:var(--gold-t)}
+.msg{text-align:center;font-family:var(--serif);font-size:1.25rem;font-weight:800;color:var(--night);padding:28px 8px}
+/* האישור */
+.ok{text-align:center;padding:28px 18px 26px;border-radius:22px;color:#fff;
+  background:radial-gradient(120% 90% at 50% 0%,rgba(227,179,65,.3),transparent 60%),
+             linear-gradient(160deg,var(--night),var(--night-2));box-shadow:0 14px 34px rgba(36,27,58,.3)}
+.ok h3{font-family:var(--serif);font-size:1.6rem;font-weight:900;color:#FFF3D1}
+.ok .rvn{font-family:var(--serif);font-size:1.25rem;font-weight:700;color:var(--gold);margin-top:8px}
+.ok p{font-size:1.02rem;font-weight:700;margin-top:8px;opacity:.95}
+.ok .ask{color:var(--gold-l)}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -125,33 +149,51 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
   </div>
 </header>
 <main class="wrap">
-  <div class="ban">
+  <div class="hero">
     <div class="tx"><h2 id="ttl"></h2><p id="sub"></p></div>
     <div class="covers">
-      <figure><img src="chanuka-covers/sefer.webp" alt="" width="360" height="554"><figcaption id="capB"></figcaption></figure>
-      <figure><img src="chanuka-covers/avoda.webp" alt="" width="360" height="510"><figcaption id="capP"></figcaption></figure>
+      <img class="c2" src="chanuka-covers/avoda.webp" alt="" width="360" height="510">
+      <img class="c1" src="chanuka-covers/sefer.webp" alt="" width="360" height="554">
     </div>
   </div>
   <div class="tst" id="tstTag" hidden></div>
   <div class="msg" id="msg" hidden></div>
   <div class="st" id="lerr" hidden><p id="lerrT"></p><button class="go g" id="lre" type="button"></button></div>
   <form id="f" autocomplete="off" hidden novalidate>
-    <div class="step"><h3 id="stG"></h3><div class="grs" id="grs"></div></div>
-    <div class="step" id="clsStep" hidden><h3 id="stC"></h3><div id="clsBox"></div></div>
-    <div class="step" id="more" hidden>
-      <label class="fl" id="bBox"><span id="booksL"></span>
-        <input id="f-b" class="num" type="number" inputmode="numeric" min="1" max="200">
-        <small id="booksH"></small></label>
-      <div class="fl"><span id="prQ"></span>
-        <div class="yn" id="yn"><button type="button" id="yY"></button><button type="button" id="yN"></button></div>
-        <div class="err" id="ynErr" hidden></div></div>
-      <div class="sum" id="sum" hidden></div>
-      <p class="due" id="due"></p>
+    <!-- מסך 1: שכבה ← כיתה -->
+    <div class="card" id="pickStep">
+      <h3 id="stG"></h3>
+      <div class="grs" id="grs"></div>
+      <div id="clsStep" hidden><h3 id="stC" style="margin-top:20px"></h3><div id="clsBox"></div></div>
+    </div>
+    <!-- מסך 2: עמוד ההזמנה -->
+    <div id="more" hidden>
+      <div class="who" id="who" hidden><span class="bg" id="whoBg"></span>
+        <span class="t"><small id="whoK"></small><b id="whoN"></b></span>
+        <button type="button" class="chg" id="chg"></button></div>
+      <div class="card">
+        <div class="prod"><img src="chanuka-covers/sefer.webp" alt="" width="360" height="554">
+          <div class="pi"><div class="pk" id="pkB"></div><h4 id="prodB"></h4>
+            <div id="bBox"><div class="qty"><button type="button" id="qP" aria-label="+">+</button>
+              <input id="f-b" type="number" inputmode="numeric" min="1" max="200">
+              <button type="button" id="qM" aria-label="−">−</button></div>
+              <div class="hint" id="booksH"></div></div></div></div>
+      </div>
+      <div class="card">
+        <div class="prod"><img src="chanuka-covers/avoda.webp" alt="" width="360" height="510">
+          <div class="pi"><div class="pk" id="pkP"></div><h4 id="prodP"></h4>
+            <div style="font-weight:800;color:var(--night)" id="prQ"></div>
+            <div class="yn" id="yn"><button type="button" id="yY"></button><button type="button" id="yN"></button></div>
+            <div class="same" id="same" hidden></div>
+            <div class="err" id="ynErr" hidden></div></div></div>
+      </div>
+      <div class="sumc" id="sumc" hidden><div class="sum" id="sum"></div><p class="due" id="due"></p></div>
       <button class="go" id="go" type="submit"></button>
       <div class="st" id="st" hidden><p id="stT"></p><button class="go" id="re" type="button"></button></div>
     </div>
   </form>
-  <div class="ok" id="ok" hidden><h3 id="okH"></h3><p class="rvn" id="okN" hidden></p><p id="okB"></p><p class="ask" id="okA" hidden></p></div>
+  <div class="ok" id="ok" hidden><h3 id="okH"></h3><p class="rvn" id="okN" hidden></p>
+    <p id="okB"></p><p class="ask" id="okA" hidden></p></div>
 </main>
 <script src="data.js"></script>
 <script src="logo.js"></script>
@@ -187,16 +229,18 @@ $('brand').innerHTML = esc(PROGRAM.short) + '<br>' + esc(PROGRAM.name.slice(PROG
 $('yr').textContent = tp(UI.rstYear, { y: PROGRAM.year });
 $('ttl').textContent = UI.chnTitle;
 $('sub').textContent = UI.chnSub;
-$('capB').textContent = UI.chnBookL;
-$('capP').textContent = UI.chnBookP;
 if (UI.chnTitle) document.title = UI.chnTitle;
 $('stG').textContent = UI.chnStepG;
 $('stC').textContent = UI.chnStepC;
-$('booksL').textContent = UI.chnBooks;
+$('pkB').textContent = UI.chnBookL;
+$('pkP').textContent = UI.chnBookP;
+$('prodB').textContent = UI.chnProdName;
+$('prodP').textContent = UI.chnProdName;
 $('prQ').textContent = UI.chnPrQ;
 $('yY').textContent = UI.chnYes;
 $('yN').textContent = UI.chnNo;
 $('go').textContent = UI.chnGo;
+$('chg').textContent = UI.chnChange;
 $('lre').textContent = UI.chnLoadRetry;
 
 var TST = /[?&]tst=1(&|$)/.test(location.search);
@@ -255,7 +299,7 @@ function dateD(iso) {
       month: 'numeric', hour: '2-digit', minute: '2-digit' });
   } catch (e) { return d.toLocaleString(); }
 }
-/* g — השכבה שנבחרה · pick — "שכבה|כיתה" · p — כן/לא לתרגול · failed — הכיתות לא נטענו */
+/* g — השכבה · pick — "שכבה|כיתה" · p — כן/לא לתרגול · failed — הכיתות לא נטענו */
 var S = { open: '', close: '', cls: [], g: '', pick: '', p: null, failed: false, lastPick: '' };
 
 function show(which) {
@@ -290,36 +334,41 @@ function rowOf(v) {
   for (var i = 0; i < S.cls.length; i++) if (S.cls[i][0] + '|' + S.cls[i][1] === v) return S.cls[i];
   return null;
 }
+/* בחירת כיתה — מסך ההזמנה, ו"חזרה" של הטלפון מחזיר לרשימה. */
+function pickCls(v) {
+  S.pick = v;
+  try { history.pushState({ chn: 1 }, ''); } catch (e) {}
+  paint();
+  window.scrollTo(0, 0);
+}
+function unpick() { S.pick = ''; paint(); }
+window.addEventListener('popstate', function () { if (S.pick) unpick(); });
+
 function paint() {
-  /* שלב 1 — השכבה */
+  /* מסך 1 — השכבה והכיתות (מוסתר כשנבחרה כיתה) */
+  $('pickStep').hidden = !!S.pick;
   $('grs').innerHTML = GRADES.map(function (g) {
     return '<button type="button" data-g="' + g + '"' + (S.g === g ? ' class="on"' : '') + '>' + grD(g) + '</button>';
   }).join('');
   Array.prototype.forEach.call($('grs').querySelectorAll('[data-g]'), function (el) {
     el.onclick = function () {
       var g = this.getAttribute('data-g');
-      if (S.g !== g) { S.g = g; S.pick = ''; }
+      if (S.g !== g) { S.g = g; S.pick = ''; S.k = ''; }
       paint();
       $('clsStep').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     };
   });
-  /* שלב 2 — הכיתות של השכבה, עם הר"ם */
   $('clsStep').hidden = !S.g;
   var box = $('clsBox'), h = '';
   if (S.g && !S.failed) {
-    var L = S.cls.filter(function (x) { return x[0] === S.g; });
-    var sel = S.pick ? rowOf(S.pick) : null;
-    if (sel) L = [sel];
-    h = '<div class="cl">' + L.map(function (x) {
+    /* שורת כיתה: התווית ושם הרב — בלי מספר תלמידים (אחיאסף). */
+    h = '<div class="cl">' + S.cls.filter(function (x) { return x[0] === S.g; }).map(function (x) {
       var v = x[0] + '|' + x[1];
-      return '<button type="button" class="cr' + (S.pick === v ? ' on' : '') + '" data-c="' + esc(v) + '">' +
-        /* שם הרב — השורה הבולטת; בלי שם — הכיתה עולה למקומו. */
-        '<span class="who">' + (x[3] ? '<span class="rv">' + esc(x[3]) + '</span>' : '') +
-        '<span class="' + (x[3] ? 'sb' : 'rv') + '">' + esc(tp(UI.chnClsLine, { cls: clsD(x[0], x[1]) })) +
-        (x[2] ? ' · ' + esc(tp(UI.chnClsStu, { n: x[2] })) : '') + '</span></span>' +
-        '<span class="ck">' + (S.pick === v ? '✓' : '') + '</span></button>';
-    }).join('') + '</div>' +
-      (sel ? '<button type="button" class="chg" id="chg">' + esc(UI.chnChange) + '</button>' : '');
+      return '<button type="button" class="cr" data-c="' + esc(v) + '">' +
+        '<span class="bg">' + esc(clsD(x[0], x[1])) + '</span>' +
+        '<span class="rv' + (x[3] ? '' : ' no') + '">' + esc(x[3] || tp(UI.chnClsLine, { cls: clsD(x[0], x[1]) })) + '</span>' +
+        '<span class="go2">‹</span></button>';
+    }).join('') + '</div>';
   } else if (S.g) {
     /* הכיתות לא נטענו — מספר הכיתה ביד */
     h = '<div class="st"><p>' + esc(UI.chnLoadErr) + '</p></div>' +
@@ -328,20 +377,21 @@ function paint() {
   }
   box.innerHTML = h;
   Array.prototype.forEach.call(box.querySelectorAll('[data-c]'), function (el) {
-    el.onclick = function () {
-      S.pick = this.getAttribute('data-c');
-      paint();
-      $('more').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    };
+    el.onclick = function () { pickCls(this.getAttribute('data-c')); };
   });
-  if ($('chg')) $('chg').onclick = function () { S.pick = ''; paint(); };
   if ($('f-k')) $('f-k').oninput = function () { S.k = this.value; paintMore(); };
-  /* שלב 3 — ההזמנה. המספר מהרשימה — רק כשהכיתה התחלפה (תיקון לא נדרס). */
+  /* מסך 2 — עמוד ההזמנה. המספר מהרשימה — רק כשהכיתה התחלפה (תיקון לא נדרס). */
   var row = S.pick ? rowOf(S.pick) : null;
   S.n0 = row ? row[2] : null;
   var key = S.failed ? 'x' + S.g : S.pick;
   if (S.lastPick !== key) { S.lastPick = key; $('f-b').value = S.n0 ? S.n0 : ''; }
-  /* כיתה בלי מספר תלמידים — בלי שדה כמות (אחיאסף ישלים). */
+  $('who').hidden = !row;
+  if (row) {
+    $('whoBg').textContent = clsD(row[0], row[1]);
+    $('whoK').textContent = row[3] ? tp(UI.chnClsLine, { cls: clsD(row[0], row[1]) }) : '';
+    $('whoN').textContent = row[3] || tp(UI.chnClsLine, { cls: clsD(row[0], row[1]) });
+  }
+  /* כיתה בלי מספר תלמידים — בלי בורר כמות (אחיאסף ישלים). */
   $('bBox').hidden = !S.failed && !S.n0;
   $('booksH').textContent = S.failed ? UI.chnBooksNone : UI.chnBooksHint;
   $('more').hidden = !(S.failed ? S.g : S.pick);
@@ -364,17 +414,28 @@ function paintMore() {
   $('yY').className = S.p === 1 ? 'on' : '';
   $('yN').className = S.p === 0 ? 'on' : '';
   if (S.p != null) { $('yn').className = 'yn'; $('ynErr').hidden = true; }
-  var sum = $('sum'), t = '';
+  $('same').textContent = b ? tp(UI.chnPrSame, { n: b }) : '';
+  $('same').hidden = !(S.p === 1 && b && UI.chnPrSame);
+  var t = '';
   if (S.p != null && noQty()) t = S.p ? UI.chnSumX : UI.chnSumXNo;
   else if (S.p != null && b) t = S.p ? tp(UI.chnSum, { b: b, p: b }) : tp(UI.chnSumNo, { b: b });
-  sum.textContent = t;
-  sum.hidden = !t;
+  $('sum').textContent = t;
   $('due').textContent = S.close ? tp(UI.chnDue, { d: dateD(S.close) }) : '';
   $('due').hidden = !S.close;
+  $('sumc').hidden = !t;
 }
 $('f-b').oninput = paintMore;
+function step(d) {
+  var n = Math.floor(+$('f-b').value) || 0;
+  n = Math.max(1, Math.min(200, n + d));
+  $('f-b').value = n;
+  paintMore();
+}
+$('qP').onclick = function () { step(1); };
+$('qM').onclick = function () { step(-1); };
 $('yY').onclick = function () { S.p = 1; paintMore(); };
 $('yN').onclick = function () { S.p = 0; paintMore(); };
+$('chg').onclick = function () { try { history.back(); } catch (e) {} setTimeout(function () { if (S.pick) unpick(); }, 300); };
 
 /* ---- שליחה: "נקלטה" רק מקריאה של הלשונית ---- */
 var BUSY = false, OP = '', SIG = '';
