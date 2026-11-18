@@ -1,4 +1,4 @@
-// חוברות חנוכה (8.99.530) — ?chn= ו-POST action:'chn' מול apps-script.gs בזיכרון.
+// חוברות חנוכה (8.99.531 — לפיד בלבד, פתוח בלי מועד) — ?chn= ו-POST action:'chn' מול apps-script.gs בזיכרון.
 // node tools/chntest/run.js → קוד 1 אם בדיקה נכשלה. נתונים מומצאים.
 var M = require('../snaptest/mock.js');
 var W = M.makeWorld(), c = W.ctx, n = 0, fails = 0;
@@ -11,26 +11,25 @@ function hex(ch) { return ch.repeat(48); }
 // רשימות: תלמידי הרשת — ז3: 3, ח1: 2; תלמידי בית הספר — ז׳3: 2 (חופף), ט2: 4; ישיבה אחרת — לא נספרת
 var net = c.sheet_('תלמידי הרשת');
 net.getRange(1, 1, 7, 5).setValues([['קוד ישיבה', 'שכבה', 'כיתה', 'משפחה', 'פרטי'],
-  ['tst', 'ז', '3', 'א', 'ב'], ['tst', 'ז׳', 'ז3', 'ג', 'ד'], ['tst', 'ז', '3', 'ה', 'ו'],
-  ['tst', 'ח', '1', 'ז', 'ח'], ['tst', 'ח', '1', 'ט', 'י'], ['other', 'ז', '3', 'כ', 'ל']]);
+  ['lapid', 'ז', '3', 'א', 'ב'], ['lapid', 'ז׳', 'ז3', 'ג', 'ד'], ['lapid', 'ז', '3', 'ה', 'ו'],
+  ['lapid', 'ח', '1', 'ז', 'ח'], ['lapid', 'ח', '1', 'ט', 'י'], ['other', 'ז', '3', 'כ', 'ל']]);
 var sch = c.sheet_('תלמידי בית הספר');
 sch.getRange(1, 1, 7, 4).setValues([['קוד ישיבה', 'שכבה', 'כיתה', 'שם'],
-  ['tst', 'ז׳', '3', 'א ב'], ['tst', 'ז', '3', 'ג ד'], ['tst', 'ט', '2', 'מ'], ['tst', 'ט', '2', 'נ'], ['tst', 'ט', '2', 'ס'], ['tst', 'ט', '2', 'ע']]);
+  ['lapid', 'ז׳', '3', 'א ב'], ['lapid', 'ז', '3', 'ג ד'], ['lapid', 'ט', '2', 'מ'], ['lapid', 'ט', '2', 'נ'], ['lapid', 'ט', '2', 'ס'], ['lapid', 'ט', '2', 'ע']]);
 var acc = c.sheet_('גישה');
-acc.getRange(1, 1, 2, 4).setValues([['מזהה', 'מצב', 'קוד ישיבה', 'תפקיד'], ['Dstaff1', 'אושר', 'tst', 'ר"ם']]);
+acc.getRange(1, 1, 2, 4).setValues([['מזהה', 'מצב', 'קוד ישיבה', 'תפקיד'], ['Dstaff1', 'אושר', 'lapid', 'ר"ם']]);
 
-var L = get({ chn: 'cls', y: 'tst' });
-ok(L.status === 'ok' && L.open === 'none', 'no deadline → none', L);
+var L = get({ chn: 'cls', y: 'lapid' });
+ok(L.status === 'ok' && L.open === 'open', 'no deadline → open', L);
 var m = {}; (L.cls || []).forEach(function (x) { m[x[0] + x[1]] = x[2]; });
 ok(m['ז3'] === 3, 'overlap → max, not sum (3)', L.cls);
 ok(m['ח1'] === 2 && m['ט2'] === 4, 'single sources counted', L.cls);
 ok(!('other' in m) && JSON.stringify(L).indexOf('א ב') < 0, 'no names leaked');
 ok(L.cls[0][0] === 'ז' && L.cls[2][0] === 'ט', 'sorted by grade', L.cls);
-ok(get({ chn: 'cls', y: 'nolist' }).cls.length === 0, 'inst without list → empty, not zero rows');
+ok(get({ chn: 'cls', y: 'other' }).cls === null, 'other institution → nothing');
 
-var F = { y: 'tst', yn: 'ישיבת בדיקה', g: 'ז', c: '3', n: 'ר"ם א', b: 3, p: '1' };
-// לפני שנקבע מועד — סגור לאמיתי, פתוח לבדיקה
-ok(post({ action: 'chn', op: hex('a'), rq: hex('1'), f: F }).status === 'closed' && rows() === 0, 'real closed before deadline');
+var F = { y: 'lapid', yn: 'ישיבת בדיקה', g: 'ז', c: '3', n: 'ר"ם א', b: 3, p: '1' };
+ok(post({ action: 'chn', op: hex('a'), rq: hex('1'), f: { y: 'other', g: 'ז', c: '3', b: 3, p: '1' } }).status === 'error' && rows() === 0, 'other institution rejected');
 var Ft = JSON.parse(JSON.stringify(F)); Ft.tst = '1';
 var rt = post({ action: 'chn', op: hex('b'), rq: hex('1'), f: Ft });
 ok(rt.saved && rows() === 1, 'test row allowed before deadline', rt);
@@ -71,14 +70,14 @@ ok(act.length === 1 && act[0].b === 5, 'active unchanged', A.rows);
 // אותו מבקש שני שוב — מעדכן את הבירור שלו, לא שורה נוספת
 var F4 = JSON.parse(JSON.stringify(F3)); F4.b = 8;
 ok(post({ action: 'chn', op: hex('f'), rq: hex('2'), f: F4 }).o.b === 8 && rows() === 3, 'ask updated in place', rows());
-// מקור זיהוי — צוות מאושר
-var F5 = { y: 'tst', yn: 'x', g: 'ח', c: '1', n: 'ר"ם ג', b: 2, p: '1', dev: 'Dstaff1' };
-post({ action: 'chn', op: hex('0'), rq: hex('3'), f: F5 });
+// בלי שם — מותר, ובלי זיהוי צוות גם כשנשלח מזהה
+var F5 = { y: 'lapid', yn: 'x', g: 'ח', c: '1', n: '', b: 2, p: '1', dev: 'Dstaff1' };
+ok(post({ action: 'chn', op: hex('0'), rq: hex('3'), f: F5 }).saved, 'no name ok');
 A = get({ chn: 'adm', key: 'k' });
-ok(A.rows.filter(function (x) { return x.src === 'צוות מאושר'; }).length === 1, 'approved staff source', A.rows);
+ok(A.rows.filter(function (x) { return x.src; }).length === 0, 'no staff source', A.rows);
 // ערכים לא תקינים
-ok(post({ action: 'chn', op: hex('7'), rq: hex('4'), f: { y: 'tst', g: 'ז', c: '3', n: 'x y', b: 0, p: '0' } }).status === 'error', 'zero books rejected');
-ok(post({ action: 'chn', op: hex('7'), rq: hex('4'), f: { y: 'tst', g: 'ז', c: '3', n: 'x y', b: 500, p: '0' } }).status === 'error', 'too many rejected');
+ok(post({ action: 'chn', op: hex('7'), rq: hex('4'), f: { y: 'lapid', g: 'ז', c: '3', n: 'x y', b: 0, p: '0' } }).status === 'error', 'zero books rejected');
+ok(post({ action: 'chn', op: hex('7'), rq: hex('4'), f: { y: 'lapid', g: 'ז', c: '3', n: 'x y', b: 500, p: '0' } }).status === 'error', 'too many rejected');
 ok(post({ action: 'chn', op: 'zz', rq: hex('4'), f: F }).status === 'error', 'bad op rejected');
 // הכרעה: הבירור הופך לפעיל
 var ask = A.rows.filter(function (x) { return x.st === 'לבירור'; })[0];
@@ -91,10 +90,10 @@ var B = 0, P = 0; R.rows.forEach(function (x) { if (x.st === 'פעיל') { B += 
 ok(B === 10 && P === 10, 'totals from active only', [B, P]);
 // אחרי הסגירה
 get({ chn: 'close', key: 'k', at: new Date(Date.now() - 60000).toISOString() });
-ok(get({ chn: 'cls', y: 'tst' }).open === 'closed', 'closed state');
+ok(get({ chn: 'cls', y: 'lapid' }).open === 'closed', 'closed state');
 var rc = rows();
 ok(post({ action: 'chn', op: hex('5'), rq: hex('1'), f: F }).status === 'closed' && rows() === rc, 'no write after close');
 ok(post({ action: 'chn', op: hex('6'), rq: hex('1'), f: Ft }).status === 'closed', 'test also closed after deadline');
-ok(get({ chn: 'close', key: 'k', at: '' }).open === 'none', 'clear deadline');
+ok(get({ chn: 'close', key: 'k', at: '' }).open === 'open', 'clear deadline → open again');
 ok(c.PRIVATE_TABS.indexOf('חוברות חנוכה') >= 0 && W.priv.getSheetByName('חוברות חנוכה'), 'tab is private');
 console.log(n + ' checks, ' + fails + ' failed'); process.exit(fails ? 1 : 0);

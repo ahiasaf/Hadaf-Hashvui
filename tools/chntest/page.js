@@ -1,4 +1,4 @@
-// חוברות חנוכה (8.99.530) — העמוד מול apps-script.gs בזיכרון (Playwright, טלפון).
+// חוברות חנוכה (8.99.531 — לפיד בלבד) — העמוד מול apps-script.gs בזיכרון (Playwright, טלפון).
 // NODE_PATH=$(npm root -g) node tools/chntest/page.js → קוד 1 אם בדיקה נכשלה. נתונים מומצאים.
 var M = require('../snaptest/mock.js'), http = require('http'), fs = require('fs'), path = require('path');
 var pw = require('playwright');
@@ -44,7 +44,6 @@ async function page(b, port, W, url, opt) {
     rt.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: out });
   });
   await ctx.route(/\/api\/gs/, function (rt) { rt.abort(); });
-  if (opt.staff) await ctx.addInitScript(function (m) { localStorage.setItem('df:ram', JSON.stringify(m)); }, opt.staff);
   var p = await ctx.newPage();
   p.on('pageerror', function (e) { console.log('PAGEERR', e.message); fails++; });
   await p.goto('http://localhost:' + port + url);
@@ -54,72 +53,62 @@ function tabRows(W) { var s = W.priv.getSheetByName('חוברות חנוכה'); 
 (async function () {
   var s = await srv(), port = s.address().port, b = await pw.chromium.launch();
   try {
-    // 1. לפני שנקבע מועד — סגור
-    var W = world(false), p = await page(b, port, W, '/chanuka?inst=lapid');
-    await p.waitForFunction(function () { return !document.getElementById('msg').hidden && !/טוען/.test(document.getElementById('msg').textContent); });
-    ok(/עוד לא נפתחו/.test(await p.textContent('#msg')), 'not yet open');
-    ok(await p.isHidden('#f'), 'no form before deadline');
+    // 1. בלי מועד — פתוח, בלי שורת מועד; כפתורי כיתות לפי שכבה
+    var W = world(false), p = await page(b, port, W, '/chanuka');
+    await p.waitForSelector('[data-c="ז|3"]');
+    ok(await p.isHidden('#more'), 'rest hidden until class tapped');
+    var lbl = await p.$$eval('.cb button', function (a) { return a.map(function (x) { return x.textContent; }); });
+    ok(lbl.join(',') === 'ז׳3,ח׳1', 'class buttons', lbl);
+    await p.click('[data-c="ז|3"]');
+    ok(await p.inputValue('#f-b') === '3', 'overlap → max 3, prefilled');
+    ok(await p.isHidden('#due'), 'no deadline line when open-ended');
+    await p.click('#yY');
+    await p.click('#go');
+    await p.waitForSelector('#ok:not([hidden])', { timeout: 20000 });
+    ok(/ז׳3: 3 ספרי לימוד · 3 חוברות תרגול/.test(await p.textContent('#okB')), 'saved without name', await p.textContent('#okB'));
+    ok(tabRows(W).length === 1, 'one row');
     await p.context().close();
 
-    // 2. פתוח, ישיבה בקישור, ר"ם לא מוכר — המסלול המלא
-    W = world(true); p = await page(b, port, W, '/chanuka?inst=lapid');
-    await p.waitForSelector('#f-c');
-    ok(/ישיבת לפיד/.test(await p.textContent('#instBox')), 'inst fixed from link');
-    var opts = await p.$$eval('#f-c option', function (a) { return a.map(function (o) { return o.textContent; }); });
-    ok(opts.some(function (t) { return /ז׳3 · 3 תלמידים/.test(t); }), 'overlap shown as max 3', opts);
-    ok(await p.isHidden('#more'), 'rest hidden until class');
-    await p.selectOption('#f-c', 'ז|3');
-    ok(await p.inputValue('#f-b') === '3', 'books prefilled from list');
+    // 2. עם מועד — המסלול המלא, תיקון כמות, כן/לא חובה
+    W = world(true); p = await page(b, port, W, '/chanuka');
+    await p.waitForSelector('[data-c="ז|3"]');
+    if (SHOT) await p.screenshot({ path: SHOT + '/0-list.png', fullPage: true });
+    await p.click('[data-c="ז|3"]');
     await p.fill('#f-n', 'ר"ם בדיקה');
-    if (SHOT) await p.screenshot({ path: SHOT + '/1-form.png', fullPage: true });
     await p.click('#go');
     ok(!(await p.isHidden('#ynErr')), 'yes/no required');
     ok(tabRows(W).length === 0, 'nothing sent without yes/no');
     await p.click('#yY');
-    ok(/3 ספרי לימוד · 3 חוברות תרגול/.test(await p.textContent('#sum')), 'summary both numbers');
     ok(/ההדפסה רק למי שהזמין עד/.test(await p.textContent('#due')), 'deadline note');
     await p.fill('#f-b', '4');
     ok(/4 ספרי לימוד · 4 חוברות תרגול/.test(await p.textContent('#sum')), 'correction updates summary');
     if (SHOT) await p.screenshot({ path: SHOT + '/2-sum.png', fullPage: true });
     await p.click('#go');
     await p.waitForSelector('#ok:not([hidden])', { timeout: 20000 });
-    ok(/נקלטה/.test(await p.textContent('#okH')), 'confirmation');
-    ok(/ז׳3: 4 ספרי לימוד · 4 חוברות תרגול/.test(await p.textContent('#okB')), 'confirmation from server', await p.textContent('#okB'));
-    ok(tabRows(W).length === 1, 'one row');
-    if (SHOT) await p.screenshot({ path: SHOT + '/3-ok.png', fullPage: true });
+    ok(/ז׳3: 4 ספרי לימוד · 4 חוברות תרגול/.test(await p.textContent('#okB')), 'confirmation from server');
     // רענון ושליחה חוזרת מאותו מכשיר — עדכון, לא שורה נוספת
-    await p.reload(); await p.waitForSelector('#f-c');
-    await p.selectOption('#f-c', 'ז|3'); await p.fill('#f-n', 'ר"ם בדיקה'); await p.click('#yN'); await p.click('#go');
+    await p.reload(); await p.waitForSelector('[data-c="ז|3"]');
+    await p.click('[data-c="ז|3"]'); await p.click('#yN'); await p.click('#go');
     await p.waitForSelector('#ok:not([hidden])', { timeout: 20000 });
     ok(/בלי חוברות תרגול/.test(await p.textContent('#okB')), 'update without practice');
     ok(tabRows(W).length === 1, 'still one row after resend');
     await p.context().close();
 
     // 3. מכשיר אחר לאותה כיתה — לבירור
-    p = await page(b, port, W, '/chanuka?inst=lapid');
-    await p.waitForSelector('#f-c'); await p.selectOption('#f-c', 'ז|3'); await p.fill('#f-n', 'ר"ם אחר');
+    p = await page(b, port, W, '/chanuka');
+    await p.waitForSelector('[data-c="ז|3"]'); await p.click('[data-c="ז|3"]');
     await p.click('#yY'); await p.click('#go');
     await p.waitForSelector('#ok:not([hidden])', { timeout: 20000 });
     ok(!(await p.isHidden('#okA')), 'second requester sees "לבירור" note');
     ok(tabRows(W).length === 2, 'separate ask row');
     await p.context().close();
 
-    // 4. ר"ם מוכר במכשיר — שם וכיתה מתמלאים, בלי בחירת ישיבה
-    p = await page(b, port, W, '/chanuka', { staff: { id: 'Dram1', first: 'שם', last: 'משפחה', inst: 'lapid', grade: 'ח׳', klass: '1' } });
-    await p.waitForSelector('#f-c');
-    ok(await p.inputValue('#f-c') === 'ח|1', 'staff class preselected');
-    ok(await p.inputValue('#f-n') === 'שם משפחה', 'staff name prefilled');
-    ok(await p.inputValue('#f-b') === '1', 'books for staff class');
-    await p.context().close();
-
-    // 5. בלי ישיבה בקישור — בחירת ישיבה, ישיבה בלי רשימה → ידני, בלי אפס
+    // 4. "הכיתה שלי לא ברשימה" — ידני, בלי אפס
     p = await page(b, port, W, '/chanuka');
-    await p.waitForSelector('#f-y');
-    await p.selectOption('#f-y', 'givat');
+    await p.waitForSelector('.oth'); await p.click('.oth');
     await p.waitForSelector('#f-g');
-    ok(await p.inputValue('#f-b') === '', 'no list → empty, not zero');
-    ok(/אין לנו רשימה/.test(await p.textContent('#booksH')), 'no list hint');
-    await p.selectOption('#f-g', 'יא'); await p.fill('#f-k', '2'); await p.fill('#f-n', 'ר"ם ג');
+    ok(await p.inputValue('#f-b') === '', 'manual → empty, not zero');
+    await p.selectOption('#f-g', 'יא'); await p.fill('#f-k', '2');
     await p.click('#go');
     ok(tabRows(W).length === 2, 'no send without count');
     await p.fill('#f-b', '30'); await p.click('#yN'); await p.click('#go');
@@ -127,17 +116,17 @@ function tabRows(W) { var s = W.priv.getSheetByName('חוברות חנוכה'); 
     ok(/י״א 2: 30 ספרי לימוד/.test(await p.textContent('#okB')), 'manual class saved', await p.textContent('#okB'));
     await p.context().close();
 
-    // 6. קריאת הכיתות נכשלה — הודעה והזנה ידנית
-    p = await page(b, port, W, '/chanuka?inst=lapid', { failCls: true });
+    // 5. קריאת הכיתות נכשלה — הודעה והזנה ידנית
+    p = await page(b, port, W, '/chanuka', { failCls: true });
     await p.waitForSelector('#f-g');
     ok(/לא הצלחנו לטעון/.test(await p.textContent('#clsBox')), 'list failure shown');
     ok(await p.inputValue('#f-b') === '', 'failure → no number invented');
     await p.context().close();
 
-    // 7. כשל שמירה — הפרטים נשארים, "לשלוח שוב" לא יוצר כפילות
+    // 6. כשל שמירה — הפרטים נשארים, "לשלוח שוב" לא יוצר כפילות
     var W2 = world(true);
-    p = await page(b, port, W2, '/chanuka?inst=lapid', { dropPost: 2 });
-    await p.waitForSelector('#f-c'); await p.selectOption('#f-c', 'ח|1'); await p.fill('#f-n', 'ר"ם ד'); await p.click('#yY');
+    p = await page(b, port, W2, '/chanuka', { dropPost: 2 });
+    await p.waitForSelector('[data-c="ח|1"]'); await p.click('[data-c="ח|1"]'); await p.fill('#f-n', 'ר"ם ד'); await p.click('#yY');
     await p.click('#go');
     await p.waitForSelector('#st:not([hidden])', { timeout: 40000 });
     ok(/לא נשמר/.test(await p.textContent('#stT')), 'failure message');
@@ -148,19 +137,19 @@ function tabRows(W) { var s = W.priv.getSheetByName('חוברות חנוכה'); 
     ok(tabRows(W2).length === 1, 'retry saved once');
     await p.context().close();
 
-    // 8. אחרי הסגירה
+    // 7. אחרי הסגירה
     W2.props.CHN_CLOSE = new Date(Date.now() - 60000).toISOString();
-    p = await page(b, port, W2, '/chanuka?inst=lapid');
+    p = await page(b, port, W2, '/chanuka');
     await p.waitForFunction(function () { return !document.getElementById('msg').hidden && /נסגרו/.test(document.getElementById('msg').textContent); });
     ok(await p.isHidden('#f'), 'closed: no form');
     await p.context().close();
 
-    // 9. קישור בדיקה לפני מועד — פתוח, מסומן, ולא נספר
+    // 8. קישור בדיקה — מסומן, ולא נספר
     var W3 = world(false);
-    p = await page(b, port, W3, '/chanuka?inst=lapid&tst=1');
-    await p.waitForSelector('#f-c');
+    p = await page(b, port, W3, '/chanuka?tst=1');
+    await p.waitForSelector('[data-c="ז|3"]');
     ok(!(await p.isHidden('#tstTag')), 'test tag');
-    await p.selectOption('#f-c', 'ז|3'); await p.fill('#f-n', 'בדיקה'); await p.click('#yN'); await p.click('#go');
+    await p.click('[data-c="ז|3"]'); await p.click('#yN'); await p.click('#go');
     await p.waitForSelector('#ok:not([hidden])', { timeout: 20000 });
     ok(JSON.parse(String(W3.ctx.doGet({ parameter: { chn: 'adm', key: 'k' } }).t)).rows.length === 0, 'test not in real admin');
     await p.context().close();

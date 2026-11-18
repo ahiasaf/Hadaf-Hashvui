@@ -11,15 +11,15 @@
 <!-- ============================================================
      הזמנת חוברות חנוכה (8.99.530).
      ============================================================
-     נפתח מקישור בלבד (/chanuka, אפשר ?inst=<קוד>) — בלי התקנה ובלי הרשמה.
+     8.99.531 — פרויקט מקומי של ישיבת לפיד בלבד (אחיאסף). בלי זיהוי צוות ובלי טלפון:
+     רשימת הכיתות פתוחה, הר"ם לוחץ על הכיתה שלו. בלי מועד סגירה — פתוח.
+     נפתח מקישור בלבד (/chanuka) — בלי התקנה ובלי הרשמה.
      הר"ם בוחר כיתה; ספרי הלימוד — לפי רשימות התלמידים (?chn=cls, הגבוה מבין
      שתי הרשימות, לא הסכום), ואפשר לתקן. חוברות תרגול — כן/לא, באותה כמות.
-     מכשיר עם פרטי צוות (df:ram / df:head) — השם, הישיבה והכיתה מתמלאים.
      שמירה: POST {action:'chn', op, rq} (no-cors) → ?chn=chk&op= → "נקלט" רק
      ממה שנקרא בלשונית. op — לכל שליחה (ניסיון חוזר — אותו op); rq — קבוע במכשיר
      (df:chnRq): שליחה חוזרת מעדכנת את ההזמנה שלו, לא מוסיפה. השרת: chnPut_.
-     לפני שנקבע מועד סגירה — "ההזמנות עוד לא נפתחו"; אחריו — סגור.
-     ?tst=1 — שורות בדיקה, לא נספרות; פתוחות גם לפני שנקבע מועד.
+     מועד סגירה שנקבע בניהול — אחריו סגור. ?tst=1 — שורות בדיקה, לא נספרות.
      ============================================================ -->
 <style>
 html,body{touch-action:manipulation;overflow-x:clip;overscroll-behavior-x:none}
@@ -61,7 +61,13 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 .fl .num{max-width:9rem;font-size:1.3rem;font-weight:800;text-align:center}
 .two{display:flex;gap:10px}
 .two .fl{flex:1}
-.fixed{font-weight:800;font-size:1.05rem;color:var(--blue-d)}
+.gr{margin-bottom:10px}
+.gr b{display:block;font-size:.86rem;font-weight:800;color:var(--ink-2);margin-bottom:4px}
+.cb{display:flex;flex-wrap:wrap;gap:8px}
+.cb button{min-width:62px;border:2px solid var(--rule);border-radius:12px;background:var(--surface);color:var(--blue-d);
+  font:inherit;font-weight:800;font-size:1.1rem;padding:9px 12px;cursor:pointer}
+.cb button.on{border-color:var(--blue);background:var(--blue);color:#fff}
+.oth{border:0;background:none;color:var(--blue);font:inherit;font-weight:700;text-decoration:underline;padding:4px 0;cursor:pointer}
 .yn{display:flex;gap:10px}
 .yn button{flex:1;border:2px solid var(--rule);border-radius:12px;background:var(--surface);color:var(--ink);
   font:inherit;font-weight:800;font-size:1.05rem;padding:11px;cursor:pointer}
@@ -103,10 +109,9 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
   <div class="msg" id="msg" hidden></div>
   <div class="st" id="lerr" hidden><p id="lerrT"></p><button class="go g" id="lre" type="button"></button></div>
   <form id="f" autocomplete="on" hidden novalidate>
-    <div id="instBox"></div>
     <div id="clsBox"></div>
     <div id="more" hidden>
-      <label class="fl"><span id="nameL"></span><input id="f-n" autocomplete="name" required minlength="2" maxlength="80"></label>
+      <label class="fl"><span id="nameL"></span><input id="f-n" autocomplete="name" maxlength="80"></label>
       <label class="fl"><span id="booksL"></span>
         <input id="f-b" class="num" type="number" inputmode="numeric" min="1" max="200" required>
         <small id="booksH"></small></label>
@@ -169,26 +174,12 @@ $('lre').textContent = UI.chnLoadRetry;
 var TST = /[?&]tst=1(&|$)/.test(location.search);
 if (TST) { $('tstTag').textContent = UI.chnTestTag; $('tstTag').hidden = false; }
 
-/* ---- מי המכשיר: פרטי צוות שנשמרו באפליקציה (ר"ם קודם) ---- */
-var ME = (function () {
-  var keys = ['df:ram', 'df:head'];
-  for (var i = 0; i < keys.length; i++) {
-    var m = jget(keys[i]);
-    if (m && m.id && String(m.first || '').trim()) return m;
-  }
-  return null;
-})();
-var Q_INST = (function () {
-  var m = location.search.match(/[?&]inst=([a-z0-9_-]{1,30})/i);
-  return m ? m[1] : '';
-})();
+/* פרויקט מקומי של ישיבת לפיד — הישיבה קבועה. */
+var INST = 'lapid';
 function instByCode(c) {
   for (var i = 0; i < INSTITUTIONS.length; i++) if (INSTITUTIONS[i].code === c) return INSTITUTIONS[i];
   return null;
 }
-/* הישיבה קבועה — מהקישור, ובלעדיו מהמכשיר של איש הצוות. */
-var FIX = instByCode(Q_INST) || (ME && ME.inst ? instByCode(ME.inst) : null);
-var INST = FIX ? FIX.code : '';
 
 /* ---- השרת ---- */
 function api() {
@@ -250,13 +241,11 @@ function load() {
   say(UI.chnLoad);
   /* הכיתות לא נקראו — עוד ניסיון רק למצב ההזמנה; ידוע — הזנה ידנית. */
   get('chn=cls' + (INST ? '&y=' + encodeURIComponent(INST) : ''))['catch'](function () {
-    if (!INST) throw new Error('net');
     return get('chn=cls').then(function (d) { if (d) d.cls = null; return d; });
   }).then(function (d) {
     if (!d || !d.open) throw new Error('bad');
     S.open = d.open; S.close = d.close || '';
     if (d.open === 'closed') return say(tp(UI.chnClosed, { d: dateD(S.close) }));
-    if (d.open === 'none' && !TST) return say(UI.chnNotYet);
     /* הרשימה לא נקראה — לא אפס: כותבים שכבה, כיתה וכמות ביד. */
     S.failed = !!(INST && (d.status !== 'ok' || !d.cls));
     S.cls = INST ? (S.failed ? [] : d.cls) : null;
@@ -270,73 +259,39 @@ $('lre').onclick = load;
 
 function paintForm() {
   show('f');
-  /* ישיבה */
-  if (FIX) {
-    $('instBox').innerHTML = '<div class="fl"><span>' + esc(UI.chnInst) + '</span><div class="fixed">' +
-      esc(FIX.name) + '</div></div>';
-  } else {
-    var L = INSTITUTIONS.slice().sort(function (a, b) { return a.name < b.name ? -1 : 1; });
-    $('instBox').innerHTML = '<label class="fl"><span>' + esc(UI.chnInst) + '</span><select id="f-y" required>' +
-      '<option value="">' + esc(UI.chnPickInst) + '</option>' +
-      L.map(function (x) {
-        return '<option value="' + esc(x.code) + '"' + (x.code === INST ? ' selected' : '') + '>' + esc(x.name) + '</option>';
-      }).join('') + '</select></label>';
-    $('f-y').onchange = function () {
-      INST = this.value; S.cls = null; S.pick = '';
-      paintCls();
-      if (!INST) return;
-      $('clsBox').innerHTML = '<p class="due">' + esc(UI.chnLoad) + '</p>';
-      var y0 = INST;
-      get('chn=cls&y=' + encodeURIComponent(INST)).then(function (d) {
-        if (!d || d.status !== 'ok' || !d.cls) throw new Error('cls');
-        if (y0 !== INST) return;
-        S.failed = false; S.cls = d.cls; paintCls();
-      })['catch'](function () {
-        if (y0 !== INST) return;
-        S.cls = []; S.failed = true; paintCls();
-      });
-    };
-  }
-  /* ברירת המחדל — הכיתה של איש הצוות, כשהיא ברשימה */
-  if (ME && ME.inst === INST && ME.grade && ME.klass && S.cls) {
-    var g0 = String(ME.grade).replace(/["'׳״`\s]/g, ''), c0 = String(ME.klass).replace(/\D/g, '') || String(ME.klass).trim();
-    S.cls.forEach(function (x) { if (x[0] === g0 && x[1] === c0) S.pick = g0 + '|' + c0; });
-  }
-  if (ME && !$('f-n').value) $('f-n').value = ((ME.first || '') + ' ' + (ME.last || '')).trim();
   paintCls();
 }
 
-/* כיתה: בורר מהרשימה, ו"הכיתה שלי לא ברשימה" — שכבה ומספר. */
+/* הכיתות — כפתורים לפי שכבה. לחיצה = "זו הכיתה שלי". */
 function paintCls() {
   var box = $('clsBox');
-  if (!INST) { box.innerHTML = ''; $('more').hidden = true; return; }
   if (!S.cls) return;
-  var other = S.pick === '*' || (!S.cls.length);
-  var h = '';
-  if (S.cls.length) {
-    h += '<label class="fl"><span>' + esc(UI.chnCls) + '</span><select id="f-c" required>' +
-      '<option value="">' + esc(UI.chnPickCls) + '</option>' +
-      S.cls.map(function (x) {
-        var v = x[0] + '|' + x[1];
-        return '<option value="' + esc(v) + '"' + (S.pick === v ? ' selected' : '') + '>' +
-          esc(tp(UI.chnClsN, { cls: clsD(x[0], x[1]), n: x[2] })) + '</option>';
-      }).join('') +
-      '<option value="*"' + (S.pick === '*' ? ' selected' : '') + '>' + esc(UI.chnClsOther) + '</option></select></label>';
-  } else if (S.failed) {
-    h += '<div class="st"><p>' + esc(UI.chnLoadErr) + '</p></div>';
-  }
+  var other = S.pick === '*' || !S.cls.length;
+  var h = '<div class="fl"><span>' + esc(UI.chnCls) + '</span>';
+  if (S.failed) h += '<div class="st"><p>' + esc(UI.chnLoadErr) + '</p></div>';
+  var by = {}, gs = [];
+  S.cls.forEach(function (x) { if (!by[x[0]]) { by[x[0]] = []; gs.push(x[0]); } by[x[0]].push(x); });
+  gs.forEach(function (g) {
+    h += '<div class="gr"><b>' + esc(grD(g)) + '</b><div class="cb">' + by[g].map(function (x) {
+      var v = x[0] + '|' + x[1];
+      return '<button type="button" data-c="' + esc(v) + '"' + (S.pick === v ? ' class="on"' : '') + '>' +
+        esc(clsD(x[0], x[1])) + '</button>';
+    }).join('') + '</div></div>';
+  });
+  if (S.cls.length) h += '<button type="button" class="oth" data-c="*">' + esc(UI.chnClsOther) + '</button>';
+  h += '</div>';
   if (other) {
-    var mg = ME && ME.inst === INST ? String(ME.grade || '').replace(/["'׳״`\s]/g, '') : '';
-    var mc = ME && ME.inst === INST ? (String(ME.klass || '').replace(/\D/g, '') || '') : '';
     h += '<div class="two"><label class="fl"><span>' + esc(UI.chnGr) + '</span><select id="f-g" required>' +
       '<option value=""></option>' + GRADES.map(function (g) {
-        return '<option value="' + g + '"' + (g === (S.og || mg) ? ' selected' : '') + '>' + grD(g) + '</option>';
+        return '<option value="' + g + '"' + (g === S.og ? ' selected' : '') + '>' + grD(g) + '</option>';
       }).join('') + '</select></label>' +
       '<label class="fl"><span>' + esc(UI.chnClsNum) + '</span><input id="f-k" required maxlength="4" inputmode="numeric" value="' +
-      esc(S.ok2 != null ? S.ok2 : mc) + '"></label></div>';
+      esc(S.ok2 || '') + '"></label></div>';
   }
   box.innerHTML = h;
-  if ($('f-c')) $('f-c').onchange = function () { S.pick = this.value; paintCls(); };
+  Array.prototype.forEach.call(box.querySelectorAll('[data-c]'), function (el) {
+    el.onclick = function () { S.pick = this.getAttribute('data-c'); paintCls(); };
+  });
   if ($('f-g')) $('f-g').onchange = function () { S.og = this.value; paintMore(); };
   if ($('f-k')) $('f-k').oninput = function () { S.ok2 = this.value; paintMore(); };
   /* המספר מהרשימה — רק כשהכיתה שנבחרה שונה מהקודמת (תיקון לא נדרס). */
@@ -422,7 +377,7 @@ function send() {
   if (BUSY) return;
   var c = curCls(), b = books(), n = String($('f-n').value || '').replace(/\s+/g, ' ').trim();
   var form = $('f');
-  if (!c || !b || n.length < 2) { if (form.reportValidity) form.reportValidity(); return; }
+  if (!c || !b) { if (form.reportValidity) form.reportValidity(); return; }
   if (S.p == null) {
     $('yn').className = 'yn need';
     $('ynErr').textContent = UI.chnPrNeed; $('ynErr').hidden = false;
@@ -430,7 +385,7 @@ function send() {
     return;
   }
   var f = { y: INST, yn: (instByCode(INST) || {}).name || '', g: c.g, c: c.c, n: n, b: b, p: S.p ? '1' : '0',
-            dev: ME && ME.inst === INST ? ME.id : '', tst: TST ? '1' : '' };
+            tst: TST ? '1' : '' };
   /* אותו תוכן — אותו op (ניסיון חוזר לא יוצר שורה). תוכן אחר — op חדש. */
   var sig = JSON.stringify(f);
   if (!OP || sig !== SIG) { OP = rid(24); SIG = sig; }

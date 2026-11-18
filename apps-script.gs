@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 229;
+var SCRIPT_VERSION = 230;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -19167,6 +19167,8 @@ function hasaaPut_(d) {
 /* ============================================================
    הזמנת חוברות חנוכה (chanuka.html, 8.99.530 · SCRIPT_VERSION 229).
    ============================================================
+   8.99.531 · SCRIPT_VERSION 230 — אחיאסף: פרויקט מקומי של ישיבת לפיד בלבד (CHN_INST_),
+   לא קשור לדף השבועי. בלי זיהוי צוות. **בלי מועד סגירה — פתוח**; מועד שנקבע סוגר.
    הר"ם פותח קישור, בוחר כיתה, רואה כמה ספרי לימוד (לפי רשימות התלמידים)
    ובוחר כן/לא לחוברות תרגול — באותה כמות. שורה לכל כיתה בלשונית הפרטית
    "חוברות חנוכה".
@@ -19189,6 +19191,7 @@ var CHN_COLS_ = ['מזהה בקשה', 'מצב', 'בדיקה', 'קוד ישיבה
   'שם המבקש', 'מקור זיהוי', 'מזהה מכשיר', 'מזהה מבקש', 'כמות מהמאגר', 'ספרי לימוד',
   'חוברות תרגול', 'כמות חוברות תרגול', 'נוצר', 'עודכן', 'פעולה אחרונה', 'היסטוריה'];
 var CHN_MAX_ = 200;
+var CHN_INST_ = 'lapid';
 function chnSheet_() {
   var sh = sheet_(CHN_TAB_);
   if (sh.getLastRow() < 1) {
@@ -19219,9 +19222,9 @@ function chnNow_() { return Utilities.formatDate(new Date(), 'Asia/Jerusalem', '
 function chnState_() {
   var at = '';
   try { at = PropertiesService.getScriptProperties().getProperty('CHN_CLOSE') || ''; } catch (x) {}
-  if (!at) return { open: 'none', close: '' };
+  if (!at) return { open: 'open', close: '' };
   var t = new Date(at).getTime();
-  if (!(t > 0)) return { open: 'none', close: '' };
+  if (!(t > 0)) return { open: 'open', close: '' };
   return { open: Date.now() < t ? 'open' : 'closed', close: new Date(t).toISOString() };
 }
 /* הכיתות של ישיבה: [שכבה, כיתה, מספר]. המספר — הגבוה מבין שתי הרשימות. */
@@ -19263,7 +19266,7 @@ function chnCounts_(y) {
 function chnCls_(y) {
   y = String(y || '').trim();
   var st = chnState_();
-  if (!/^[a-z0-9_-]{1,30}$/i.test(y)) return { status: 'ok', open: st.open, close: st.close, cls: null };
+  if (y !== CHN_INST_) return { status: 'ok', open: st.open, close: st.close, cls: null };
   try { return { status: 'ok', open: st.open, close: st.close, cls: chnCounts_(y) }; }
   catch (e) { return { status: 'error', open: st.open, close: st.close }; }
 }
@@ -19301,8 +19304,8 @@ function chnPut_(d) {
   var nm = String(f.n || '').replace(/\s+/g, ' ').trim().slice(0, 80);
   var b = Math.floor(+f.b), p = String(f.p) === '1';
   var dev = String(f.dev || '').trim().slice(0, 60);
-  if (!/^[a-z0-9_-]{1,30}$/i.test(y) || !/^[א-ת]{1,2}$/.test(g) || !c || c.length > 6 ||
-      nm.length < 2 || !(b >= 1 && b <= CHN_MAX_)) return { status: 'error', message: 'bad' };
+  if (y !== CHN_INST_ || !/^[א-ת]{1,2}$/.test(g) || !c || c.length > 6 ||
+      !(b >= 1 && b <= CHN_MAX_)) return { status: 'error', message: 'bad' };
   var pn = p ? b : 0;
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(15000)) return { status: 'busy' };
@@ -19319,11 +19322,9 @@ function chnPut_(d) {
       var L = chnCounts_(y);
       for (var j = 0; j < L.length; j++) if (L[j][0] === g && L[j][1] === c) { n0 = String(L[j][2]); break; }
     } catch (xc) {}
-    /* מקור הזיהוי — מכשיר צוות שאושר לישיבה הזו. אחרת — מה שהוזן. */
-    var src = 'הוזן';
-    if (dev && /^[\w:.\-]{4,60}$/.test(dev)) {
-      try { var a = accRow_(dev); if (a && a.st === 'אושר' && a.inst === y) src = 'צוות מאושר'; } catch (xa) {}
-    } else dev = '';
+    /* בלי זיהוי צוות (8.99.531). */
+    var src = '';
+    dev = '';
     var key = chnKey_(y, g, c), tv = tst ? 'כן' : '', now = chnNow_();
     var act = null, mine = null;
     rows.forEach(function (o) {
@@ -19349,7 +19350,6 @@ function chnPut_(d) {
       }
       o['שם המבקש'] = nm; o['ספרי לימוד'] = b; o['חוברות תרגול'] = p ? 'כן' : 'לא';
       o['כמות חוברות תרגול'] = pn; o['עודכן'] = now; o['כמות מהמאגר'] = n0;
-      if (src === 'צוות מאושר') { o['מקור זיהוי'] = src; o['מזהה מכשיר'] = dev; }
       o['פעולה אחרונה'] = (String(o['פעולה אחרונה'] || '').split(' ').slice(-4).concat([op])).join(' ').trim();
       r = tgt.r;
     } else {
