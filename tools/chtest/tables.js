@@ -185,6 +185,8 @@ ok(i9.length === 2 && i9.every(function (x) { return x.st === 'open' && x.c; }) 
 var r9 = choose(mu, c1, D2 + 3);
 var st9 = {}; (r9.me.inv || []).forEach(function (x) { st9[x.n] = x.st; });
 ok(r9.ref === 'ok' && r9.me.ts.length === 1 && st9.x1 === 'in' && st9.x2 === 'open', 'chose x1 → seated; x2 still open', st9);
+var in9 = (r9.me.inv || []).filter(function (x) { return x.st === 'in'; })[0] || {}, o9 = (r9.me.inv || []).filter(function (x) { return x.st === 'open'; })[0] || {};
+ok(in9.tb && in9.tb === r9.me.ts[0].id && !o9.tb, 'in → tb = the shared table (8.99.538); open — no tb', [in9.tb, r9.me.ts[0].id, o9.tb]);
 var r9b = choose(mu, c2, D2 + 3.1);
 ok(r9b.ref === 'ok' && r9b.me.ts.length === 2, 'chose x2 too → 2 tables (no one-friend limit)', r9b.me.ts.length);
 var rowsMu = function () { return c.chTab_(c.CH_SEAT_, c.CH_SEAT_COLS_).rows.filter(function (r) { return r['מזהה'] === mu && !r['יצא']; }).length; };

@@ -492,6 +492,51 @@
     var k = { bad: 'chRefBad', self: 'chRefSelf' }[d.ref];
     return k ? '<p class="ch-note">' + esc(tp(U(k), by)) + '</p>' : '';
   }
+  /* **מצב ההזמנה מהקישור — בראש המסך** (8.99.538): תלמיד רשום שפתח קישור של חבר רואה קודם מה
+     קורה עם ההזמנה הזו, לפני השולחנות שלו. in — כבר יושבים יחד, וכפתור שפותח את אותו שולחן
+     (בלחיצה בלבד) · open — ההזמנה וכן/לא · full / max — למה אי אפשר. bad/self — noteHtml, wait — כלום.
+     שום שיוך לא משתנה כאן. */
+  function refInv(d) {
+    if (!d || !d.ref || !d.me || d.sat || d.ended) return null;
+    var L = d.me.inv || [];
+    for (var i = 0; i < L.length; i++) if (L[i].ref) return L[i];
+    var st = { old: 'open', full: 'full', max: 'max', ok: 'in' }[d.ref];
+    return st ? { n: d.refBy || '', st: st, c: st === 'open' ? refAny() : '', t: st === 'open' ? d.refT : null, ref: 1 } : null;
+  }
+  /* הזמנה פתוחה בראש המסך — רק למי שכבר יושב (בלי שולחן — כרטיס ההזמנות הוא הראשון ממילא). */
+  function refTopOpen(d) {
+    var h = refInv(d);
+    return h && h.st === 'open' && h.c && tabs(d).length ? h : null;
+  }
+  /* השולחן שבו יושבים יחד: מהשרת (`tb`); שרת ישן — השולחן שהמזמין יושב בו לפי השם. */
+  function refTb(d, h) {
+    var T = tabs(d), i;
+    for (i = 0; i < T.length; i++) if (h.tb && T[i].id === h.tb) return T[i].id;
+    for (i = 0; i < T.length; i++) if (h.n && (T[i].seats || []).some(function (x) { return !x.me && x.n === h.n; })) return T[i].id;
+    return '';
+  }
+  function refTopHtml(d) {
+    var h = refInv(d);
+    if (!h) return '';
+    var n = h.n || U('chFriend'), by = { by: n };
+    if (h.st === 'in') return '<div class="ch-tcard ch-home"><p class="ch-lead">' + esc(tp(U('chRefIn'), by)) + '</p>' +
+      '<button class="ch-btn ch-cta" id="ch-refin" type="button" data-t="' + esc(refTb(d, h)) + '">' + esc(U('chRefInBtn')) + '</button></div>';
+    if (h.st === 'open') return refTopOpen(d) ? '<div class="ch-tcard ch-home"><p class="ch-lead">' + esc(tp(U('chAlsoInv'), by)) + '</p>' +
+      (h.t ? tblOf(seatsOf({ t: h.t })) : '') + ynHtml(h, n) + '<p class="ch-sm" id="ch-sit-m" role="status"></p></div>' : '';
+    var k = { full: 'chRefFull', max: 'chRefMax' }[h.st];
+    return k ? '<div class="ch-tcard ch-home"><p class="ch-lead">' + esc(tp(U(k), by)) + '</p></div>' : '';
+  }
+  function refWire(redraw) {
+    var b = document.getElementById('ch-refin');
+    if (!b) return;
+    b.onclick = function () {
+      var t = this.getAttribute('data-t') || '';
+      if (t) CURT = t;
+      redraw();
+      var one = document.getElementById('ch-one');
+      if (one && one.scrollIntoView) one.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    };
+  }
   /* רשום (ותיק) עם קישור, ויש מקום: הצעה לשבת — השולחן שישב בו (`refT`). "הצטרפת" —
      רק מתשובת השרת (?challenge=sit), לא מהלחיצה. */
   /* כפתור הוואטסאפ נשאר גלוי גם כשיש הזמנה שממתינה לבחירה — פותחים שולחן משלך. */
@@ -528,13 +573,15 @@
      "{שם} גם הזמין אותך — רוצה לשבת אצלו?" וכפתור. כבר 3 שולחנות — אותה שאלה, והתשובה שאי אפשר. */
   function invHtml(d) {
     /* 8.99.449: כבר 3 שולחנות — ההזמנה לא מוצגת (אין מה לעשות איתה), כמו הזמנה שאין בה מקום. */
-    var L = tabs(d).length ? pickList(d).filter(function (h) { return h.st === 'open'; }) : [];
+    /* ההזמנה מהקישור כבר בראש המסך (8.99.538) — לא פעמיים. */
+    var top = refTopOpen(d);
+    var L = tabs(d).length ? pickList(d).filter(function (h) { return h.st === 'open' && !(top && h.c === top.c); }) : [];
     if (!L.length) return '';
     return L.map(function (h) {
       var n = h.n || U('chFriend');
       return '<div class="ch-tcard ch-home"><p class="ch-lead">' + esc(tp(U('chAlsoInv'), { by: n })) + '</p>' +
         (h.t ? tblOf(seatsOf({ t: h.t })) : '') + ynHtml(h, n) + '</div>';
-    }).join('') + '<p class="ch-sm" id="ch-sit-m" role="status"></p>';
+    }).join('') + (top ? '' : '<p class="ch-sm" id="ch-sit-m" role="status"></p>');
   }
   function decl(c, redraw) {
     if (window.SureLater && !SureLater(decl, this, arguments)) return;
@@ -681,8 +728,9 @@
     /* מוזמן מכמה חברים, או רשום שהגיע מקישור — הבחירה היא הכרטיס. */
     var ch = choiceHtml(d);
     if (ch) {
-      box.innerHTML = noteHtml(d) + ch;
+      box.innerHTML = noteHtml(d) + refTopHtml(d) + ch;
       wireSit(function (x) { cardDraw(box, x); });
+      refWire(function () { cardDraw(box, cached() || d); });
       plusWire(d, function (x) { cardDraw(box, x || cached() || d); });
       waWire('ch-wa', d.ended ? null : frOf(), function () { cardDraw(box, cached() || d); });
       if (!d.ended) codeWarm();
@@ -690,7 +738,8 @@
     }
     /* **הכול בבית** (8.99.451, אחיאסף): בלי מסך שולחן נפרד — אותו שולחן, הכיסאות, המעבר, וואטסאפ
        והשאלות. "שולחן נוסף" — כרטיס משלו מתחת. */
-    box.innerHTML = oneHtml(d, true) + faqHtml();
+    box.innerHTML = refTopHtml(d) + oneHtml(d, true) + faqHtml();
+    refWire(function () { cardDraw(box, cached() || d); });
     plusWire(d, function (x) { cardDraw(box, x || cached() || d); });
     tabWire(d, function () { cardDraw(box, cached() || d); });
     wireSit(function (x) { cardDraw(box, x); });
@@ -790,7 +839,7 @@
      ============================================================ */
   function fullHtml(d) {
     var m = d.me || {};
-    var h = msrHtml(d) + (d.sat ? '' : yayHtml(m)) + noteHtml(d);
+    var h = msrHtml(d) + (d.sat ? '' : yayHtml(m)) + noteHtml(d) + refTopHtml(d);
     var ch = choiceHtml(d);
     if (ch) return h + ch + faqHtml();
     /* **שולחן אחד בתצוגה, ופלוס מתחתיו** (8.99.441, אחיאסף) — לא שלושה יחד. */
@@ -971,6 +1020,7 @@
     }
   }
   function fullWire(box, d, redraw) {
+    refWire(function () { redraw(); });
     if (choiceHtml(d)) { wireSit(redraw); plusWire(d, redraw); if (!d.ended) codeWarm(); return; }
     plusWire(d, redraw);
     tabWire(d, function () { redraw(); });

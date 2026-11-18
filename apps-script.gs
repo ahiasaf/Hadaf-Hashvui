@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 232;
+var SCRIPT_VERSION = 233;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -15371,8 +15371,11 @@ function chMy_(M, P, U) {
     if (refHost) icodes[refHost.id] = refHost.c;
     out.inv = invBy.map(function (h) {
       var st = chTogether_(M, me, h) ? 'in' : mx ? 'max' : chRoom_(M, h) ? 'open' : 'full';
+      /* `tb` — השולחן שבו כבר יושבים יחד (8.99.538): כפתור "פתיחת השולחן" בראש המסך. קריאה בלבד. */
+      var tb = '';
+      if (st === 'in') (M.seat[me] || []).forEach(function (t) { if (!tb && (M.tb[t] || []).indexOf(h) >= 0) tb = t; });
       return { n: nm(h), c: st === 'open' ? icodes[h] || '' : '', st: st, ref: refHost && refHost.id === h ? 1 : 0,
-               t: st === 'open' ? chHostView_(M, h, me) : null };
+               t: st === 'open' ? chHostView_(M, h, me) : null, tb: tb };
     });
   }
   if (M.nr && M.nr[me]) out.nr = 1;
