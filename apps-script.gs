@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 230;
+var SCRIPT_VERSION = 231;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -19211,7 +19211,12 @@ function chnRows_(sh) {
   }
   return out;
 }
-function chnGr_(g) { return String(g || '').replace(/["'׳״`\s]/g, ''); }
+/* שכבה: "י״א" / "יא" / "11" / "י\"א 2" → "יא" (8.99.532 — מספר שכבה נשמט עד עכשיו). */
+function chnGr_(g) {
+  var s = String(g || '').replace(/["'׳״`\s]/g, '');
+  var N = { '7': 'ז', '8': 'ח', '9': 'ט', '10': 'י', '11': 'יא', '12': 'יב' };
+  return N[s] || s;
+}
 function chnKey_(y, g, c) { return y + '|' + chnGr_(g) + '|' + clsK_(c); }
 function chnId_(v, n) {
   var s = String(v || '').trim().toLowerCase();

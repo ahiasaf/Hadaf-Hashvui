@@ -14,8 +14,9 @@ net.getRange(1, 1, 7, 5).setValues([['קוד ישיבה', 'שכבה', 'כיתה'
   ['lapid', 'ז', '3', 'א', 'ב'], ['lapid', 'ז׳', 'ז3', 'ג', 'ד'], ['lapid', 'ז', '3', 'ה', 'ו'],
   ['lapid', 'ח', '1', 'ז', 'ח'], ['lapid', 'ח', '1', 'ט', 'י'], ['other', 'ז', '3', 'כ', 'ל']]);
 var sch = c.sheet_('תלמידי בית הספר');
-sch.getRange(1, 1, 7, 4).setValues([['קוד ישיבה', 'שכבה', 'כיתה', 'שם'],
-  ['lapid', 'ז׳', '3', 'א ב'], ['lapid', 'ז', '3', 'ג ד'], ['lapid', 'ט', '2', 'מ'], ['lapid', 'ט', '2', 'נ'], ['lapid', 'ט', '2', 'ס'], ['lapid', 'ט', '2', 'ע']]);
+sch.getRange(1, 1, 9, 4).setValues([['קוד ישיבה', 'שכבה', 'כיתה', 'שם'],
+  ['lapid', 'ז׳', '3', 'א ב'], ['lapid', 'ז', '3', 'ג ד'], ['lapid', 'ט', '2', 'מ'], ['lapid', 'ט', '2', 'נ'], ['lapid', 'ט', '2', 'ס'], ['lapid', 'ט', '2', 'ע'],
+  ['lapid', '11', '5', 'פ'], ['lapid', 'י"א', '5', 'צ']]);
 var acc = c.sheet_('גישה');
 acc.getRange(1, 1, 2, 4).setValues([['מזהה', 'מצב', 'קוד ישיבה', 'תפקיד'], ['Dstaff1', 'אושר', 'lapid', 'ר"ם']]);
 
@@ -24,6 +25,7 @@ ok(L.status === 'ok' && L.open === 'open', 'no deadline → open', L);
 var m = {}; (L.cls || []).forEach(function (x) { m[x[0] + x[1]] = x[2]; });
 ok(m['ז3'] === 3, 'overlap → max, not sum (3)', L.cls);
 ok(m['ח1'] === 2 && m['ט2'] === 4, 'single sources counted', L.cls);
+ok(m['יא5'] === 2, 'grade as number (11) and with quote → יא', L.cls);
 ok(!('other' in m) && JSON.stringify(L).indexOf('א ב') < 0, 'no names leaked');
 ok(L.cls[0][0] === 'ז' && L.cls[2][0] === 'ט', 'sorted by grade', L.cls);
 ok(get({ chn: 'cls', y: 'other' }).cls === null, 'other institution → nothing');

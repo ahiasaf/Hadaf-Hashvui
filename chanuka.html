@@ -271,12 +271,19 @@ function paintCls() {
   if (S.failed) h += '<div class="st"><p>' + esc(UI.chnLoadErr) + '</p></div>';
   var by = {}, gs = [];
   S.cls.forEach(function (x) { if (!by[x[0]]) { by[x[0]] = []; gs.push(x[0]); } by[x[0]].push(x); });
+  /* כל השכבות ז׳–י״ב תמיד (8.99.532). שכבה בלי כיתות ברשימה — כפתור אחד, שפותח שכבה + מספר כיתה. */
+  GRADES.forEach(function (g) { if (!by[g]) gs.push(g); });
+  gs.sort(function (a, b) {
+    var ia = GRADES.indexOf(a), ib = GRADES.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
   gs.forEach(function (g) {
-    h += '<div class="gr"><b>' + esc(grD(g)) + '</b><div class="cb">' + by[g].map(function (x) {
+    h += '<div class="gr"><b>' + esc(grD(g)) + '</b><div class="cb">' + (by[g] ? by[g].map(function (x) {
       var v = x[0] + '|' + x[1];
       return '<button type="button" data-c="' + esc(v) + '"' + (S.pick === v ? ' class="on"' : '') + '>' +
         esc(clsD(x[0], x[1])) + '</button>';
-    }).join('') + '</div></div>';
+    }).join('') : '<button type="button" data-g="' + esc(g) + '"' +
+      (S.pick === '*' && S.og === g ? ' class="on"' : '') + '>' + esc(grD(g)) + '</button>') + '</div></div>';
   });
   if (S.cls.length) h += '<button type="button" class="oth" data-c="*">' + esc(UI.chnClsOther) + '</button>';
   h += '</div>';
@@ -291,6 +298,9 @@ function paintCls() {
   box.innerHTML = h;
   Array.prototype.forEach.call(box.querySelectorAll('[data-c]'), function (el) {
     el.onclick = function () { S.pick = this.getAttribute('data-c'); paintCls(); };
+  });
+  Array.prototype.forEach.call(box.querySelectorAll('[data-g]'), function (el) {
+    el.onclick = function () { S.pick = '*'; S.og = this.getAttribute('data-g'); paintCls(); };
   });
   if ($('f-g')) $('f-g').onchange = function () { S.og = this.value; paintMore(); };
   if ($('f-k')) $('f-k').oninput = function () { S.ok2 = this.value; paintMore(); };

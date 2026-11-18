@@ -58,7 +58,7 @@ function tabRows(W) { var s = W.priv.getSheetByName('חוברות חנוכה'); 
     await p.waitForSelector('[data-c="ז|3"]');
     ok(await p.isHidden('#more'), 'rest hidden until class tapped');
     var lbl = await p.$$eval('.cb button', function (a) { return a.map(function (x) { return x.textContent; }); });
-    ok(lbl.join(',') === 'ז׳3,ח׳1', 'class buttons', lbl);
+    ok(lbl.join(',') === 'ז׳3,ח׳1,ט׳,י׳,י״א,י״ב', 'all grades always shown', lbl);
     await p.click('[data-c="ז|3"]');
     ok(await p.inputValue('#f-b') === '3', 'overlap → max 3, prefilled');
     ok(await p.isHidden('#due'), 'no deadline line when open-ended');
@@ -114,6 +114,16 @@ function tabRows(W) { var s = W.priv.getSheetByName('חוברות חנוכה'); 
     await p.fill('#f-b', '30'); await p.click('#yN'); await p.click('#go');
     await p.waitForSelector('#ok:not([hidden])', { timeout: 20000 });
     ok(/י״א 2: 30 ספרי לימוד/.test(await p.textContent('#okB')), 'manual class saved', await p.textContent('#okB'));
+    await p.context().close();
+
+    // 4ב. שכבה בלי רשימה (י״א) — כפתור השכבה פותח מספר כיתה, השכבה כבר בחורה
+    p = await page(b, port, W, '/chanuka');
+    await p.waitForSelector('[data-g="יא"]'); await p.click('[data-g="יא"]');
+    await p.waitForSelector('#f-g');
+    ok(await p.inputValue('#f-g') === 'יא', 'grade preset from grade button');
+    await p.fill('#f-k', '4'); await p.fill('#f-b', '25'); await p.click('#yY'); await p.click('#go');
+    await p.waitForSelector('#ok:not([hidden])', { timeout: 20000 });
+    ok(/י״א 4: 25 ספרי לימוד · 25 חוברות תרגול/.test(await p.textContent('#okB')), 'grade-only button saved', await p.textContent('#okB'));
     await p.context().close();
 
     // 5. קריאת הכיתות נכשלה — הודעה והזנה ידנית
