@@ -3183,7 +3183,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.529';
+var APP_VERSION = '8.99.530';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -12815,7 +12815,7 @@ var SUB = { daf: [['daf', 'moreDaf'], ['qbank', 'moreQBank'], ['alonim', 'moreAl
    אחת הם רצועה שנגררת בטלפון. */
 var MORE = [
   /* עמדת הלימוד עצמה — בכפתור הקבוע למעלה. כאן רק מה שאין שם. */
-  { g:'moreGSet', items:[['links','moreLinks'], ['amdawa','moreAmdaWa'], ['net','moreNet'], ['lottery','moreLottery'], ['ltime','moreLtime'], ['amdaneed','moreAmdaNeed'],
+  { g:'moreGSet', items:[['links','moreLinks'], ['amdawa','moreAmdaWa'], ['net','moreNet'], ['lottery','moreLottery'], ['ltime','moreLtime'], ['amdaneed','moreAmdaNeed'], ['chn','moreChn'],
                          ['prz','morePrz'], ['chal','moreChal'], ['quad','moreQuad'], ['hash','moreHash'],
                          ['test','moreTest']] },
   /* מה שנסגר לשנה הזו — במגירה, ולא נמחק: בלי המלל והמערכת אין
@@ -13479,6 +13479,7 @@ function admPane() {
   if (sub === 'quad')    return admQuad(body);
   if (sub === 'hash')    return admHash(body);
   if (sub === 'ltime')   return admLtime(body);
+  if (sub === 'chn')     return admChn(body);
   if (sub === 'amdaneed') return admAmdaNeed(body);
   /* השליחה — הרשימה נטענת לבד כשנכנסים, ולא רק ב"רענון". פעם
      אחת לכל שתי דקות, גם כשהטעינה נכשלה. */
@@ -18109,6 +18110,127 @@ function ltmPaint() {
               : '<p class="h">' + esc(UI.ltNone) + '</p>') : '') +
     '<button class="btn g" type="button"' + (LTM.busy ? ' disabled' : '') + ' onclick="ltmLoad()">' +
     esc(LTM.busy ? UI.chaLoading : UI.chaReload) + '</button></div>';
+}
+/* ============================================================
+   חוברות חנוכה (8.99.530) — מי הזמין, כמה, ועד מתי.
+   ============================================================
+   השרת: ?chn=adm|close|res (chnRoute_, בסיסמה). נספרות רק הזמנות "פעיל";
+   "לבירור" — בקשה נוספת לאותה כיתה, עד שמכריעים. בלי מועד סגירה הקישור סגור
+   לר"מים. כישלון משאיר את מה שעל המסך. */
+var CHN = { d: null, busy: false, msg: '', tst: false, at: 0 };
+function admChn(body) {
+  body.innerHTML = '<div id="chn"></div>';
+  chnPaint();
+  if (!CHN.d || Date.now() - CHN.at > 30000) chnLoad();
+}
+function chnKey() { return (CFG.readKey || '').trim(); }
+function chnAsk(q) {
+  if (!chnKey()) { CHN.msg = UI.przNoKey; chnPaint(); return; }
+  CHN.busy = true; CHN.msg = ''; chnPaint();
+  q.key = chnKey();
+  if (CHN.tst) q.tst = '1';
+  scriptGet(q).then(function (d) {
+    CHN.busy = false;
+    if (d && d.status === 'ok') {
+      CHN.d = CHN.d || {};
+      CHN.d.open = d.open; CHN.d.close = d.close;
+      if (d.rows) { CHN.d.rows = d.rows; CHN.at = Date.now(); }
+    } else CHN.msg = (d && d.message) || UI.hsaFail;
+    chnPaint();
+  }, function () { CHN.busy = false; CHN.msg = UI.hsaFail; chnPaint(); });
+}
+function chnLoad() { chnAsk({ chn: 'adm' }); }
+function chnTst(on) { CHN.tst = !!on; CHN.d = null; chnLoad(); }
+function chnLocal(iso) {
+  var d = new Date(iso);
+  if (!(d.getTime() > 0)) return '';
+  var z = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + 'T' + z(d.getHours()) + ':' + z(d.getMinutes());
+}
+function chnDate(iso) {
+  var d = new Date(iso);
+  if (!(d.getTime() > 0)) return '';
+  try { return d.toLocaleString('he-IL', { weekday: 'long', day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+  catch (e) { return d.toLocaleString(); }
+}
+function chnSet() {
+  var el = document.getElementById('chn-at'), v = el ? el.value : '';
+  var t = new Date(v).getTime();
+  if (!(t > 0)) { CHN.msg = UI.hsaFail; chnPaint(); return; }
+  chnAsk({ chn: 'close', at: new Date(t).toISOString() });
+}
+function chnClear() {
+  if (!SureLater(chnClear, this, arguments)) return;
+  chnAsk({ chn: 'close', at: '' });
+}
+function chnRes(id, how) {
+  if (!SureLater(chnRes, this, arguments)) return;
+  chnAsk({ chn: 'res', id: id, 'do': how });
+}
+function chnGrD(g) { g = String(g || ''); return g.length > 1 ? g.charAt(0) + '״' + g.charAt(1) : g + '׳'; }
+function chnCls(x) { return String(x.g || '').length > 1 ? chnGrD(x.g) + ' ' + x.c : chnGrD(x.g) + x.c; }
+function chnRowHtml(x, ask) {
+  return '<div class="prow2"><div style="flex:1"><b>' + esc(chnCls(x)) + ' · ' +
+    esc(fill(UI.chnAdmRow, { b: x.b, p: x.p ? x.pn : 0 })) + '</b>' +
+    '<span>' + esc(fill(UI.chnAdmWho, { n: x.n, at: x.up || x.at })) +
+    (x.n0 ? ' · ' + esc(fill(UI.chnAdmRepo, { n: x.n0 })) : '') + '</span>' +
+    (x.h ? '<span>' + esc(fill(UI.chnAdmHist, { h: x.h })) + '</span>' : '') +
+    (ask ? '<div style="margin-top:6px"><button class="btn g" type="button"' + (CHN.busy ? ' disabled' : '') +
+      ' onclick="chnRes(\'' + esc(x.id) + '\',\'act\')">' + esc(UI.chnAdmAct) + '</button> ' +
+      '<button class="btn g" type="button"' + (CHN.busy ? ' disabled' : '') +
+      ' onclick="chnRes(\'' + esc(x.id) + '\',\'off\')">' + esc(UI.chnAdmOff) + '</button></div>' : '') +
+    '</div></div>';
+}
+function chnPaint() {
+  var el = document.getElementById('chn');
+  if (!el) return;
+  var d = CHN.d, h = '<div class="adm-card"><h4>' + esc(UI.moreChn) + '</h4>' +
+    (CHN.msg ? '<div class="cond" style="margin-bottom:10px">' + esc(CHN.msg) + '</div>' : '');
+  if (d) {
+    /* מועד הסגירה */
+    h += '<p class="h"><b>' + esc(UI.chnAdmCloseH) + '</b> — ' + esc(
+      d.open === 'open' ? fill(UI.chnAdmOpenT, { d: chnDate(d.close) }) :
+      d.open === 'closed' ? fill(UI.chnAdmClosedT, { d: chnDate(d.close) }) : UI.chnAdmNone) + '</p>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0 12px">' +
+      '<input id="chn-at" type="datetime-local" value="' + esc(d.close ? chnLocal(d.close) : '') + '">' +
+      '<button class="btn p" type="button"' + (CHN.busy ? ' disabled' : '') + ' onclick="chnSet()">' + esc(UI.chnAdmSet) + '</button>' +
+      (d.close ? '<button class="btn g" type="button"' + (CHN.busy ? ' disabled' : '') + ' onclick="chnClear()">' +
+        esc(UI.chnAdmClear) + '</button>' : '') + '</div>';
+    var url = location.origin + '/chanuka';
+    h += '<p class="h"><b>' + esc(UI.chnAdmLink) + '</b></p><div style="margin-bottom:12px">' +
+      '<input readonly dir="ltr" style="display:block;width:100%;box-sizing:border-box;padding:8px;margin-bottom:6px;border:1px solid #ddd;border-radius:8px" value="' + esc(url) + '" onfocus="this.select()">' +
+      '<button class="btn g" type="button" onclick="copyText(\'' + esc(url) + '\', UI.chnAdmCopied)">' + esc(UI.chnAdmCopy) + '</button></div>';
+    h += '<label style="display:flex;gap:6px;align-items:center;margin-bottom:10px"><input type="checkbox"' +
+      (CHN.tst ? ' checked' : '') + ' onchange="chnTst(this.checked)"> ' + esc(UI.chnAdmTst) + '</label>';
+    var rows = d.rows || [], act = [], ask = [];
+    rows.forEach(function (x) { if (x.st === 'פעיל') act.push(x); else if (x.st === 'לבירור') ask.push(x); });
+    var B = 0, P = 0;
+    act.forEach(function (x) { B += x.b; P += x.p ? x.pn : 0; });
+    h += '<div class="adm-card" style="margin:0 0 12px"><h4>' + esc(UI.chnAdmTot) + '</h4>' +
+      '<p class="ltm-big">' + esc(fill(UI.chnAdmTotB, { n: B })) + '</p>' +
+      '<p class="ltm-big">' + esc(fill(UI.chnAdmTotP, { n: P })) + '</p>' +
+      '<p class="h">' + esc(fill(UI.chnAdmTotC, { n: act.length })) + '</p></div>';
+    if (!act.length && !ask.length) h += '<p class="h">' + esc(UI.chnAdmEmpty) + '</p>';
+    /* לפי ישיבה, ובתוכה לפי כיתה */
+    var by = {}, ys = [];
+    act.forEach(function (x) { if (!by[x.y]) { by[x.y] = []; ys.push(x.y); } by[x.y].push(x); });
+    ys.sort(function (a, b) { return (by[a][0].yn || a) < (by[b][0].yn || b) ? -1 : 1; });
+    ys.forEach(function (y) {
+      var L = by[y], b = 0, p = 0;
+      L.sort(function (a, c) { return chnCls(a) < chnCls(c) ? -1 : 1; });
+      L.forEach(function (x) { b += x.b; p += x.p ? x.pn : 0; });
+      h += '<h4 style="margin-top:12px">' + esc(L[0].yn || y) + ' · ' + esc(fill(UI.chnAdmRow, { b: b, p: p })) + '</h4>' +
+        '<div class="plist">' + L.map(function (x) { return chnRowHtml(x, false); }).join('') + '</div>';
+    });
+    if (ask.length) {
+      h += '<h4 style="margin-top:14px;color:#A5382D">' + esc(UI.chnAdmAskH) + '</h4><div class="plist">' +
+        ask.map(function (x) { return '<div class="h" style="margin:4px 0 0">' + esc(x.yn || x.y) + '</div>' + chnRowHtml(x, true); }).join('') +
+        '</div>';
+    }
+  }
+  h += '<button class="btn g" type="button" style="margin-top:12px"' + (CHN.busy ? ' disabled' : '') + ' onclick="chnLoad()">' +
+    esc(CHN.busy ? UI.chaLoading : UI.chaReload) + '</button></div>';
+  el.innerHTML = h;
 }
 /* ============================================================
    נוכחות: ימים בשבוע (8.99.415) — לכל ישיבה: כל נוכחות / 3 / 4 מתוך 5.

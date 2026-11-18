@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 228;
+var SCRIPT_VERSION = 229;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -165,6 +165,8 @@ var PRIVATE_TABS = ['תמונת בית א', 'תמונת בית ב', 'עלוני�
                     'הצהרות',
                     /* יגדיל תורה — כמה פרסים מגיעים לכל תלמיד (אחיאסף ממלא). ראו hasaaInfo_. */
                     'זכאויות',
+                    /* הזמנת חוברות חנוכה — שם הר"ם, הכיתה והכמות. ראו chnPut_. */
+                    'חוברות חנוכה',
                     /* הגרלת הרביעיות — מי בקבוצה עם מי, והזוכות. ראו quadRoute_. */
                     'רביעיות', 'רביעיות-הגרלות',
                     /* שני אנשי קשר שונים נרשמו לאותו מוסד. ראו `flagRegConflict_`. */
@@ -362,7 +364,7 @@ var TM_KEYS_ = ['file', 'help', 'setup', 'fire', 'helpdone', 'conflictdone', 'sa
   'parstat', 'ltime', 'amdaneed', 'test', 'sayCount', 'inbox', 'mark', 'funnel', 'trails', 'arrived', 'push',
   'pairHist', 'pair', 'pairok', 'pairSeen', 'pairFor', 'idFor', 'amdaFor', 'whoIs', 'wid', 'acc', 'accset',
   'netbaks', 'netrun', 'netmarks', 'board', 'ov', 'team', 'recount', 'delrow', 'contactSave', 'archived',
-  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid', 'hasaa', 'hlpq', 'acclim'];
+  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid', 'hasaa', 'hlpq', 'acclim', 'chn'];
 /* שם הבקשה — המפתח הראשון ברשימה שקיים, ועם ערכו רק כשהוא מילה קצרה
    באנגלית (op של האתגר/ההגרלה). מזהה או מספר לעולם אינו נכנס. */
 function tmName_(e, post) {
@@ -516,6 +518,8 @@ function doPostMain_(e) {
   if (hd && hd.action === 'lapidput') return json_(lapidPut_(hd));
   /* הצהרת התלמיד (hasaa.html) — לפני הנעילה הראשית, עם נעילה קצרה משלה. ראו hasaaPut_. */
   if (hd && hd.action === 'hasaa') return json_(hasaaPut_(hd));
+  /* הזמנת חוברות חנוכה (chanuka.html) — נעילה קצרה משלה. ראו chnPut_. */
+  if (hd && hd.action === 'chn') return json_(chnPut_(hd));
   if (hd && hd.action === 'aldlput') {
     if (!READ_KEY || String(hd.key || '') !== READ_KEY) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
     return json_(aldlPut_(hd));
@@ -1117,6 +1121,11 @@ function doGetMain_(e) {
   /* מפת בית המדרש — הגרסה האחרונה. ראו lapidGet_ · lapidPut_. */
   if (e && e.parameter && e.parameter.lapid) return reply_(e, lapidGet_());
   /* הצהרת התלמיד — רק "נשמר / לא נשמר" לפי sid, בלי שום תוכן. ראו hasaaCheck_. */
+  /* הזמנת חוברות חנוכה — ראו chnRoute_. */
+  if (e && e.parameter && e.parameter.chn) {
+    try { return reply_(e, chnRoute_(e.parameter)); }
+    catch (eCh) { return reply_(e, { status: 'error' }); }
+  }
   if (e && e.parameter && e.parameter.hasaa) {
     var hsOp = String(e.parameter.hasaa);
     /* רשימת השמות לתפריט, ופרטי התלמיד שנבחר — ראו hasaaRoster_ · hasaaInfo_. */
@@ -19153,4 +19162,270 @@ function hasaaPut_(d) {
   } catch (err) {
     return { status: 'error' };
   } finally { lock.releaseLock(); }
+}
+
+/* ============================================================
+   הזמנת חוברות חנוכה (chanuka.html, 8.99.530 · SCRIPT_VERSION 229).
+   ============================================================
+   הר"ם פותח קישור, בוחר כיתה, רואה כמה ספרי לימוד (לפי רשימות התלמידים)
+   ובוחר כן/לא לחוברות תרגול — באותה כמות. שורה לכל כיתה בלשונית הפרטית
+   "חוברות חנוכה".
+   · ?chn=cls&y=<ישיבה> — ציבורי: הכיתות והמספרים בלבד (לא שמות, לא טלפונים),
+     ומצב ההזמנה (none — לא נקבע מועד סגירה · open · closed). המספר לכיתה —
+     הגבוה מבין שתי הרשימות ("תלמידי הרשת", "תלמידי בית הספר"), **לא הסכום**:
+     אותה כיתה בשתיהן נספרה כפולה. אין הסרה לפי שם; הר"ם מאשר או מתקן.
+   · POST {action:'chn', op, rq, f} — לפני הנעילה הראשית, נעילה קצרה משלו.
+     `op` — מזהה אקראי לכל שליחה (נשמר במכשיר עד אימות): אותו op — בלי שורה.
+     `rq` — מזהה קבוע של המבקש במכשיר. כיתה בלי הזמנה פעילה — שורה "פעיל";
+     יש, מאותו rq — הכמות מתעדכנת והשינוי נרשם ב"היסטוריה"; מ-rq אחר —
+     שורה "לבירור" (לא נספרת, לא דורסת). אחרי מועד הסגירה — אין כתיבה.
+   · ?chn=chk&op= — "נשמר" רק מקריאה של הלשונית: הכיתה והמספרים שנשמרו.
+   · ניהול (READ_KEY): adm · close (מועד הסגירה, מאפיין CHN_CLOSE) · res.
+   · `tst=1` — שורות בדיקה ("בדיקה: כן"), לא נספרות בניהול. מותרות גם לפני
+     שנקבע מועד (כדי לבדוק לפני הפתיחה), ונחסמות אחריו כמו כל השאר.
+   ============================================================ */
+var CHN_TAB_ = 'חוברות חנוכה';
+var CHN_COLS_ = ['מזהה בקשה', 'מצב', 'בדיקה', 'קוד ישיבה', 'ישיבה', 'שכבה', 'כיתה', 'מפתח כיתה',
+  'שם המבקש', 'מקור זיהוי', 'מזהה מכשיר', 'מזהה מבקש', 'כמות מהמאגר', 'ספרי לימוד',
+  'חוברות תרגול', 'כמות חוברות תרגול', 'נוצר', 'עודכן', 'פעולה אחרונה', 'היסטוריה'];
+var CHN_MAX_ = 200;
+function chnSheet_() {
+  var sh = sheet_(CHN_TAB_);
+  if (sh.getLastRow() < 1) {
+    sh.getRange(1, 1, 1, CHN_COLS_.length).setValues([CHN_COLS_]);
+    try { sh.setFrozenRows(1); } catch (x) {}
+  }
+  return sh;
+}
+function chnRows_(sh) {
+  var n = sh.getLastRow();
+  if (n < 2) return [];
+  var v = sh.getRange(2, 1, n - 1, CHN_COLS_.length).getDisplayValues(), out = [];
+  for (var i = 0; i < v.length; i++) {
+    var o = { r: i + 2 };
+    for (var j = 0; j < CHN_COLS_.length; j++) o[CHN_COLS_[j]] = String(v[i][j] || '').trim();
+    out.push(o);
+  }
+  return out;
+}
+function chnGr_(g) { return String(g || '').replace(/["'׳״`\s]/g, ''); }
+function chnKey_(y, g, c) { return y + '|' + chnGr_(g) + '|' + clsK_(c); }
+function chnId_(v, n) {
+  var s = String(v || '').trim().toLowerCase();
+  return new RegExp('^[0-9a-f]{' + (n || 32) + ',64}$').test(s) ? s : '';
+}
+function chnNow_() { return Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd HH:mm:ss'); }
+/* none · open · closed, ומועד הסגירה (ISO) */
+function chnState_() {
+  var at = '';
+  try { at = PropertiesService.getScriptProperties().getProperty('CHN_CLOSE') || ''; } catch (x) {}
+  if (!at) return { open: 'none', close: '' };
+  var t = new Date(at).getTime();
+  if (!(t > 0)) return { open: 'none', close: '' };
+  return { open: Date.now() < t ? 'open' : 'closed', close: new Date(t).toISOString() };
+}
+/* הכיתות של ישיבה: [שכבה, כיתה, מספר]. המספר — הגבוה מבין שתי הרשימות. */
+function chnCounts_(y) {
+  var ck = 'chn:c:' + y, rc = CacheService.getScriptCache();
+  try { var hit = rc.get(ck); if (hit) return JSON.parse(hit); } catch (x) {}
+  var A = {}, B = {}, meta = {};
+  var add = function (M, g, c) {
+    g = chnGr_(g); c = String(c || '').trim();
+    if (!g || !c || !/^[א-ת]{1,2}$/.test(g)) return;
+    var k = g + '|' + clsK_(c);
+    M[k] = (M[k] || 0) + 1;
+    if (!meta[k]) meta[k] = [g, clsK_(c)];
+  };
+  var t = amdaTable_(NET_TAB_);
+  for (var r = 1; r < t.rows.length; r++) {
+    if (t.c(t.rows[r], 'קוד ישיבה') !== y) continue;
+    if (!(t.c(t.rows[r], 'משפחה') + t.c(t.rows[r], 'פרטי'))) continue;
+    add(A, t.c(t.rows[r], 'שכבה'), t.c(t.rows[r], 'כיתה'));
+  }
+  var s = amdaTable_(NET_SCH_TAB_);
+  for (var q = 1; q < s.rows.length; q++) {
+    if (s.c(s.rows[q], 'קוד ישיבה') !== y) continue;
+    if (!s.c(s.rows[q], 'שם')) continue;
+    add(B, s.c(s.rows[q], 'שכבה'), s.c(s.rows[q], 'כיתה'));
+  }
+  var out = [];
+  for (var k in meta) out.push([meta[k][0], meta[k][1], Math.max(A[k] || 0, B[k] || 0)]);
+  var GO = 'זחטיכאבג';
+  out.sort(function (a, b) {
+    var ga = (a[0].length > 1 ? 10 : 0) + GO.indexOf(a[0].slice(-1)), gb = (b[0].length > 1 ? 10 : 0) + GO.indexOf(b[0].slice(-1));
+    if (a[0] !== b[0]) return ga - gb || (a[0] < b[0] ? -1 : 1);
+    var na = +a[1], nb = +b[1];
+    return (na && nb) ? na - nb : (a[1] < b[1] ? -1 : 1);
+  });
+  try { rc.put(ck, JSON.stringify(out), 600); } catch (x) {}
+  return out;
+}
+function chnCls_(y) {
+  y = String(y || '').trim();
+  var st = chnState_();
+  if (!/^[a-z0-9_-]{1,30}$/i.test(y)) return { status: 'ok', open: st.open, close: st.close, cls: null };
+  try { return { status: 'ok', open: st.open, close: st.close, cls: chnCounts_(y) }; }
+  catch (e) { return { status: 'error', open: st.open, close: st.close }; }
+}
+/* מה שנשמר לשליחה הזו — מהלשונית עצמה. */
+function chnOut_(o) {
+  return { g: o['שכבה'], c: o['כיתה'], b: +o['ספרי לימוד'] || 0,
+           p: o['חוברות תרגול'] === 'כן' ? 1 : 0, pn: +o['כמות חוברות תרגול'] || 0,
+           st: o['מצב'] === 'פעיל' ? 'ok' : o['מצב'] === 'לבירור' ? 'ask' : 'off' };
+}
+function chnChk_(opIn) {
+  var op = chnId_(opIn);
+  if (!op) return { status: 'error' };
+  try {
+    var id = privId_(CHN_TAB_);
+    var ss = SS_OPEN_[id] || (SS_OPEN_[id] = SpreadsheetApp.openById(String(id)));
+    var sh = ss.getSheetByName(CHN_TAB_);
+    if (!sh) return { status: 'ok', saved: false };
+    var rows = chnRows_(sh);
+    for (var i = 0; i < rows.length; i++) {
+      if ((' ' + rows[i]['פעולה אחרונה'] + ' ').indexOf(' ' + op + ' ') >= 0) {
+        return { status: 'ok', saved: true, o: chnOut_(rows[i]) };
+      }
+    }
+    return { status: 'ok', saved: false };
+  } catch (e) { return { status: 'error' }; }
+}
+function chnPut_(d) {
+  var op = chnId_(d.op), rq = chnId_(d.rq), f = d.f || {};
+  if (!op || !rq) return { status: 'error', message: 'bad' };
+  var tst = String(f.tst || '') === '1';
+  var st = chnState_();
+  if (st.open === 'closed' || (st.open === 'none' && !tst)) return { status: 'closed', open: st.open, close: st.close };
+  var y = String(f.y || '').trim(), yn = String(f.yn || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  var g = chnGr_(f.g), c = clsK_(f.c);
+  var nm = String(f.n || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  var b = Math.floor(+f.b), p = String(f.p) === '1';
+  var dev = String(f.dev || '').trim().slice(0, 60);
+  if (!/^[a-z0-9_-]{1,30}$/i.test(y) || !/^[א-ת]{1,2}$/.test(g) || !c || c.length > 6 ||
+      nm.length < 2 || !(b >= 1 && b <= CHN_MAX_)) return { status: 'error', message: 'bad' };
+  var pn = p ? b : 0;
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(15000)) return { status: 'busy' };
+  try {
+    var sh = chnSheet_(), rows = chnRows_(sh);
+    for (var i = 0; i < rows.length; i++) {
+      if ((' ' + rows[i]['פעולה אחרונה'] + ' ').indexOf(' ' + op + ' ') >= 0) {
+        return { status: 'ok', saved: true, dup: true, o: chnOut_(rows[i]) };
+      }
+    }
+    /* מספר המאגר — מהשרת, לא מהעמוד. אין — ריק (לא אפס). */
+    var n0 = '';
+    try {
+      var L = chnCounts_(y);
+      for (var j = 0; j < L.length; j++) if (L[j][0] === g && L[j][1] === c) { n0 = String(L[j][2]); break; }
+    } catch (xc) {}
+    /* מקור הזיהוי — מכשיר צוות שאושר לישיבה הזו. אחרת — מה שהוזן. */
+    var src = 'הוזן';
+    if (dev && /^[\w:.\-]{4,60}$/.test(dev)) {
+      try { var a = accRow_(dev); if (a && a.st === 'אושר' && a.inst === y) src = 'צוות מאושר'; } catch (xa) {}
+    } else dev = '';
+    var key = chnKey_(y, g, c), tv = tst ? 'כן' : '', now = chnNow_();
+    var act = null, mine = null;
+    rows.forEach(function (o) {
+      if (o['מפתח כיתה'] !== key || o['בדיקה'] !== tv) return;
+      if (o['מצב'] === 'פעיל') act = o;
+      else if (o['מצב'] === 'לבירור' && o['מזהה מבקש'] === rq) mine = o;
+    });
+    var tgt = (act && act['מזהה מבקש'] === rq) ? act : (act ? mine : null);
+    var put = function (r, o) {
+      var line = CHN_COLS_.map(function (h) { return o[h] == null ? '' : String(o[h]); });
+      var rg = sh.getRange(r, 1, 1, CHN_COLS_.length);
+      rg.setNumberFormat('@');
+      rg.setValues([line]);
+    };
+    var o, r;
+    if (tgt) {
+      o = {};
+      CHN_COLS_.forEach(function (h) { o[h] = tgt[h]; });
+      var was = o['ספרי לימוד'] + '/' + (o['חוברות תרגול'] === 'כן' ? o['כמות חוברות תרגול'] : '0');
+      var now2 = b + '/' + pn;
+      if (was !== now2 || o['שם המבקש'] !== nm) {
+        o['היסטוריה'] = (o['היסטוריה'] ? o['היסטוריה'] + ' · ' : '') + now + ': ' + was + ' → ' + now2;
+      }
+      o['שם המבקש'] = nm; o['ספרי לימוד'] = b; o['חוברות תרגול'] = p ? 'כן' : 'לא';
+      o['כמות חוברות תרגול'] = pn; o['עודכן'] = now; o['כמות מהמאגר'] = n0;
+      if (src === 'צוות מאושר') { o['מקור זיהוי'] = src; o['מזהה מכשיר'] = dev; }
+      o['פעולה אחרונה'] = (String(o['פעולה אחרונה'] || '').split(' ').slice(-4).concat([op])).join(' ').trim();
+      r = tgt.r;
+    } else {
+      o = { 'מזהה בקשה': Utilities.getUuid().slice(0, 8), 'מצב': act ? 'לבירור' : 'פעיל', 'בדיקה': tv,
+            'קוד ישיבה': y, 'ישיבה': yn, 'שכבה': g, 'כיתה': c, 'מפתח כיתה': key, 'שם המבקש': nm,
+            'מקור זיהוי': src, 'מזהה מכשיר': src === 'צוות מאושר' ? dev : '', 'מזהה מבקש': rq,
+            'כמות מהמאגר': n0, 'ספרי לימוד': b, 'חוברות תרגול': p ? 'כן' : 'לא', 'כמות חוברות תרגול': pn,
+            'נוצר': now, 'עודכן': now, 'פעולה אחרונה': op, 'היסטוריה': '' };
+      r = Math.max(sh.getLastRow(), 1) + 1;
+    }
+    put(r, o);
+    SpreadsheetApp.flush();
+    var back = chnRows_(sh);
+    for (var k = 0; k < back.length; k++) {
+      if ((' ' + back[k]['פעולה אחרונה'] + ' ').indexOf(' ' + op + ' ') >= 0) {
+        return { status: 'ok', saved: true, o: chnOut_(back[k]) };
+      }
+    }
+    return { status: 'ok', saved: false };
+  } catch (err) {
+    return { status: 'error' };
+  } finally { lock.releaseLock(); }
+}
+function chnAdmRows_(tst) {
+  var sh = chnSheet_(), tv = tst ? 'כן' : '';
+  return chnRows_(sh).filter(function (o) { return o['בדיקה'] === tv; }).map(function (o) {
+    return { id: o['מזהה בקשה'], st: o['מצב'], y: o['קוד ישיבה'], yn: o['ישיבה'], g: o['שכבה'], c: o['כיתה'],
+             n: o['שם המבקש'], src: o['מקור זיהוי'], n0: o['כמות מהמאגר'], b: +o['ספרי לימוד'] || 0,
+             p: o['חוברות תרגול'] === 'כן' ? 1 : 0, pn: +o['כמות חוברות תרגול'] || 0,
+             at: o['נוצר'], up: o['עודכן'], h: o['היסטוריה'] };
+  });
+}
+function chnRoute_(P) {
+  var op = String(P.chn || '');
+  if (op === 'cls') return chnCls_(P.y);
+  if (op === 'chk') return chnChk_(P.op);
+  if (!READ_KEY || String(P.key || '') !== READ_KEY) return { status: 'denied' };
+  var tst = String(P.tst || '') === '1';
+  if (op === 'adm') {
+    var s0 = chnState_();
+    return { status: 'ok', open: s0.open, close: s0.close, rows: chnAdmRows_(tst) };
+  }
+  if (op === 'close') {
+    var at = String(P.at || '').trim(), Pr = PropertiesService.getScriptProperties();
+    if (!at) Pr.deleteProperty('CHN_CLOSE');
+    else {
+      var t = new Date(at).getTime();
+      if (!(t > 0)) return { status: 'error', message: 'מועד לא תקין' };
+      Pr.setProperty('CHN_CLOSE', new Date(t).toISOString());
+    }
+    var s1 = chnState_();
+    return { status: 'ok', open: s1.open, close: s1.close };
+  }
+  if (op === 'res') {
+    var id = String(P.id || '').trim(), how = String(P['do'] || '');
+    if (!id || (how !== 'act' && how !== 'off')) return { status: 'error' };
+    var lock = LockService.getScriptLock();
+    if (!lock.tryLock(15000)) return { status: 'busy' };
+    try {
+      var sh = chnSheet_(), rows = chnRows_(sh), me = null;
+      rows.forEach(function (o) { if (o['מזהה בקשה'] === id) me = o; });
+      if (!me || me['מצב'] !== 'לבירור') return { status: 'error', message: 'הבקשה כבר אינה ממתינה לבירור' };
+      var col = CHN_COLS_.indexOf('מצב') + 1, upc = CHN_COLS_.indexOf('עודכן') + 1, now = chnNow_();
+      if (how === 'act') {
+        rows.forEach(function (o) {
+          if (o['מפתח כיתה'] === me['מפתח כיתה'] && o['בדיקה'] === me['בדיקה'] && o['מצב'] === 'פעיל') {
+            sh.getRange(o.r, col).setValue('הוחלף'); sh.getRange(o.r, upc).setValue(now);
+          }
+        });
+        sh.getRange(me.r, col).setValue('פעיל');
+      } else sh.getRange(me.r, col).setValue('בוטל');
+      sh.getRange(me.r, upc).setValue(now);
+      SpreadsheetApp.flush();
+    } finally { lock.releaseLock(); }
+    var s2 = chnState_();
+    return { status: 'ok', open: s2.open, close: s2.close, rows: chnAdmRows_(tst) };
+  }
+  return { status: 'error' };
 }
