@@ -3183,7 +3183,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.532';
+var APP_VERSION = '8.99.533';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -18117,11 +18117,51 @@ function ltmPaint() {
    השרת: ?chn=adm|close|res (chnRoute_, בסיסמה). נספרות רק הזמנות "פעיל";
    "לבירור" — בקשה נוספת לאותה כיתה, עד שמכריעים. בלי מועד סגירה הקישור סגור
    לר"מים. כישלון משאיר את מה שעל המסך. */
-var CHN = { d: null, busy: false, msg: '', tst: false, at: 0 };
+var CHN = { d: null, busy: false, msg: '', tst: false, at: 0, rams: null, ramMsg: '', ramBusy: false };
 function admChn(body) {
   body.innerHTML = '<div id="chn"></div>';
   chnPaint();
   if (!CHN.d || Date.now() - CHN.at > 30000) chnLoad();
+  if (!CHN.rams) chnRamLoad();
+}
+/* הר"מים לפי כיתה (8.99.533) — לשונית פרטית, נקראת ומודבקת כאן בלבד. */
+function chnRamTxt(L) {
+  return (L || []).map(function (x) { return chnGrD(x[0]) + x[1] + (x[2] ? ' – ' + x[2] : ''); }).join('\n');
+}
+function chnRamLoad(after) {
+  if (!chnKey()) return;
+  scriptGet({ chn: 'rams', key: chnKey() }).then(function (d) {
+    if (d && d.status === 'ok') { CHN.rams = d.rows || []; if (after) after(true); }
+    else if (after) after(false);
+    chnPaint();
+  }, function () { if (after) after(false); });
+}
+function chnRamSave() {
+  var el = document.getElementById('chn-rams'), t = el ? el.value : '';
+  var api = (CFG.api || API || '').trim();
+  if (!t.trim() || !api || !chnKey()) return;
+  CHN.ramBusy = true; CHN.ramMsg = ''; CHN.ramDraft = t; chnPaint();
+  /* כמה כיתות נשלחו — אותו זיהוי שורה כמו בשרת (chnRamParse_); כפולות נספרות פעם אחת. */
+  var seen = {}, want = 0, tries = 0;
+  t.split(/\n/).forEach(function (x) {
+    var m = x.replace(/["'׳״`]/g, '').replace(/\s+/g, ' ').trim().match(/^(יא|יב|ז|ח|ט|י) ?(\d{1,2})/);
+    if (m && !seen[m[1] + (+m[2])]) { seen[m[1] + (+m[2])] = 1; want++; }
+  });
+  if (!want) { CHN.ramBusy = false; CHN.ramMsg = UI.chnAdmRamBad; chnPaint(); return; }
+  var look = function () {
+    tries++;
+    chnRamLoad(function (ok) {
+      /* "נשמר" רק מהקריאה החוזרת — הרשימה החדשה, באורך שנשלח. */
+      if (ok && CHN.rams && CHN.rams.length === want) {
+        CHN.ramBusy = false; CHN.ramDraft = null; CHN.ramMsg = fill(UI.chnAdmRamN, { n: CHN.rams.length }); chnPaint();
+        return;
+      }
+      if (tries < 6) { setTimeout(look, 2500); return; }
+      CHN.ramBusy = false; CHN.ramMsg = UI.chnAdmRamBad; chnPaint();
+    });
+  };
+  fetch(api, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: 'chnrams', key: chnKey(), t: t }) })
+    .then(function () { setTimeout(look, 1500); })['catch'](function () { setTimeout(look, 3000); });
 }
 function chnKey() { return (CFG.readKey || '').trim(); }
 function chnAsk(q) {
@@ -18171,7 +18211,8 @@ function chnGrD(g) { g = String(g || ''); return g.length > 1 ? g.charAt(0) + '�
 function chnCls(x) { return String(x.g || '').length > 1 ? chnGrD(x.g) + ' ' + x.c : chnGrD(x.g) + x.c; }
 function chnRowHtml(x, ask) {
   return '<div class="prow2"><div style="flex:1"><b>' + esc(chnCls(x)) + ' · ' +
-    esc(fill(UI.chnAdmRow, { b: x.b, p: x.p ? x.pn : 0 })) + '</b>' +
+    esc(x.b == null ? fill(UI.chnAdmRowX, { p: x.p ? UI.chnAdmPrY : UI.chnAdmPrN }) :
+      fill(UI.chnAdmRow, { b: x.b, p: x.p ? x.pn : 0 })) + '</b>' +
     '<span>' + esc(fill(UI.chnAdmWho, { n: x.n, at: x.up || x.at })) +
     (x.n0 ? ' · ' + esc(fill(UI.chnAdmRepo, { n: x.n0 })) : '') + '</span>' +
     (x.h ? '<span>' + esc(fill(UI.chnAdmHist, { h: x.h })) + '</span>' : '') +
@@ -18189,7 +18230,7 @@ function chnPaint() {
   if (d) {
     /* מועד הסגירה */
     h += '<p class="h"><b>' + esc(UI.chnAdmCloseH) + '</b> — ' + esc(
-      d.open === 'open' ? fill(UI.chnAdmOpenT, { d: chnDate(d.close) }) :
+      d.open === 'open' && d.close ? fill(UI.chnAdmOpenT, { d: chnDate(d.close) }) :
       d.open === 'closed' ? fill(UI.chnAdmClosedT, { d: chnDate(d.close) }) : UI.chnAdmNone) + '</p>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0 12px">' +
       '<input id="chn-at" type="datetime-local" value="' + esc(d.close ? chnLocal(d.close) : '') + '">' +
@@ -18204,12 +18245,13 @@ function chnPaint() {
       (CHN.tst ? ' checked' : '') + ' onchange="chnTst(this.checked)"> ' + esc(UI.chnAdmTst) + '</label>';
     var rows = d.rows || [], act = [], ask = [];
     rows.forEach(function (x) { if (x.st === 'פעיל') act.push(x); else if (x.st === 'לבירור') ask.push(x); });
-    var B = 0, P = 0;
-    act.forEach(function (x) { B += x.b; P += x.p ? x.pn : 0; });
+    var B = 0, P = 0, NQ = 0;
+    act.forEach(function (x) { if (x.b == null) { NQ++; return; } B += x.b; P += x.p ? x.pn : 0; });
     h += '<div class="adm-card" style="margin:0 0 12px"><h4>' + esc(UI.chnAdmTot) + '</h4>' +
       '<p class="ltm-big">' + esc(fill(UI.chnAdmTotB, { n: B })) + '</p>' +
       '<p class="ltm-big">' + esc(fill(UI.chnAdmTotP, { n: P })) + '</p>' +
-      '<p class="h">' + esc(fill(UI.chnAdmTotC, { n: act.length })) + '</p></div>';
+      '<p class="h">' + esc(fill(UI.chnAdmTotC, { n: act.length })) + '</p>' +
+      (NQ ? '<p class="h"><b>' + esc(fill(UI.chnAdmNoQ, { n: NQ })) + '</b></p>' : '') + '</div>';
     if (!act.length && !ask.length) h += '<p class="h">' + esc(UI.chnAdmEmpty) + '</p>';
     /* לפי ישיבה, ובתוכה לפי כיתה */
     var by = {}, ys = [];
@@ -18218,7 +18260,7 @@ function chnPaint() {
     ys.forEach(function (y) {
       var L = by[y], b = 0, p = 0;
       L.sort(function (a, c) { return chnCls(a) < chnCls(c) ? -1 : 1; });
-      L.forEach(function (x) { b += x.b; p += x.p ? x.pn : 0; });
+      L.forEach(function (x) { if (x.b == null) return; b += x.b; p += x.p ? x.pn : 0; });
       h += '<h4 style="margin-top:12px">' + esc(L[0].yn || y) + ' · ' + esc(fill(UI.chnAdmRow, { b: b, p: p })) + '</h4>' +
         '<div class="plist">' + L.map(function (x) { return chnRowHtml(x, false); }).join('') + '</div>';
     });
@@ -18230,6 +18272,13 @@ function chnPaint() {
   }
   h += '<button class="btn g" type="button" style="margin-top:12px"' + (CHN.busy ? ' disabled' : '') + ' onclick="chnLoad()">' +
     esc(CHN.busy ? UI.chaLoading : UI.chaReload) + '</button></div>';
+  /* הר"מים לפי כיתה */
+  h += '<div class="adm-card"><h4>' + esc(UI.chnAdmRamH) + '</h4><p class="h">' + esc(UI.chnAdmRamP) + '</p>' +
+    (CHN.ramMsg ? '<div class="cond" style="margin-bottom:8px">' + esc(CHN.ramMsg) + '</div>' : '') +
+    '<textarea id="chn-rams" rows="10" style="width:100%;box-sizing:border-box;font:inherit;padding:8px;border:1px solid #ddd;border-radius:8px">' +
+    esc(CHN.ramDraft != null ? CHN.ramDraft : chnRamTxt(CHN.rams)) + '</textarea>' +
+    '<button class="btn p" type="button" style="margin-top:8px"' + (CHN.ramBusy ? ' disabled' : '') + ' onclick="chnRamSave()">' +
+    esc(CHN.ramBusy ? UI.chaLoading : UI.chnAdmRamSave) + '</button></div>';
   el.innerHTML = h;
 }
 /* ============================================================

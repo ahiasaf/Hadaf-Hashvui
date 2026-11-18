@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 231;
+var SCRIPT_VERSION = 232;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -167,6 +167,8 @@ var PRIVATE_TABS = ['תמונת בית א', 'תמונת בית ב', 'עלוני�
                     'זכאויות',
                     /* הזמנת חוברות חנוכה — שם הר"ם, הכיתה והכמות. ראו chnPut_. */
                     'חוברות חנוכה',
+                    /* חוברות חנוכה — שם הר"ם של כל כיתה (אחיאסף מדביק בניהול). ראו chnRams_. */
+                    'חוברות חנוכה — ר"מים',
                     /* הגרלת הרביעיות — מי בקבוצה עם מי, והזוכות. ראו quadRoute_. */
                     'רביעיות', 'רביעיות-הגרלות',
                     /* שני אנשי קשר שונים נרשמו לאותו מוסד. ראו `flagRegConflict_`. */
@@ -520,6 +522,11 @@ function doPostMain_(e) {
   if (hd && hd.action === 'hasaa') return json_(hasaaPut_(hd));
   /* הזמנת חוברות חנוכה (chanuka.html) — נעילה קצרה משלה. ראו chnPut_. */
   if (hd && hd.action === 'chn') return json_(chnPut_(hd));
+  /* חוברות חנוכה — רשימת הר"מים לפי כיתה, מודבקת בניהול (בסיסמה). ראו chnRoute_ ramset. */
+  if (hd && hd.action === 'chnrams') {
+    if (!READ_KEY || String(hd.key || '') !== READ_KEY) return json_({ status: 'denied' });
+    return json_(chnRoute_({ chn: 'ramset', key: hd.key, t: hd.t }));
+  }
   if (hd && hd.action === 'aldlput') {
     if (!READ_KEY || String(hd.key || '') !== READ_KEY) return json_({ status: 'denied', message: 'דורש את סיסמת הסקריפט' });
     return json_(aldlPut_(hd));
@@ -19192,6 +19199,33 @@ var CHN_COLS_ = ['מזהה בקשה', 'מצב', 'בדיקה', 'קוד ישיבה
   'חוברות תרגול', 'כמות חוברות תרגול', 'נוצר', 'עודכן', 'פעולה אחרונה', 'היסטוריה'];
 var CHN_MAX_ = 200;
 var CHN_INST_ = 'lapid';
+/* 8.99.533 (אחיאסף): השכבות בעמוד — ז׳–י״א (י״ב לא רלוונטית). */
+var CHN_GR_ = ['ז', 'ח', 'ט', 'י', 'יא'];
+var CHN_RAM_TAB_ = 'חוברות חנוכה — ר"מים';
+/* שם הר"ם לכל כיתה: { 'ז|1': 'הרב …' }. מהלשונית הפרטית, במטמון לעשר דקות. */
+function chnRams_() {
+  var rc = CacheService.getScriptCache();
+  try { var hit = rc.get('chn:r'); if (hit) return JSON.parse(hit); } catch (x) {}
+  var t = amdaTable_(CHN_RAM_TAB_), m = {};
+  for (var r = 1; r < t.rows.length; r++) {
+    var g = chnGr_(t.c(t.rows[r], 'שכבה')), c = clsK_(t.c(t.rows[r], 'כיתה'));
+    if (g && c) m[g + '|' + c] = t.c(t.rows[r], 'ר"ם');
+  }
+  try { rc.put('chn:r', JSON.stringify(m), 600); } catch (x) {}
+  return m;
+}
+/* טקסט מודבק — שורה לכל כיתה: "ז'1 – הרב …", "י"ב1 הרב …", "ז'6" (בלי שם). */
+function chnRamParse_(txt) {
+  var out = [];
+  String(txt || '').split(/\r?\n/).forEach(function (ln) {
+    var x = ln.replace(/["'׳״`]/g, '').replace(/\s+/g, ' ').trim();
+    var m = x.match(/^(יא|יב|ז|ח|ט|י) ?(\d{1,2}) ?[-–—:]* ?(.*)$/);
+    /* השם — מהשורה המקורית, אחרי מספר הכיתה (הגרשיים בשם נשמרים). */
+    var nm = ln.replace(/^[^\d]*\d{1,2}\s*[-–—:]*\s*/, '').replace(/\s+/g, ' ').trim();
+    if (m) out.push([m[1], String(+m[2]), nm.slice(0, 80)]);
+  });
+  return out;
+}
 function chnSheet_() {
   var sh = sheet_(CHN_TAB_);
   if (sh.getLastRow() < 1) {
@@ -19272,13 +19306,24 @@ function chnCls_(y) {
   y = String(y || '').trim();
   var st = chnState_();
   if (y !== CHN_INST_) return { status: 'ok', open: st.open, close: st.close, cls: null };
-  try { return { status: 'ok', open: st.open, close: st.close, cls: chnCounts_(y) }; }
-  catch (e) { return { status: 'error', open: st.open, close: st.close }; }
+  try {
+    /* הכיתות = הר"מים ∪ רשימות התלמידים, בשכבות CHN_GR_. [שכבה, כיתה, מספר|null, ר"ם]. */
+    var N = chnCounts_(y), R = chnRams_(), seen = {}, out = [];
+    N.forEach(function (x) { seen[x[0] + '|' + x[1]] = [x[0], x[1], x[2] || null, R[x[0] + '|' + x[1]] || '']; });
+    for (var k in R) if (!seen[k]) { var p = k.split('|'); seen[k] = [p[0], p[1], null, R[k] || '']; }
+    for (var k2 in seen) if (CHN_GR_.indexOf(seen[k2][0]) >= 0) out.push(seen[k2]);
+    out.sort(function (a, b) {
+      return (CHN_GR_.indexOf(a[0]) - CHN_GR_.indexOf(b[0])) || ((+a[1] || 99) - (+b[1] || 99));
+    });
+    return { status: 'ok', open: st.open, close: st.close, cls: out };
+  } catch (e) { return { status: 'error', open: st.open, close: st.close }; }
 }
 /* מה שנשמר לשליחה הזו — מהלשונית עצמה. */
 function chnOut_(o) {
-  return { g: o['שכבה'], c: o['כיתה'], b: +o['ספרי לימוד'] || 0,
-           p: o['חוברות תרגול'] === 'כן' ? 1 : 0, pn: +o['כמות חוברות תרגול'] || 0,
+  /* b/pn = null — הכמות תושלם (כיתה בלי רשימת תלמידים, 8.99.533). */
+  return { g: o['שכבה'], c: o['כיתה'], b: o['ספרי לימוד'] === '' ? null : +o['ספרי לימוד'] || 0,
+           p: o['חוברות תרגול'] === 'כן' ? 1 : 0,
+           pn: o['כמות חוברות תרגול'] === '' ? null : +o['כמות חוברות תרגול'] || 0,
            st: o['מצב'] === 'פעיל' ? 'ok' : o['מצב'] === 'לבירור' ? 'ask' : 'off' };
 }
 function chnChk_(opIn) {
@@ -19310,8 +19355,7 @@ function chnPut_(d) {
   var b = Math.floor(+f.b), p = String(f.p) === '1';
   var dev = String(f.dev || '').trim().slice(0, 60);
   if (y !== CHN_INST_ || !/^[א-ת]{1,2}$/.test(g) || !c || c.length > 6 ||
-      !(b >= 1 && b <= CHN_MAX_)) return { status: 'error', message: 'bad' };
-  var pn = p ? b : 0;
+      !(b >= 0 && b <= CHN_MAX_)) return { status: 'error', message: 'bad' };
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(15000)) return { status: 'busy' };
   try {
@@ -19327,6 +19371,11 @@ function chnPut_(d) {
       var L = chnCounts_(y);
       for (var j = 0; j < L.length; j++) if (L[j][0] === g && L[j][1] === c) { n0 = String(L[j][2]); break; }
     } catch (xc) {}
+    /* בלי כמות (b = 0) — רק לכיתה שאין לה מספר ברשימות; נשמר ריק, "תושלם". */
+    if (!b && n0) return { status: 'error', message: 'bad' };
+    var bs = b ? b : '', pn = p ? bs : 0;
+    /* שם הר"ם — מרשימת הכיתות; בלעדיה — מה שנכתב בעמוד. */
+    try { var RM = chnRams_(); if (RM[g + '|' + c]) nm = RM[g + '|' + c]; } catch (xr) {}
     /* בלי זיהוי צוות (8.99.531). */
     var src = '';
     dev = '';
@@ -19348,12 +19397,12 @@ function chnPut_(d) {
     if (tgt) {
       o = {};
       CHN_COLS_.forEach(function (h) { o[h] = tgt[h]; });
-      var was = o['ספרי לימוד'] + '/' + (o['חוברות תרגול'] === 'כן' ? o['כמות חוברות תרגול'] : '0');
-      var now2 = b + '/' + pn;
+      var was = (o['ספרי לימוד'] || '?') + '/' + (o['חוברות תרגול'] === 'כן' ? (o['כמות חוברות תרגול'] || '?') : '0');
+      var now2 = (bs || '?') + '/' + (pn === '' ? '?' : pn);
       if (was !== now2 || o['שם המבקש'] !== nm) {
         o['היסטוריה'] = (o['היסטוריה'] ? o['היסטוריה'] + ' · ' : '') + now + ': ' + was + ' → ' + now2;
       }
-      o['שם המבקש'] = nm; o['ספרי לימוד'] = b; o['חוברות תרגול'] = p ? 'כן' : 'לא';
+      o['שם המבקש'] = nm; o['ספרי לימוד'] = bs; o['חוברות תרגול'] = p ? 'כן' : 'לא';
       o['כמות חוברות תרגול'] = pn; o['עודכן'] = now; o['כמות מהמאגר'] = n0;
       o['פעולה אחרונה'] = (String(o['פעולה אחרונה'] || '').split(' ').slice(-4).concat([op])).join(' ').trim();
       r = tgt.r;
@@ -19361,7 +19410,7 @@ function chnPut_(d) {
       o = { 'מזהה בקשה': Utilities.getUuid().slice(0, 8), 'מצב': act ? 'לבירור' : 'פעיל', 'בדיקה': tv,
             'קוד ישיבה': y, 'ישיבה': yn, 'שכבה': g, 'כיתה': c, 'מפתח כיתה': key, 'שם המבקש': nm,
             'מקור זיהוי': src, 'מזהה מכשיר': src === 'צוות מאושר' ? dev : '', 'מזהה מבקש': rq,
-            'כמות מהמאגר': n0, 'ספרי לימוד': b, 'חוברות תרגול': p ? 'כן' : 'לא', 'כמות חוברות תרגול': pn,
+            'כמות מהמאגר': n0, 'ספרי לימוד': bs, 'חוברות תרגול': p ? 'כן' : 'לא', 'כמות חוברות תרגול': pn,
             'נוצר': now, 'עודכן': now, 'פעולה אחרונה': op, 'היסטוריה': '' };
       r = Math.max(sh.getLastRow(), 1) + 1;
     }
@@ -19382,8 +19431,10 @@ function chnAdmRows_(tst) {
   var sh = chnSheet_(), tv = tst ? 'כן' : '';
   return chnRows_(sh).filter(function (o) { return o['בדיקה'] === tv; }).map(function (o) {
     return { id: o['מזהה בקשה'], st: o['מצב'], y: o['קוד ישיבה'], yn: o['ישיבה'], g: o['שכבה'], c: o['כיתה'],
-             n: o['שם המבקש'], src: o['מקור זיהוי'], n0: o['כמות מהמאגר'], b: +o['ספרי לימוד'] || 0,
-             p: o['חוברות תרגול'] === 'כן' ? 1 : 0, pn: +o['כמות חוברות תרגול'] || 0,
+             n: o['שם המבקש'], src: o['מקור זיהוי'], n0: o['כמות מהמאגר'],
+             b: o['ספרי לימוד'] === '' ? null : +o['ספרי לימוד'] || 0,
+             p: o['חוברות תרגול'] === 'כן' ? 1 : 0,
+             pn: o['כמות חוברות תרגול'] === '' ? null : +o['כמות חוברות תרגול'] || 0,
              at: o['נוצר'], up: o['עודכן'], h: o['היסטוריה'] };
   });
 }
@@ -19407,6 +19458,35 @@ function chnRoute_(P) {
     }
     var s1 = chnState_();
     return { status: 'ok', open: s1.open, close: s1.close };
+  }
+  /* הר"מים לפי כיתה — קריאה (טקסט לעריכה) והחלפה מלאה מטקסט מודבק, עם קריאה חוזרת. */
+  if (op === 'rams' || op === 'ramset') {
+    if (op === 'ramset') {
+      var L2 = chnRamParse_(P.t);
+      if (!L2.length) return { status: 'error', message: 'לא נמצאה אף שורה בצורה "ז׳1 – שם"' };
+      var lk = LockService.getScriptLock();
+      if (!lk.tryLock(15000)) return { status: 'busy' };
+      try {
+        var rs = sheet_(CHN_RAM_TAB_);
+        rs.clearContents();
+        var vals = [['שכבה', 'כיתה', 'ר"ם']].concat(L2);
+        var rg = rs.getRange(1, 1, vals.length, 3);
+        rg.setNumberFormat('@');
+        rg.setValues(vals);
+        SpreadsheetApp.flush();
+      } finally { lk.releaseLock(); }
+      try { CacheService.getScriptCache().remove('chn:r'); } catch (x) {}
+    }
+    var R2 = {};
+    try { CacheService.getScriptCache().remove('chn:r'); } catch (x) {}
+    R2 = chnRams_();
+    var lines = [];
+    for (var k3 in R2) { var q3 = k3.split('|'); lines.push([q3[0], q3[1], R2[k3]]); }
+    lines.sort(function (a, b) {
+      var A = ['ז', 'ח', 'ט', 'י', 'יא', 'יב'];
+      return (A.indexOf(a[0]) - A.indexOf(b[0])) || (+a[1] - +b[1]);
+    });
+    return { status: 'ok', rows: lines };
   }
   if (op === 'res') {
     var id = String(P.id || '').trim(), how = String(P['do'] || '');

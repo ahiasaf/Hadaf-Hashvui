@@ -98,4 +98,31 @@ ok(post({ action: 'chn', op: hex('5'), rq: hex('1'), f: F }).status === 'closed'
 ok(post({ action: 'chn', op: hex('6'), rq: hex('1'), f: Ft }).status === 'closed', 'test also closed after deadline');
 ok(get({ chn: 'close', key: 'k', at: '' }).open === 'open', 'clear deadline → open again');
 ok(c.PRIVATE_TABS.indexOf('חוברות חנוכה') >= 0 && W.priv.getSheetByName('חוברות חנוכה'), 'tab is private');
+// ---- 8.99.533: הר"מים לפי כיתה · ז׳–י״א · כיתה בלי מספר ----
+var W2 = M.makeWorld(), c2 = W2.ctx;
+function get2(p) { var r = c2.doGet({ parameter: p }); return JSON.parse(String(r.t).replace(/^cb\((.*)\)$/, '$1')); }
+function post2(d) { return JSON.parse(c2.doPost({ postData: { contents: JSON.stringify(d) } }).t); }
+c2.sheet_('תלמידי הרשת').getRange(1, 1, 3, 5).setValues([['קוד ישיבה', 'שכבה', 'כיתה', 'משפחה', 'פרטי'],
+  ['lapid', 'ז', '1', 'א', 'ב'], ['lapid', 'יב', '1', 'ג', 'ד']]);
+var TXT = "ז'1 – ר\"ם א\nז'6\nיא'2 – ר\"ם ב\nי\"ב1 – ר\"ם ג\nשורה בלי כיתה";
+ok(post2({ action: 'chnrams', t: TXT }).status === 'denied', 'rams need key');
+var RS = post2({ action: 'chnrams', key: 'k', t: TXT });
+ok(RS.status === 'ok' && RS.rows.length === 4, 'rams saved (4, junk line skipped)', RS);
+ok(W2.priv.getSheetByName('חוברות חנוכה — ר"מים'), 'rams tab is private');
+ok(get2({ chn: 'rams' }).status === 'denied', 'rams read needs key');
+var C2 = get2({ chn: 'cls', y: 'lapid' }).cls, M2 = {};
+C2.forEach(function (x) { M2[x[0] + x[1]] = x; });
+ok(M2['ז1'] && M2['ז1'][2] === 1 && M2['ז1'][3] === 'ר"ם א', 'roster count + ram name', C2);
+ok(M2['ז6'] && M2['ז6'][2] === null && M2['ז6'][3] === '', 'class from ram list without name/count', C2);
+ok(M2['יא2'] && M2['יא2'][2] === null, 'יא class without count', C2);
+ok(!M2['יב1'], 'יב not offered', C2);
+// כיתה בלי מספר — נשמרת בלי כמות; כיתה עם מספר — חייבת כמות
+var r5 = post2({ action: 'chn', op: 'e'.repeat(48), rq: '5'.repeat(48), f: { y: 'lapid', g: 'יא', c: '2', b: 0, p: '1' } });
+ok(r5.saved && r5.o.b === null && r5.o.pn === null && r5.o.p === 1, 'no-count class saved without qty', r5);
+ok(post2({ action: 'chn', op: 'f'.repeat(48), rq: '5'.repeat(48), f: { y: 'lapid', g: 'ז', c: '1', b: 0, p: '1' } }).status === 'error',
+  'counted class requires qty');
+var A2 = get2({ chn: 'adm', key: 'k' }).rows;
+ok(A2.length === 1 && A2[0].n === 'ר"ם ב' && A2[0].b === null, 'name from ram list, qty null in admin', A2);
+// הרשימה מוחלפת כולה
+ok(post2({ action: 'chnrams', key: 'k', t: "ח'3 – ר\"ם ד" }).rows.length === 1, 'ram list replaced');
 console.log(n + ' checks, ' + fails + ' failed'); process.exit(fails ? 1 : 0);

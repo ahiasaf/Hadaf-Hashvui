@@ -1,4 +1,4 @@
-// חוברות חנוכה (8.99.531 — לפיד בלבד) — העמוד מול apps-script.gs בזיכרון (Playwright, טלפון).
+// חוברות חנוכה (8.99.533 — שכבה ← כיתות עם הר"מים) — העמוד מול apps-script.gs בזיכרון (Playwright, טלפון).
 // NODE_PATH=$(npm root -g) node tools/chntest/page.js → קוד 1 אם בדיקה נכשלה. נתונים מומצאים.
 var M = require('../snaptest/mock.js'), http = require('http'), fs = require('fs'), path = require('path');
 var pw = require('playwright');
@@ -11,6 +11,8 @@ function world(open) {
     ['lapid', 'ז', '3', 'א', 'ב'], ['lapid', 'ז', '3', 'ג', 'ד'], ['lapid', 'ח', '1', 'ה', 'ו']]);
   c.sheet_('תלמידי בית הספר').getRange(1, 1, 4, 4).setValues([['קוד ישיבה', 'שכבה', 'כיתה', 'שם'],
     ['lapid', 'ז׳', '3', 'א ב'], ['lapid', 'ז׳', '3', 'ג ד'], ['lapid', 'ז׳', '3', 'ה ו']]);
+  c.doPost({ postData: { contents: JSON.stringify({ action: 'chnrams', key: 'k',
+    t: "ז'3 – ר\"ם בדיקה\nח'1 – ר\"ם שני\nז'6\nיא'2 – ר\"ם שלישי" }) } });
   if (open) W.props.CHN_CLOSE = new Date(Date.now() + 3 * 86400000).toISOString();
   return W;
 }
@@ -53,113 +55,99 @@ function tabRows(W) { var s = W.priv.getSheetByName('חוברות חנוכה'); 
 (async function () {
   var s = await srv(), port = s.address().port, b = await pw.chromium.launch();
   try {
-    // 1. בלי מועד — פתוח, בלי שורת מועד; כפתורי כיתות לפי שכבה
+    // 1. שכבה ← רשימת הכיתות עם הר"מים ← בחירה ← הזמנה
     var W = world(false), p = await page(b, port, W, '/chanuka');
-    await p.waitForSelector('[data-c="ז|3"]');
-    ok(await p.isHidden('#more'), 'rest hidden until class tapped');
-    var lbl = await p.$$eval('.cb button', function (a) { return a.map(function (x) { return x.textContent; }); });
-    ok(lbl.join(',') === 'ז׳3,ח׳1,ט׳,י׳,י״א,י״ב', 'all grades always shown', lbl);
-    await p.click('[data-c="ז|3"]');
-    ok(await p.inputValue('#f-b') === '3', 'overlap → max 3, prefilled');
+    await p.waitForSelector('#grs [data-g="ז"]');
+    var gl = await p.$$eval('#grs button', function (a) { return a.map(function (x) { return x.textContent; }); });
+    ok(gl.join(',') === 'ז׳,ח׳,ט׳,י׳,י״א', 'grades ז–יא, no יב', gl);
+    ok(await p.isHidden('#clsStep') && await p.isHidden('#more'), 'only grades at start');
+    if (SHOT) await p.screenshot({ path: SHOT + '/0-grades.png', fullPage: true });
+    await p.click('#grs [data-g="ז"]');
+    var rows = await p.$$eval('.cr', function (a) { return a.map(function (x) { return x.textContent; }); });
+    ok(rows.length === 2 && /ז׳3/.test(rows[0]) && /ר"ם בדיקה/.test(rows[0]) && /3 תלמידים/.test(rows[0]), 'class row: class, ram, count', rows);
+    ok(/ז׳6/.test(rows[1]) && !/תלמידים/.test(rows[1]), 'class without ram/count still listed', rows);
+    if (SHOT) await p.screenshot({ path: SHOT + '/1-list.png', fullPage: true });
+    await p.click('.cr[data-c="ז|3"]');
+    ok((await p.$$('.cr')).length === 1 && !(await p.isHidden('#chg')), 'list collapses to chosen + change');
+    ok(await p.inputValue('#f-b') === '3', 'books prefilled (max of lists)');
     ok(await p.isHidden('#due'), 'no deadline line when open-ended');
-    await p.click('#yY');
-    await p.click('#go');
-    await p.waitForSelector('#ok:not([hidden])', { timeout: 20000 });
-    ok(/ז׳3: 3 ספרי לימוד · 3 חוברות תרגול/.test(await p.textContent('#okB')), 'saved without name', await p.textContent('#okB'));
-    ok(tabRows(W).length === 1, 'one row');
-    await p.context().close();
-
-    // 2. עם מועד — המסלול המלא, תיקון כמות, כן/לא חובה
-    W = world(true); p = await page(b, port, W, '/chanuka');
-    await p.waitForSelector('[data-c="ז|3"]');
-    if (SHOT) await p.screenshot({ path: SHOT + '/0-list.png', fullPage: true });
-    await p.click('[data-c="ז|3"]');
-    await p.fill('#f-n', 'ר"ם בדיקה');
     await p.click('#go');
     ok(!(await p.isHidden('#ynErr')), 'yes/no required');
-    ok(tabRows(W).length === 0, 'nothing sent without yes/no');
     await p.click('#yY');
-    ok(/ההדפסה רק למי שהזמין עד/.test(await p.textContent('#due')), 'deadline note');
     await p.fill('#f-b', '4');
-    ok(/4 ספרי לימוד · 4 חוברות תרגול/.test(await p.textContent('#sum')), 'correction updates summary');
+    ok(/4 ספרי לימוד · 4 חוברות תרגול/.test(await p.textContent('#sum')), 'summary');
     if (SHOT) await p.screenshot({ path: SHOT + '/2-sum.png', fullPage: true });
     await p.click('#go');
     await p.waitForSelector('#ok:not([hidden])', { timeout: 20000 });
-    ok(/ז׳3: 4 ספרי לימוד · 4 חוברות תרגול/.test(await p.textContent('#okB')), 'confirmation from server');
-    // רענון ושליחה חוזרת מאותו מכשיר — עדכון, לא שורה נוספת
-    await p.reload(); await p.waitForSelector('[data-c="ז|3"]');
-    await p.click('[data-c="ז|3"]'); await p.click('#yN'); await p.click('#go');
+    ok(/ז׳3: 4 ספרי לימוד · 4 חוברות תרגול/.test(await p.textContent('#okB')), 'confirmation from server', await p.textContent('#okB'));
+    if (SHOT) await p.screenshot({ path: SHOT + '/3-ok.png', fullPage: true });
+    var tr = tabRows(W);
+    ok(tr.length === 1 && tr[0].indexOf('ר"ם בדיקה') >= 0, 'one row, ram name from list');
+    // שינוי ושליחה חוזרת מאותו מכשיר — עדכון
+    await p.reload(); await p.waitForSelector('#grs [data-g="ז"]');
+    await p.click('#grs [data-g="ז"]'); await p.click('.cr[data-c="ז|3"]');
+    await p.click('#chg');
+    ok((await p.$$('.cr')).length === 2, 'change reopens list');
+    await p.click('.cr[data-c="ז|3"]'); await p.click('#yN'); await p.click('#go');
     await p.waitForSelector('#ok:not([hidden])', { timeout: 20000 });
-    ok(/בלי חוברות תרגול/.test(await p.textContent('#okB')), 'update without practice');
-    ok(tabRows(W).length === 1, 'still one row after resend');
+    ok(/בלי חוברות תרגול/.test(await p.textContent('#okB')) && tabRows(W).length === 1, 'update, still one row');
     await p.context().close();
 
-    // 3. מכשיר אחר לאותה כיתה — לבירור
+    // 2. מכשיר אחר לאותה כיתה — לבירור
     p = await page(b, port, W, '/chanuka');
-    await p.waitForSelector('[data-c="ז|3"]'); await p.click('[data-c="ז|3"]');
+    await p.waitForSelector('#grs [data-g="ז"]'); await p.click('#grs [data-g="ז"]'); await p.click('.cr[data-c="ז|3"]');
     await p.click('#yY'); await p.click('#go');
     await p.waitForSelector('#ok:not([hidden])', { timeout: 20000 });
-    ok(!(await p.isHidden('#okA')), 'second requester sees "לבירור" note');
-    ok(tabRows(W).length === 2, 'separate ask row');
+    ok(!(await p.isHidden('#okA')) && tabRows(W).length === 2, 'second requester → ask');
     await p.context().close();
 
-    // 4. "הכיתה שלי לא ברשימה" — ידני, בלי אפס
+    // 3. י״א — בלי מספר תלמידים: אין שדה כמות
     p = await page(b, port, W, '/chanuka');
-    await p.waitForSelector('.oth'); await p.click('.oth');
-    await p.waitForSelector('#f-g');
-    ok(await p.inputValue('#f-b') === '', 'manual → empty, not zero');
-    await p.selectOption('#f-g', 'יא'); await p.fill('#f-k', '2');
+    await p.waitForSelector('#grs [data-g="יא"]'); await p.click('#grs [data-g="יא"]');
+    await p.click('.cr[data-c="יא|2"]');
+    ok(await p.isHidden('#bBox'), 'no quantity field for class without count');
+    await p.click('#yY');
+    ok(/יוזמנו: ספרי לימוד · חוברות תרגול/.test(await p.textContent('#sum')), 'summary without numbers');
+    if (SHOT) await p.screenshot({ path: SHOT + '/4-ya.png', fullPage: true });
     await p.click('#go');
-    ok(tabRows(W).length === 2, 'no send without count');
-    await p.fill('#f-b', '30'); await p.click('#yN'); await p.click('#go');
     await p.waitForSelector('#ok:not([hidden])', { timeout: 20000 });
-    ok(/י״א 2: 30 ספרי לימוד/.test(await p.textContent('#okB')), 'manual class saved', await p.textContent('#okB'));
+    ok(/י״א 2: ספרי לימוד · חוברות תרגול/.test(await p.textContent('#okB')), 'saved without qty', await p.textContent('#okB'));
     await p.context().close();
 
-    // 4ב. שכבה בלי רשימה (י״א) — כפתור השכבה פותח מספר כיתה, השכבה כבר בחורה
-    p = await page(b, port, W, '/chanuka');
-    await p.waitForSelector('[data-g="יא"]'); await p.click('[data-g="יא"]');
-    await p.waitForSelector('#f-g');
-    ok(await p.inputValue('#f-g') === 'יא', 'grade preset from grade button');
-    await p.fill('#f-k', '4'); await p.fill('#f-b', '25'); await p.click('#yY'); await p.click('#go');
-    await p.waitForSelector('#ok:not([hidden])', { timeout: 20000 });
-    ok(/י״א 4: 25 ספרי לימוד · 25 חוברות תרגול/.test(await p.textContent('#okB')), 'grade-only button saved', await p.textContent('#okB'));
-    await p.context().close();
-
-    // 5. קריאת הכיתות נכשלה — הודעה והזנה ידנית
+    // 4. הכיתות לא נטענו — מספר כיתה וכמות ביד, בלי אפס
     p = await page(b, port, W, '/chanuka', { failCls: true });
-    await p.waitForSelector('#f-g');
+    await p.waitForSelector('#grs [data-g="ח"]'); await p.click('#grs [data-g="ח"]');
+    await p.waitForSelector('#f-k');
     ok(/לא הצלחנו לטעון/.test(await p.textContent('#clsBox')), 'list failure shown');
-    ok(await p.inputValue('#f-b') === '', 'failure → no number invented');
+    ok(await p.inputValue('#f-b') === '' && !(await p.isHidden('#bBox')), 'failure → qty field, empty');
     await p.context().close();
 
-    // 6. כשל שמירה — הפרטים נשארים, "לשלוח שוב" לא יוצר כפילות
+    // 5. כשל שמירה — הפרטים נשארים, "לשלוח שוב" לא יוצר כפילות
     var W2 = world(true);
     p = await page(b, port, W2, '/chanuka', { dropPost: 2 });
-    await p.waitForSelector('[data-c="ח|1"]'); await p.click('[data-c="ח|1"]'); await p.fill('#f-n', 'ר"ם ד'); await p.click('#yY');
+    await p.waitForSelector('#grs [data-g="ח"]'); await p.click('#grs [data-g="ח"]'); await p.click('.cr[data-c="ח|1"]'); await p.click('#yY');
+    ok(/ההדפסה רק למי שהזמין עד/.test(await p.textContent('#due')), 'deadline note when set');
     await p.click('#go');
     await p.waitForSelector('#st:not([hidden])', { timeout: 40000 });
-    ok(/לא נשמר/.test(await p.textContent('#stT')), 'failure message');
-    ok(await p.inputValue('#f-n') === 'ר"ם ד', 'fields kept');
-    ok(tabRows(W2).length === 0, 'nothing saved');
+    ok(/לא נשמר/.test(await p.textContent('#stT')) && tabRows(W2).length === 0, 'failure, nothing saved');
     await p.click('#re');
     await p.waitForSelector('#ok:not([hidden])', { timeout: 20000 });
     ok(tabRows(W2).length === 1, 'retry saved once');
     await p.context().close();
 
-    // 7. אחרי הסגירה
+    // 6. אחרי הסגירה
     W2.props.CHN_CLOSE = new Date(Date.now() - 60000).toISOString();
     p = await page(b, port, W2, '/chanuka');
     await p.waitForFunction(function () { return !document.getElementById('msg').hidden && /נסגרו/.test(document.getElementById('msg').textContent); });
     ok(await p.isHidden('#f'), 'closed: no form');
     await p.context().close();
 
-    // 8. קישור בדיקה — מסומן, ולא נספר
+    // 7. קישור בדיקה — לא נספר
     var W3 = world(false);
     p = await page(b, port, W3, '/chanuka?tst=1');
-    await p.waitForSelector('[data-c="ז|3"]');
+    await p.waitForSelector('#grs [data-g="ז"]');
     ok(!(await p.isHidden('#tstTag')), 'test tag');
-    await p.click('[data-c="ז|3"]'); await p.click('#yN'); await p.click('#go');
+    await p.click('#grs [data-g="ז"]'); await p.click('.cr[data-c="ז|3"]'); await p.click('#yN'); await p.click('#go');
     await p.waitForSelector('#ok:not([hidden])', { timeout: 20000 });
     ok(JSON.parse(String(W3.ctx.doGet({ parameter: { chn: 'adm', key: 'k' } }).t)).rows.length === 0, 'test not in real admin');
     await p.context().close();
