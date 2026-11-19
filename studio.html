@@ -347,6 +347,12 @@ body.mark #ssh{display:none !important}
 #splitoff{display:none;margin-inline-start:auto;margin-inline-end:10px;padding:5px 11px;
   font-size:.78rem;background:#A5382D;color:#fff;border-radius:99px}
 body.splitting #splitoff{display:inline-block}
+#joinoff{display:none;margin-inline-start:auto;margin-inline-end:10px;padding:5px 11px;
+  font-size:.78rem;background:#A5382D;color:#fff;border-radius:99px}
+body.joining #joinoff{display:inline-block}
+body.joining .chb p.cp{outline:2px dashed rgba(59,125,87,.5);outline-offset:2px}
+.splitbox .jn{font-size:.95rem;line-height:1.8;padding:8px 10px;border:1px solid var(--gold);
+  border-radius:9px;background:#FFFBF2;margin:6px 0;max-height:22vh;overflow:auto}
 #fixoff{display:none;margin-inline-start:auto;margin-inline-end:10px;padding:5px 11px;
   font-size:.78rem;background:#A5382D;color:#fff;border-radius:99px}
 body.fixing #fixoff{display:inline-block}
@@ -568,7 +574,7 @@ body.mark #toast{top:auto !important}
   </div>
 
   <div class="chav" id="chav">
-    <div class="chd">חברותא<button id="splitoff" type="button">✕ ביטול פיצול</button><button id="fixoff" type="button">✕ ביטול תיקון</button><span id="chpg"></span></div>
+    <div class="chd">חברותא<button id="splitoff" type="button">✕ ביטול פיצול</button><button id="joinoff" type="button">✕ ביטול איחוד</button><button id="fixoff" type="button">✕ ביטול תיקון</button><span id="chpg"></span></div>
     <div class="chb" id="chb"></div>
   </div>
 
@@ -653,6 +659,7 @@ body.mark #toast{top:auto !important}
   <button id="swap">⇄ החלפת צדדים</button>
   <button id="steplist">☰ רשימת הקטעים · עריכה</button>
   <button id="splitpara">✂ פיצול פסקה בחברותא</button>
+  <button id="joinpara">⤓ איחוד פסקאות בחברותא</button>
   <button id="hidepara">⊘ הסתרת פסקה בחברותא</button>
   <button id="fixpara">✎ תיקון טקסט בחברותא</button>
   <hr>
@@ -1970,7 +1977,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.541';
+var STUDIO_VER = '8.99.542';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2236,6 +2243,7 @@ function keepPageState() {
     STEPS = was.steps;
   }
   if (was.splits && was.splits.length) BOOK[PKEY].splits = was.splits;
+  if (was.merges && was.merges.length) BOOK[PKEY].merges = was.merges;
   if (was.hidden && was.hidden.length) BOOK[PKEY].hidden = was.hidden;
   if (was.fixes && was.fixes.length) BOOK[PKEY].fixes = was.fixes;
   if (was.prev) { BOOK[PKEY].prev = was.prev; BOOK[PKEY].prevDaf = was.prevDaf; }
@@ -4432,6 +4440,7 @@ function loadFromSheet() {
       if (was) {
         if (!rec.cal && was.cal) { rec.cal = was.cal; rec.zones = was.zones; }
         if (!rec.splits && was.splits) rec.splits = was.splits;
+        if (!rec.merges && was.merges) rec.merges = was.merges;
         if (!rec.hidden && was.hidden) rec.hidden = was.hidden;
         if (!rec.fixes && was.fixes) rec.fixes = was.fixes;
         /* `prev` ו-`upto` — לא מהמכשיר. הם נקבעים בדף האינטראקטיבי,
@@ -4614,27 +4623,32 @@ function cutRuns(runs, at) {
 function applySplits(list) {
   var keyed = [];
   allSplits().forEach(function (sp) {
-    if (sp[2]) { keyed.push(sp); return; }
+    if (sp[2]) { keyed.push({ s: sp, i: sp[0] }); return; }
     var i = sp[0];
     if (!list[i]) return;
     var two = cutRuns(list[i].runs, sp[1]);
     if (!two[0].runs.length || !two[1].runs.length) return;
     list.splice(i, 1, two[0], two[1]);
   });
+  allMerges().forEach(function (mg) { keyed.push({ m: mg, i: mg[0] }); });
   /* לפי הנוסח: סבבים עד שאין עוד מה להחיל — פיצול של חצי שנוצר
-     בפיצול אחר מחכה לסבב שאחריו. נוסח זהה פעמיים — הקרוב למספר. */
-  keyed.sort(function (a, b) { return a[0] - b[0] || a[1] - b[1]; });
+     בפיצול אחר (או של פסקה שנוצרה באיחוד) מחכה לסבב שאחריו.
+     נוסח זהה פעמיים — הקרוב למספר. */
+  keyed.sort(function (a, b) { return a.i - b.i; });
   var go = true;
   while (go && keyed.length) {
     go = false;
     for (var n = 0; n < keyed.length; n++) {
-      var sp = keyed[n], best = -1;
-      for (var j = 0; j < list.length; j++)
-        if (fixKey(list[j].runs) === sp[2] &&
-            (best < 0 || Math.abs(j - sp[0]) < Math.abs(best - sp[0]))) best = j;
+      var op = keyed[n], best = -1;
+      for (var j = 0; j < list.length; j++) {
+        var ok = op.s ? fixKey(list[j].runs) === op.s[2]
+          : list[j + 1] && fixKey(list[j].runs) === op.m[1] && fixKey(list[j + 1].runs) === op.m[2];
+        if (ok && (best < 0 || Math.abs(j - op.i) < Math.abs(best - op.i))) best = j;
+      }
       if (best < 0) continue;
       keyed.splice(n--, 1); go = true;
-      var two = cutRuns(list[best].runs, sp[1]);
+      if (op.m) { list.splice(best, 2, { runs: joinRuns(list[best].runs, list[best + 1].runs) }); continue; }
+      var two = cutRuns(list[best].runs, op.s[1]);
       if (!two[0].runs.length || !two[1].runs.length) continue;
       list.splice(best, 1, two[0], two[1]);
     }
@@ -5000,6 +5014,7 @@ document.getElementById('fixpara').onclick = function () {
   if (FIX_MODE) { fixOff(); return; }
   setHideMode(false);
   if (SPLIT_MODE) splitOff();
+  if (JOIN_MODE) joinOff(true);
   FIX_MODE = true;
   document.body.classList.add('fixing');
   this.textContent = '✕ סיום תיקון טקסט';
@@ -5063,12 +5078,145 @@ function shiftParas_(i, oldH, newH) {
   }
 }
 
+/* ============================================================
+   איחוד פסקאות בחברותא — ההפך של הפיצול.
+
+   "כמו שיש פיצול פסקה בחברותא, אני רוצה שיהיה גם איחוד פסקה."
+   מקישים על פסקה, והיא מתאחדת עם זו שאחריה. נשמר ברשומת העמוד
+   (`merges`: `[i, מפתח הראשונה, מפתח השנייה]`) ומוחל לפי הנוסח בכל
+   בנייה, יחד עם הפיצולים. איחוד של שני חצאים של פיצול — מוחק את
+   הפיצול במקום להוסיף איחוד.
+
+   מספרי הפסקאות שאחרי השנייה יורדים באחד בשני עמודי הדף, והקטע
+   שמחזיק אחת מהן מחזיק את המאוחדת. שתי פסקאות של שני קטעים
+   שונים — לא מאחדים: פסקה אחת לא יכולה להיות בשני קטעים.
+   ============================================================ */
+var JOIN_MODE = false;
+function allMerges() {
+  var out = [];
+  hiddenKeys().forEach(function (k) { out = out.concat(BOOK[k].merges || []); });
+  return out;
+}
+function joinRuns(a, b) {
+  var ta = runsText(a), tb = runsText(b);
+  var out = a.concat(/\s$/.test(ta) || /^\s/.test(tb) || !ta || !tb ? [] : [{ t: ' ', b: false }]);
+  return out.concat(b);
+}
+function joinOff(quiet) {
+  JOIN_MODE = false;
+  document.body.classList.remove('joining');
+  document.getElementById('splitbox').className = 'splitbox';
+  if (!quiet) say('האיחוד בוטל.');
+}
+/* שני הקטעים (בכל עמודי הדף) שמחזיקים כל אחת מהפסקאות i, i+1 */
+function joinClash_(i) {
+  var pg1Skip = function (k, st) { return st.cont && (+k.split('|')[3] || 1) === 1; };
+  var a = false, b = false;
+  hiddenKeys().forEach(function (k) {
+    (BOOK[k].steps || []).forEach(function (st) {
+      [pg1Skip(k, st) ? null : st.c, st.cj].forEach(function (c) {
+        var h1 = holds_(c, i), h2 = holds_(c, i + 1);
+        if (h1 && !h2) a = true;
+        if (h2 && !h1) b = true;
+      });
+    });
+  });
+  return a && b;
+}
+function joinSheet(i) {
+  var box = document.getElementById('splitbox');
+  var why = '';
+  if (!CHV[i + 1]) why = 'זו הפסקה האחרונה — אין אחריה פסקה לאחד איתה.';
+  else if (CHV[i].orig || CHV[i + 1].orig)
+    why = 'באחת הפסקאות יש תיקון טקסט. קודם "החזרת המקור" ב"✎ תיקון טקסט", ואז האיחוד.';
+  else if (!!CHV[i].off !== !!CHV[i + 1].off)
+    why = 'אחת הפסקאות מוסתרת והשנייה לא. קודם להסתיר או להחזיר, ואז לאחד.';
+  else if (joinClash_(i))
+    why = 'שתי הפסקאות שייכות לשני קטעים שונים. אפשר לאחד רק בתוך קטע אחד, או פסקה שטרם שובצה.';
+  if (why) {
+    box.innerHTML = '<div class="sh"><b>אי אפשר לאחד</b><p>' + esc(why) + '</p>' +
+      '<button class="cl">סגירה</button></div>';
+  } else {
+    box.innerHTML = '<div class="sh"><b>לאחד עם הפסקה שאחריה?</b>' +
+      '<div class="jn">' + esc(runsText(CHV[i].runs)) + '</div>' +
+      '<div class="jn">' + esc(runsText(CHV[i + 1].runs)) + '</div>' +
+      '<div class="fx-row"><button class="fx-ok" id="jn-ok">איחוד לפסקה אחת</button></div>' +
+      '<button class="cl">ביטול</button></div>';
+    document.getElementById('jn-ok').onclick = function () { doJoin(i); };
+  }
+  box.className = 'splitbox on';
+  box.querySelector('.cl').onclick = function () { joinOff(); };
+}
+function doJoin(i) {
+  joinOff(true);
+  if (!CHV || !CHV[i] || !CHV[i + 1] || joinClash_(i)) return;
+  var A = CHV[i], B = CHV[i + 1];
+  var ka = fixKey(A.runs), kb = fixKey(B.runs), at = runsText(A.runs).length;
+  /* שני חצאים של פיצול שנעשה כאן — מוחקים את הפיצול */
+  var undo = false;
+  hiddenKeys().forEach(function (k) {
+    if (undo || !BOOK[k].splits) return;
+    var L = BOOK[k].splits;
+    for (var n = 0; n < L.length; n++)
+      if (L[n][2] === ka + kb && L[n][1] === at) { L.splice(n, 1); undo = true; DIRTY[k] = 1; break; }
+  });
+  var runs = undo ? A.runs.concat(B.runs) : joinRuns(A.runs, B.runs);
+  if (!undo) {
+    var rec = BOOK[PKEY] || (BOOK[PKEY] = {});
+    (rec.merges = rec.merges || []).push([i, ka, kb]);
+  }
+  var one = { runs: runs, off: !!A.off };
+  var hA = paraHtml_(A), hB = paraHtml_(B), hN = paraHtml_(one);
+  CHV.splice(i, 2, one);
+  /* הקטעים: המספרים שאחרי יורדים, והטקסט השמור מקבל את המאוחדת */
+  var now = Date.now();
+  var mv = function (c) {
+    if (!c || c.from == null) return false;
+    var to = c.to == null ? c.from : c.to, hit = false;
+    if (c.from > i) { c.from--; hit = true; }
+    if (to > i) { c.to = to - 1; hit = true; }
+    if (c.h && !A.off) {
+      var h = c.h;
+      if (h.indexOf(hA + hB) >= 0) h = h.replace(hA + hB, hN);
+      else if (h.indexOf(hA) >= 0) h = h.replace(hA, hN);
+      else if (h.indexOf(hB) >= 0) h = h.replace(hB, hN);
+      if (h !== c.h) {
+        c.h = h;
+        var t = c.text || '', tA = runsText(A.runs), tB = runsText(B.runs), tN = runsText(runs);
+        if (t.indexOf(tA + ' ' + tB) >= 0) t = t.replace(tA + ' ' + tB, tN);
+        else if (t.indexOf(tA) >= 0) t = t.replace(tA, tN);
+        else if (t.indexOf(tB) >= 0) t = t.replace(tB, tN);
+        c.text = t;
+        hit = true;
+      }
+    }
+    return hit;
+  };
+  hiddenKeys().forEach(function (k) {
+    var pg = +k.split('|')[3] || 1, hit = false;
+    (BOOK[k].steps || []).forEach(function (st) {
+      if (!(st.cont && pg === 1) && mv(st.c)) hit = true;
+      if (mv(st.cj)) hit = true;
+    });
+    if (hit && k !== PKEY) { DIRTY[k] = 1; BOOK[k].t = now; }
+  });
+  if (CSEL_P) {
+    if (CSEL_P.a > i) CSEL_P.a--;
+    if (CSEL_P.b > i) CSEL_P.b--;
+  }
+  seal();
+  redrawChav();
+  touched();
+  say('הפסקאות אוחדו · ' + CHV.length + ' פסקאות');
+}
+
 function chavBind() {
   [].forEach.call(document.querySelectorAll('#chb p.cp'), function (el) {
     el.onclick = function () {
       var i = +el.dataset.p;
       if (HIDE_MODE) { toggleHide(i); return; }
       if (FIX_MODE) { fixSheet(i); return; }
+      if (JOIN_MODE) { joinSheet(i); return; }
       if (SPLIT_MODE) {
         /* הפיצול נשמר לפי הנוסח המקורי, והתיקון — לפי הנוסח של
            הפסקה השלמה; יחד הם לא היו שורדים טעינה. בתיקון יש
@@ -5496,11 +5644,23 @@ document.getElementById('splitpara').onclick = function () {
   if (!CHV) { say('החברותא עדיין לא נטענה.', 1); return; }
   if (SPLIT_MODE) { splitOff(); return; }
   if (FIX_MODE) fixOff(true);
+  if (JOIN_MODE) joinOff(true);
   setHideMode(false);
   SPLIT_MODE = true;
   document.body.classList.add('splitting');
   say('הקישו על הפסקה שצריך לפצל.');
 };
+document.getElementById('joinpara').onclick = function () {
+  if (!CHV) { say('החברותא עדיין לא נטענה.', 1); return; }
+  if (JOIN_MODE) { joinOff(); return; }
+  if (FIX_MODE) fixOff(true);
+  if (SPLIT_MODE) { SPLIT_MODE = false; document.body.classList.remove('splitting'); }
+  setHideMode(false);
+  JOIN_MODE = true;
+  document.body.classList.add('joining');
+  say('הקישו על הפסקה הראשונה — היא תתאחד עם זו שאחריה.');
+};
+document.getElementById('joinoff').onclick = function (e) { e.stopPropagation(); joinOff(); };
 /* נשאר דלוק עד שמכבים אותו: מי שמסתיר פסקה אחת מסתיר בדרך כלל
    עוד אחת באותו דף, ולחזור לתפריט בין אחת לשנייה זה מיותר. */
 function setHideMode(on) {
@@ -5515,6 +5675,7 @@ document.getElementById('hidepara').onclick = function () {
   SPLIT_MODE = false;
   document.body.classList.remove('splitting');
   if (FIX_MODE) fixOff(true);
+  if (JOIN_MODE) joinOff(true);
   setHideMode(true);
   say('הקישו על פסקה כדי להסתיר אותה — והקשה נוספת מחזירה.');
 };
