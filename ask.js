@@ -465,7 +465,9 @@ var ASK = (function () {
               phone: C.phone && $('r-phone') ? $('r-phone').value : undefined };
     if (first.length < 2) { err = u('errFirst'); draw(); return; }
     if (last.length < 2)  { err = u('errLast'); draw(); return; }
-    if (C.klass && (!grade || !klass)) {
+    /* גם ר"ם שנבחר בבורר (`klassRole`) — חובה: בלי כיתה הוא לא רואה תלמידים
+       (accLim_ בשרת), ולכן לא נותנים להגיע לשם בלי כיתה. */
+    if (klassOn() && (!grade || !klass)) {
       err = u('errClass'); draw(); return;
     }
     var phone = C.phone && $('r-phone') ? ($('r-phone').value || '').trim() : '';

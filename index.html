@@ -3183,7 +3183,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.540';
+var APP_VERSION = '8.99.541';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -5998,7 +5998,7 @@ function askSetup(where) {
        למלא את המסך הזה. הבורר פותח מעצמו, וברירת המחדל היא
        הראשונה ברשימה. ראו `roleInit`/`roleNow` ב-ask.js. */
     roleOptions: [headT('roleYeshiva'), headT('roleChativa'), headT('roleRachez'), headT('roleRam')],
-    /* רב ומחנך — שכבה וכיתה ברשות, ובפירוט (board.html) תלמידיו קודם. */
+    /* רב ומחנך — שכבה וכיתה חובה (19.11): הוא רואה רק את הכיתה שלו (accLim_). */
     klassRole: headT('roleRam'),
     grades: AMDA_GRADES.map(amdaG),
     /* "איך לפנות אליך?" לפני הפנייה, ושדה טלפון (רשות). */
@@ -14445,10 +14445,11 @@ function limOf(id) {
   if (limRows === null) limRows = Store.get('limCache', null);
   return (limRows || []).filter(function (x) { return x.id === id; })[0] || null;
 }
-function limSet(id, on) {
+/* השלמה/תיקון של שכבה וכיתה. מ-19.11 אין מתג — כל ר"ם מוגבל לכיתה שלו. */
+function limSet(id) {
   var key = (CFG.readKey || '').trim(), L = limOf(id);
   if (!key || !L) return;
-  var q = { acclim:'set', id:id, on:on ? '1' : '0', key:key };
+  var q = { acclim:'set', id:id, on:'1', key:key };
   var g = document.getElementById('lim-g-' + id), k = document.getElementById('lim-c-' + id);
   if (g && k) { q.g = g.value.trim(); q.c = k.value.trim(); }
   limMsg[id] = UI.ovSaving; admPane();
@@ -14457,21 +14458,26 @@ function limSet(id, on) {
     delete limMsg[id]; limRows = d.rows; Store.set('limCache', limRows); admPane();
   }).catch(function () { limMsg[id] = fill(UI.limErr, { m:'—' }); admPane(); });
 }
+function limHas(L) { return !!(L && String(L.g || '').trim() && String(L.c || '').trim()); }
+/* אפשר לאשר ר"ם רק כשהכיתה שלו ידועה (או שתפקיד מאושר אחר גובר). */
+function limReady(a) {
+  if (!limRam(a.role)) return true;
+  var L = limOf(a.id);
+  return !!(L && ((L.top && L.top.length) || limHas(L)));
+}
 function limHtml(L) {
   if (!L) return '';
-  var has = String(L.g || '').trim() && String(L.c || '').trim();
+  var has = limHas(L), top = L.top && L.top.length;
   var h = '<div class="sub">';
-  if (has) h += esc(fill(UI.limGC, { g:L.g, c:L.c }));
-  if (L.oth && L.oth.length) h += (has ? ' · ' : '') + esc(fill(UI.limOth, { r:L.oth.join(', ') }));
+  if (top) h += esc(fill(UI.limOth, { r:L.top.join(', ') }));
+  else if (has) h += esc(fill(UI.limGC, { g:L.g, c:L.c }));
   h += '</div>';
-  if (has) {
-    h += '<button class="btn ' + (L.on ? 'p' : 'g') + '" style="margin-top:6px" onclick="limSet(' + dq(L.id) + ',' +
-      (L.on ? 'false' : 'true') + ')">' + esc(L.on ? UI.limOn : UI.limOff) + '</button>';
-  } else {
-    h += '<div class="sub">' + esc(UI.limNoGC) + '</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">' +
+  if (!top && !has) {
+    h += '<div class="sub">' + esc(UI.limNoGC) + '</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">' +
       '<input id="lim-g-' + esc(L.id) + '" placeholder="' + esc(UI.limG) + '" aria-label="' + esc(UI.limG) + '" value="' + esc(L.g || '') + '" style="width:5.5em">' +
       '<input id="lim-c-' + esc(L.id) + '" placeholder="' + esc(UI.limC) + '" aria-label="' + esc(UI.limC) + '" value="' + esc(L.c || '') + '" style="width:5.5em">' +
-      '<button class="btn g" onclick="limSet(' + dq(L.id) + ',true)">' + esc(UI.limSaveOn) + '</button></div>';
+      '<button class="btn g" onclick="limSet(' + dq(L.id) + ')">' + esc(UI.limSaveOn) + '</button></div>';
   }
   if (limMsg[L.id]) h += '<div class="cond" style="margin:6px 0">' + esc(limMsg[L.id]) + '</div>';
   return '<div class="acc-lim">' + h + '</div>';
@@ -14504,7 +14510,7 @@ function accHtml(c, waitOnly, ramOnly) {
                  : ' · <b style="color:var(--bad, #B3261E)">חסר טלפון</b>') +
         (a.has && a.st === 'ממתין' ? ' · כבר נכנס בקישור עם קוד' : '') +
         '</div></div><div class="acc-b">' +
-        (a.st !== 'אושר' ? '<button class="btn p" onclick="accSet(' + dq(a.id) + ',\'אושר\')">אישור</button>' : '') +
+        (a.st !== 'אושר' && limReady(a) ? '<button class="btn p" onclick="accSet(' + dq(a.id) + ',\'אושר\')">אישור</button>' : '') +
         (a.st === 'אושר' && a.phone ? '<a class="btn gr" target="_blank" rel="noopener" href="' + esc(accWaUrl(a)) + '">וואטסאפ</a>' : '') +
         (a.st === 'ממתין' && a.phone ? '<a class="btn gr" target="_blank" rel="noopener" href="' + esc(accIdUrl(a)) + '">וואטסאפ לזיהוי</a>' : '') +
         (a.st === 'ממתין' && !a.phone ? '<a class="btn g" target="_blank" rel="noopener" href="' + esc(accPhUrl(a)) + '">בקשת טלפון</a>' : '') +

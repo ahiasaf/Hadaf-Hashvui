@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 234;
+var SCRIPT_VERSION = 235;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -3394,6 +3394,7 @@ function accGate_(inst, dev, hadCode) {
 /* ============================================================
    הגבלת ר"ם לכיתה שלו (8.99.527 · SCRIPT_VERSION 228, בריף 17.11).
    ============================================================
+   **מ-19.11 (בריף, SCRIPT_VERSION 235): אוטומטי לכל ר"ם — אין מתג. ראו accLim_.**
    מתג לבעלים, בשורה של ר"ם/רב ומחנך ב"בניהול האישי". דלוק — כל קריאה
    וכתיבה של המכשיר הזה (הלוח, רשימת הכיתה, הנוכחות, ההודעה לתלמידים)
    מצומצמת **בשרת** לישיבה + שכבה + כיתה שלו. אין שינוי אוטומטי: בלי
@@ -3427,20 +3428,89 @@ function limRead_(fresh) {
     return m;
   } catch (e) { return null; }
 }
+/* תפקיד שגובר על ר"ם (בריף 19.11): רכז התוכנית, ראש ישיבה, ראש חטיבה. */
+function limTop_(role) {
+  var r = String(role || '').trim();
+  return !!r && !limRam_(r) && /רכז|ראש ישיבה|ראש חטיבה/.test(r);
+}
+function limPh9_(ph) { return String(ph || '').replace(/\D/g, '').slice(-9); }
+/* כל שורות "גישה" — [{id, st, inst, phone, role}] · null — לא נקראה. */
+function limAcc_() {
+  try {
+    var sh = sheet_(ACC_TAB);
+    if (sh.getLastRow() < 2) return [];
+    var head = headers_(sh), ix = {};
+    for (var h = 0; h < head.length; h++) ix[String(head[h]).trim()] = h;
+    var av = sh.getRange(2, 1, sh.getLastRow() - 1, head.length).getDisplayValues();
+    return av.map(function (r) {
+      var cv = function (k) { return ix[k] === undefined ? '' : String(r[ix[k]] || '').trim(); };
+      return { id: cv('מזהה'), st: cv('מצב'), inst: cv('קוד ישיבה'), phone: cv('טלפון'), role: cv('תפקיד') };
+    });
+  } catch (e) { return null; }
+}
+/* תפקידים מאושרים שגוברים, לאותו טלפון באותה ישיבה. הטלפון — זה שהרכז אימת
+   לפני האישור; לא מכשיר. בקשה שעוד לא אושרה — לא מעניקה דבר. */
+function limTopOf_(A, inst, phone) {
+  var d9 = limPh9_(phone), out = [];
+  if (d9.length !== 9 || !A) return out;
+  A.forEach(function (x) {
+    if (x.st !== 'אושר' || x.inst !== inst || limPh9_(x.phone) !== d9 || !limTop_(x.role)) return;
+    if (out.indexOf(x.role) < 0) out.push(x.role);
+  });
+  return out;
+}
+/* השכבה והכיתה מההרשמה כר"ם — { "מזהה|ישיבה": {g, c} } מהשורה האחרונה של
+   המכשיר כר"ם ב"התראות". במטמון לשתי דקות. null — לא נקרא. */
+function limRegMap_(fresh) {
+  var rc = CacheService.getScriptCache();
+  var hit = fresh ? null : rc.get('limReg');
+  if (hit) { try { return JSON.parse(hit); } catch (e0) {} }
+  try {
+    var ps = sheet_('התראות'), m = {};
+    if (ps.getLastRow() > 1) {
+      var pv = ps.getDataRange().getDisplayValues(), pi = {};
+      for (var i = 0; i < pv[0].length; i++) pi[String(pv[0][i]).trim()] = i;
+      var pg = function (r, k) { return pi[k] === undefined ? '' : String(pv[r][pi[k]] || '').trim(); };
+      for (var r = 1; r < pv.length; r++) {
+        var dv = pg(r, 'מזהה');
+        if (!dv || !limRam_(pg(r, 'תפקיד'))) continue;
+        m[dv + '|' + pg(r, 'קוד ישיבה')] = { g: pg(r, 'שכבה'), c: pg(r, 'כיתה') };
+      }
+    }
+    try { rc.put('limReg', JSON.stringify(m), 120); } catch (e1) {}
+    return m;
+  } catch (e) { return null; }
+}
 /* null — אין הגבלה. {g, c, gr, kl} — מוגבל לכיתה. {bad: 1} — מוגבל, ואין
-   כיתה שאפשר לסמוך עליה: לא מקבל כלום. */
+   כיתה שאפשר לסמוך עליה: לא מקבל כלום.
+   **מ-19.11 — כל ר"ם, אוטומטית** (אין מתג). יוצא מן הכלל: לאותו טלפון יש
+   הרשמה מאושרת כרכז/ראש ישיבה/ראש חטיבה באותה ישיבה. הכיתה — מה שהבעלים
+   השלים ב"הגבלת כיתה", ובלעדיו — מההרשמה כר"ם ("התראות"). */
 function accLim_(dev, inst) {
   dev = String(dev || '').trim();
+  inst = String(inst || '').trim();
   if (!dev) return null;
-  var a = accRow_(dev);
+  var A = limAcc_();
+  if (!A) return { bad: 1 };
+  var a = null;
+  A.forEach(function (x) { if (!a && x.id === dev) a = x; });
   if (!a || !limRam_(a.role)) return null;
+  if (limTopOf_(A, inst || a.inst, a.phone).length) return null;
   var M = limRead_();
   if (!M) return { bad: 1 };
-  var o = M[dev];
-  if (!o || !o.on) return null;
-  var g = amdaNorm_(o.g), c = clsK_(o.c);
-  if (!g || !c || o.inst !== String(inst || '').trim()) return { bad: 1 };
-  return { g: g, c: c, gr: o.g, kl: o.c };
+  var o = M[dev], gr = '', kl = '';
+  if (o && o.inst === inst && String(o.g || '').trim() && String(o.c || '').trim()) { gr = o.g; kl = o.c; }
+  else {
+    var R = limRegMap_();
+    if (!R) return { bad: 1 };
+    var q = R[dev + '|' + inst];
+    /* נרשם הרגע — המטמון עוד לא מכיר אותו: קריאה טרייה אחת. */
+    if (!q) { R = limRegMap_(true); q = R && R[dev + '|' + inst]; }
+    if (q) { gr = q.g; kl = q.c; }
+  }
+  var g = amdaNorm_(gr), c = clsK_(kl);
+  if (!g || !c) return { bad: 1 };
+  return { g: g, c: c, gr: gr, kl: kl };
 }
 function limHit_(L, g, c) {
   if (!L || L.bad) return false;
@@ -3452,6 +3522,8 @@ function limRegOf_(pv, pi, dev, inst) {
   for (var r = pv.length - 1; r >= 1; r--) {
     if (String(pv[r][pi['מזהה']] || '').trim() !== dev) continue;
     if (inst && String(pv[r][pi['קוד ישיבה']] || '').trim() !== inst) continue;
+    /* רק ההרשמה כר"ם — כמו accLim_ (limRegMap_). */
+    if (pi['תפקיד'] !== undefined && !limRam_(pv[r][pi['תפקיד']])) continue;
     return { g: pi['שכבה'] === undefined ? '' : String(pv[r][pi['שכבה']] || '').trim(),
              c: pi['כיתה'] === undefined ? '' : String(pv[r][pi['כיתה']] || '').trim() };
   }
@@ -3461,7 +3533,7 @@ function limRegOf_(pv, pi, dev, inst) {
    שורה ב"גישה". לכל אחד: השכבה והכיתה (ידני גובר על ההרשמה), המתג, ותפקידים
    נוספים של אותו אדם (לפי טלפון) באותה ישיבה. */
 function limList_() {
-  var M = limRead_(true) || {};
+  var M = limRead_(true) || {}, AL = limAcc_() || [];
   var ps = sheet_('התראות');
   var pv = ps.getLastRow() > 1 ? ps.getDataRange().getDisplayValues() : [[]], pi = {};
   for (var i = 0; i < pv[0].length; i++) pi[String(pv[0][i]).trim()] = i;
@@ -3495,8 +3567,10 @@ function limList_() {
   for (var k in ppl) {
     var p = ppl[k], reg = limRegOf_(pv, pi, k, p.inst), o = M[k] || null;
     p.rg = reg.g; p.rc = reg.c;
-    p.g = o && o.g ? o.g : reg.g; p.c = o && o.c ? o.c : reg.c;
-    p.on = !!(o && o.on); p.lInst = o ? o.inst : '';
+    if (o && o.inst === p.inst && o.g && o.c) { p.g = o.g; p.c = o.c; } else { p.g = reg.g; p.c = reg.c; }
+    /* מ-19.11 — כל ר"ם מוגבל; `top` — תפקיד מאושר שגובר (אותו טלפון וישיבה). */
+    p.top = limTopOf_(AL, p.inst, p.phone);
+    p.on = !p.top.length; p.lInst = o ? o.inst : '';
     var d9 = String(p.phone || '').replace(/\D/g, '').slice(-9), oth = [];
     roles.forEach(function (x) {
       if (x[0] !== p.inst || x[1] !== d9 || limRam_(x[2]) || x[2] === 'תלמיד' || x[2] === 'הורה') return;
@@ -3508,17 +3582,17 @@ function limList_() {
   }
   return { status: 'ok', rows: out };
 }
-/* הדלקה/כיבוי, והשלמה ידנית של שכבה וכיתה. הדלקה בלי שכבה וכיתה — נדחית.
-   התשובה — מקריאה חוזרת של הלשונית. */
+/* השלמה/תיקון ידני של שכבה וכיתה (מ-19.11 אין מתג — כל ר"ם מוגבל).
+   בלי שכבה וכיתה תקינות — נדחה. התשובה — מקריאה חוזרת של הלשונית. */
 function limSet_(P) {
-  var id = String(P.id || '').trim(), on = String(P.on) === '1';
+  var id = String(P.id || '').trim(), on = true;
   if (!/^[\w:.\-]{6,60}$/.test(id)) return { status: 'error', message: 'מזהה לא תקין' };
   var L = limList_(), me = null;
   L.rows.forEach(function (x) { if (x.id === id) me = x; });
   if (!me) return { status: 'error', message: 'לא נמצא ר"ם עם המזהה הזה' };
   var g = String(P.g == null ? me.g : P.g).replace(/\s+/g, ' ').trim().slice(0, 8);
   var c = String(P.c == null ? me.c : P.c).replace(/\s+/g, ' ').trim().slice(0, 8);
-  if (on && (!amdaNorm_(g) || !clsK_(c))) return { status: 'error', message: 'חסרות שכבה וכיתה' };
+  if (!amdaNorm_(g) || !clsK_(c)) return { status: 'error', message: 'חסרות שכבה וכיתה' };
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(15000)) return { status: 'busy', message: 'עומס — נסו שוב' };
   try {
@@ -3530,7 +3604,8 @@ function limSet_(P) {
   } finally { lock.releaseLock(); }
   CacheService.getScriptCache().remove('limTab');
   var back = (limRead_(true) || {})[id];
-  if (!back || back.on !== on || back.g !== g || back.c !== c) return { status: 'error', message: 'השמירה לא אומתה' };
+  if (!back || back.g !== g || back.c !== c) return { status: 'error', message: 'השמירה לא אומתה' };
+  CacheService.getScriptCache().remove('limReg');
   var R = limList_();
   R.saved = id;
   return R;

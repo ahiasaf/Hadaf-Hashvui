@@ -89,17 +89,56 @@ function serve() {
   var X = W.priv.getSheetByName('סקירה — אנשי קשר').d, O = W.priv.getSheetByName('סקירה — בעלים').d;
   ok(JSON.stringify(X).indexOf(PH9) >= 0 && JSON.stringify(O).indexOf(PH9) >= 0, '1: טלפון חדש — באיש הקשר ובטלפון הרכז', [X, O]);
 
-  // ---- חלק 2: המתג בבניהול האישי ----
+  // ---- חלק 2: ההגבלה בבניהול האישי (אוטומטית מ-8.99.541) ----
   await p.evaluate(function (cd) { admGo('stu'); admInstPick(cd); }, code);
   await p.waitForTimeout(2500);
   var acc = await p.$eval('#stu-acc', function (e) { return e.textContent; }).catch(function () { return ''; });
-  ok(/הגבלה לכיתה שלו/.test(acc) && /שכבה ט׳ · כיתה 3/.test(acc), '2: המתג והשכבה והכיתה בשורת הר"ם', acc.slice(0, 300));
+  ok(/רואה רק את הכיתה שלו: שכבה ט׳ · כיתה 3/.test(acc), '2: ר"ם מאושר — הכיתה שלו, בלי מתג', acc.slice(0, 300));
+  ok(!/הגבלה לכיתה שלו|מוגבל לכיתה שלו/.test(acc), '2: אין מתג', acc.slice(0, 300));
   if (SHOT) await p.screenshot({ path: SHOT + '/3-acc.png', fullPage: true });
+
+  // ---- חלק 3: ר"ם ממתין בלי כיתה — אין "אישור" עד השלמה ----
+  c.appendCols_('התראות', [['מזהה', 'DRAM00009'], ['שם', 'Ram Nine'], ['טלפון', '055' + '0000099'], ['ישיבה', I[4][1]],
+    ['קוד ישיבה', code], ['תפקיד', 'רב ומחנך']]);
+  c.accAsk_(code, 'DRAM00009', false);
+  await p.evaluate(function (cd) { limAt = 0; return Promise.all([accLoad(), limLoad(true)]).then(function () { admGo('stu'); admInstPick(cd); }); }, code).catch(function () {});
+  await p.evaluate(function () { return limLoad(true); }); await p.waitForTimeout(2500);
+  var rowOf = function () {
+    return p.$$eval('#stu-acc .acc-r', function (L) {
+      for (var i = 0; i < L.length; i++) if (/Ram Nine/.test(L[i].textContent)) return { t: L[i].textContent, ap: /אישור/.test(L[i].querySelector('.acc-b') ? L[i].querySelector('.acc-b').textContent : '') };
+      return null;
+    });
+  };
+  var r9 = await rowOf();
+  ok(r9 && !r9.ap && /חסרות שכבה וכיתה/.test(r9.t), '3: חסרה כיתה — בלי כפתור אישור, עם בקשת השלמה', r9);
+  if (SHOT) await p.screenshot({ path: SHOT + '/4-need.png', fullPage: true });
+  await p.fill('#lim-g-DRAM00009', 'ט'); await p.fill('#lim-c-DRAM00009', '2');
   await p.click('#stu-acc .acc-lim .btn'); await p.waitForTimeout(1500);
-  acc = await p.$eval('#stu-acc', function (e) { return e.textContent; }).catch(function () { return ''; });
-  var LT = W.priv.getSheetByName('הגבלת כיתה');
-  ok(/מוגבל לכיתה שלו/.test(acc) && LT && JSON.stringify(LT.d).indexOf('"כן"') >= 0, '2: הודלק ונשמר', [acc.slice(0, 200), LT && LT.d]);
-  if (SHOT) await p.screenshot({ path: SHOT + '/4-on.png', fullPage: true });
+  r9 = await rowOf();
+  ok(r9 && r9.ap && /שכבה ט · כיתה 2/.test(r9.t), '3: אחרי השלמה — כפתור אישור והכיתה', r9);
+
+  // ---- חלק 4: טופס הצוות — ר"ם בלי שכבה וכיתה נחסם ----
+  var f = await p.evaluate(function () {
+    var d = document.createElement('div'); d.id = 'ask-test'; document.body.appendChild(d);
+    ASK.init({ mount: 'ask-test', key: 'limtest', role: headT('roleYeshiva'),
+      roleOptions: [headT('roleYeshiva'), headT('roleRam')], klassRole: headT('roleRam'),
+      grades: AMDA_GRADES.map(amdaG), phone: true, phoneReq: true, t: headT, klass: false });
+    ASK.open();
+    document.getElementById('r-go').click();
+    var sel = document.getElementById('r-role'); sel.value = headT('roleRam'); sel.onchange();
+    document.getElementById('r-first').value = 'אבג'; document.getElementById('r-last').value = 'דהו';
+    document.getElementById('r-phone').value = '050' + '1112223';
+    document.getElementById('r-next').click();
+    var e1 = (document.querySelector('#asksheet .as-err') || {}).textContent || '';
+    var still = !!document.getElementById('r-next');
+    document.getElementById('r-grade').value = document.getElementById('r-grade').options[1].value;
+    document.getElementById('r-klass').value = '2';
+    document.getElementById('r-next').click();
+    var e2 = (document.querySelector('#asksheet .as-err') || {}).textContent || '';
+    return { e1: e1, still: still, e2: e2, saved: localStorage.getItem('df:limtest') };
+  });
+  ok(f.still && /שכבה וכיתה/.test(f.e1), '4: בלי כיתה — לא מתקדם, הודעה', f);
+  ok(!/שכבה וכיתה/.test(f.e2), '4: עם כיתה — עובר', f);
   ok(!errs.length, 'בלי שגיאות JS', errs);
   await b.close(); srv.close();
   console.log(fails ? 'FAILED ' + fails : 'OK');
