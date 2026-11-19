@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 235;
+var SCRIPT_VERSION = 236;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -14446,16 +14446,16 @@ function chConf_(U, S) {
   return { on: S['פעיל'] === 'כן', t0: chMs_(S['נפתח']), F: parseInt(S['ארוחות ממומנות'], 10) || 0,
            step: step, win: winH * 3600e3, last: parseInt(S['הגרלה אחרונה'], 10) || 0,
            poolAt: chMs_(S['המאגר השתנה']), poolPrev: parseInt(S['מותר לפני השינוי'], 10) || 0,
-           /* חשיפה (8.99.352): "מוזמנים" — הכרטיס בבית רק למשתתפים ולמכשיר
-              שהפעיל; שדה חסר = "כולם", כמו קודם. נראות בלבד — לא חסימה. */
-           exp: S['חשיפה'] === CH_EXP_Q ? CH_EXP_Q : CH_EXP_ALL,
+           /* חשיפה — תמיד "כולם" (8.99.543, אחיאסף: המצב "מוזמנים" הוסר).
+              ערך ישן בגיליון אינו נקרא. */
+           exp: CH_EXP_ALL,
            act: String(S['מפעיל'] || '').split(',').filter(function (x) { return /^[\w:.\-]{1,60}$/.test(x); }),
            /* **הגרלה כל 50 — רק בעולם הבדיקה** (8.99.357, החלטת הבעלים 28.10).
               באמת הגרלה נפתחת רק בלחיצה (op=open). */
            auto: !!U.test,
            rule: chRuleOf_(S) };
 }
-var CH_EXP_ALL = 'כולם', CH_EXP_Q = 'מוזמנים';
+var CH_EXP_ALL = 'כולם';
 /* ============================================================
    כלל ההרכב לפי מוסד (8.99.357, החלטת הבעלים 28.10).
    ============================================================
@@ -15384,13 +15384,8 @@ function chMy_(M, P, U) {
     if (M.ppl[c]) { me = c; break; }
   }
   pub.me = null;
-  /* **חשיפה** (8.99.352): ב"מוזמנים" הכרטיס בבית וחלון ההשקה — רק למי שכבר
-     משתתף (מזמין שיש לו מוזמנים, חבר ששובץ, ותיק שישב), למי שהגיע מקישור,
-     ולמכשיר שהפעיל. נראות בלבד: הקישור, השיבוץ, הלימוד וההגרלה — לכולם. */
-  var pp0 = me ? M.ppl[me] : null;
-  pub.pub = M.exp !== CH_EXP_Q || !!String(P.ref || '').trim() ||
-    !!(pp0 && ((pp0.fr || []).length || pp0.by || pp0.ob)) || !!(me && (M.seat[me] || M.pend[me])) ||
-    mine.some(function (x) { return (M.act || []).indexOf(x) >= 0 || (M.act || []).indexOf(chCanon_(M, x)) >= 0; });
+  /* הכרטיס בבית — לכל תלמיד (8.99.543: אין עוד חשיפה "מוזמנים"). */
+  pub.pub = true;
   var ref = String(P.ref || '').trim().toUpperCase(), refHost = null;
   if (ref && /^[A-Z0-9]{4,10}$/.test(ref)) {
     pub.ref = chRefState_(M, U, ref, mine, me);
@@ -15982,8 +15977,8 @@ function chAct_(U, P, op) {
       if (!S['נפתח']) chSetPut_(U, S, 'נפתח', now);
       chSetPut_(U, S, 'ארוחות ממומנות', F0);
       chSetPut_(U, S, 'תנאים אושרו', now);
-      /* החשיפה — "מוזמנים" אלא אם נבחר "כולם" במפורש; והמכשיר שהפעיל. */
-      chSetPut_(U, S, 'חשיפה', String(P.exp || '') === CH_EXP_ALL ? CH_EXP_ALL : CH_EXP_Q);
+      /* החשיפה — תמיד "כולם" (8.99.543); והמכשיר שהפעיל. */
+      chSetPut_(U, S, 'חשיפה', CH_EXP_ALL);
       chSetPut_(U, S, 'מפעיל', chIds_(P.me).join(','));
       if (U.test) {
         chSetPut_(U, S, 'צעד', Math.max(1, Math.min(CH_STEP_, parseInt(P.step, 10) || 2)));
@@ -16003,21 +15998,11 @@ function chAct_(U, P, op) {
       return { status: 'ok', rule: chRuleOf_(chSetRead_(U)) };
     }
     if (!K.on) return { status: 'error', message: 'האתגר כבוי' };
-    /* חשיפה: "כולם" ↔ "מוזמנים". המכשיר שמשנה נוסף למפעילים. */
     /* המודעה בפתיחת האפליקציה — סבב חדש (8.99.453): כל מכשיר רואה אותה שוב פעם אחת. */
     if (op === 'promo') {
       var pv = (parseInt(S['מודעה סבב'], 10) || 1) + 1;
       chSetPut_(U, S, 'מודעה סבב', String(pv));
       return { status: 'ok', pv: pv };
-    }
-    if (op === 'exposure') {
-      var v = String(P.v || '');
-      if (v !== CH_EXP_ALL && v !== CH_EXP_Q) return { status: 'error', message: 'כולם או מוזמנים?' };
-      chSetPut_(U, S, 'חשיפה', v);
-      var act = K.act.slice();
-      chIds_(P.me).forEach(function (x) { if (act.indexOf(x) < 0) act.push(x); });
-      chSetPut_(U, S, 'מפעיל', act.slice(-8).join(','));
-      return { status: 'ok', exp: v };
     }
     var M = chSync_(U);
     /* הסרה משולחן (8.99.459): t = השולחן, id = המזהה כפי שבא מ-?challenge=adm. רק השיוך —
@@ -16294,16 +16279,6 @@ function chPush_(U, P) {
       if (!ids.length) return { status: 'error', message: 'לאף משתתף בניסוי אין מכשיר מזוהה' };
       flt = JSON.stringify({ ids: ids });
       role = '';
-    } else if (K.exp === CH_EXP_Q) {
-      /* **חשיפה "מוזמנים"** (8.99.352): התראה לכל התלמידים הייתה חושפת את
-         המבצע. ההשקה — רק אחרי "לחשוף לכולם"; התוצאות — רק למשתתפים
-         (ולמפעיל). */
-      if (kind === 'launch') return { status: 'error', message: 'התראת ההשקה היא לכל התלמידים — שולחים אותה אחרי "לחשוף לכולם"' };
-      var M0 = chSync_(U), pids = Object.keys(M0.ppl);
-      K.act.forEach(function (x) { if (pids.indexOf(x) < 0) pids.push(x); });
-      if (!pids.length) return { status: 'error', message: 'אין עדיין משתתפים' };
-      if (pids.length > 60) return { status: 'error', message: 'יותר מ-60 משתתפים — חושפים לכולם ושולחים לכולם' };
-      flt = JSON.stringify({ ids: pids });
     }
     var mid, cur, save, ln = 1;
     if (kind === 'launch') {
@@ -17043,7 +17018,7 @@ function challengeRoute_(e) {
     if (op === 'dmpre') return reply_(e, chDemoPre_());
     if (op === 'dmready') return reply_(e, chDemoReady_());
     if (op === 'dmend') return reply_(e, chDemoEnd_(P));
-    if (['activate', 'extend', 'last', 'date', 'note', 'draw', 'approve', 'dq', 'close', 'deliver', 'exposure', 'open', 'rule', 'promo', 'tout'].indexOf(op) >= 0) {
+    if (['activate', 'extend', 'last', 'date', 'note', 'draw', 'approve', 'dq', 'close', 'deliver', 'open', 'rule', 'promo', 'tout'].indexOf(op) >= 0) {
       return reply_(e, chAct_(U, P, op));
     }
     return reply_(e, { status: 'error', message: 'פעולה לא מוכרת' });

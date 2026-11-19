@@ -1448,9 +1448,6 @@ html.chpg-on,html.chpg-on body{overflow:hidden}
 .ch-btn .ch-spin{border-color:rgba(255,255,255,.35);border-top-color:#fff}
 .ch-tabw .ch-spin{margin:0}
 @keyframes chSpin{to{transform:rotate(360deg)}}
-.ch-dots{display:flex;justify-content:center;gap:6px;margin:-2px 0 6px}
-.ch-dots i{width:7px;height:7px;border-radius:50%;background:#D9CFB8}
-.ch-dots i.on{background:#0B2550}
 .ch-plgo{border:0;padding:0;background:none;cursor:pointer;border-radius:50%}
 .ch-plgo > svg{filter:none}
 .ch-gray svg{filter:grayscale(1);opacity:.45}
@@ -1547,6 +1544,16 @@ body:not(.land) #prjx{display:none}
 #prj-gu{margin-top:14px;text-align:right}
 .prj-rs{display:block;margin:22px auto 6px;background:none;border:0;font:inherit;font-size:.95rem;font-weight:700;
   color:var(--ink-2);text-decoration:underline;cursor:pointer;padding:8px 14px}
+/* תלמיד שעוד לא נרשם — מתחת לנחיתה (gstDraw). */
+#gstx[hidden]{display:none}
+#gstx{margin-top:18px}
+body:not(.land) #gstx{display:none}
+#gstx .mytk{margin-top:4px}
+.gst-nt{margin:12px 0 4px;font-size:.92rem;font-weight:700;color:var(--ink-2);text-align:center}
+.gst-go{display:block;width:100%;margin:6px 0 12px;padding:15px;border:0;border-radius:14px;font:inherit;
+  font-size:1.02rem;font-weight:800;color:#fff;cursor:pointer;text-align:center;
+  background:linear-gradient(140deg,var(--green-d),var(--green-2));box-shadow:0 6px 18px rgba(74,130,28,.28)}
+#gst-ch{margin-top:14px}
 /* מקרן: הכול גדול יותר — אותו מסך, בהגדלה. */
 @media (min-width:900px){ body.prjon{zoom:1.3} }
 @media (min-width:1500px){ body.prjon{zoom:1.6} }
@@ -1793,6 +1800,8 @@ body:not(.land) #prjx{display:none}
 <!-- הדגמה במקרן בלבד (/hatzaga): מתחת למסך הנחיתה — הכרטיסים, השולחן, הפרסים והזוכים, הברקוד,
      התחלה מחדש. רק כשהנחיתה על המסך (body.land). prjDraw. -->
 <div class="wrap" id="prjx" hidden></div>
+<!-- תלמיד שעוד לא נרשם (8.99.543): הכרטיסים שלו מהמכשיר, והשולחן הריק — רק בנחיתה. gstDraw. -->
+<div class="wrap" id="gstx" hidden></div>
 
 <div id="done">
   <!-- מה שהתלמיד רואה הוא **בדיוק** מה שיש במסך הראשי, ובתווית
@@ -6411,6 +6420,88 @@ function prjReset() {
   location.replace(PageUrl('join') + '?prj=1');
 }
 if (window.PrjOn) prjDraw();
+
+/* ============================================================
+   תלמיד שעוד לא נרשם (8.99.543, אחיאסף)
+   ============================================================
+   מתחת לנחיתה: הכרטיסים של ההגרלה הקרובה — **מהמכשיר בלבד** (לימוד וחידון
+   שנעשו לפני ההרשמה, LPreJoin שולח אותם בהרשמה), "הכרטיסים נכנסים להגרלה
+   כשמצטרפים" וכפתור ההצטרפות; ומתחתם השולחן הריק של חבר מביא חבר, עם כפתור
+   ההצטרפות במקום וואטסאפ (CHAL, `ChalGuest`). רק הדף של ההגרלה הקרובה — לימוד
+   מלפני הגרלה שכבר נערכה אינו מוצג. אבא — תמיד ריק. */
+var GST_LW = null;
+function gstOn() {
+  var m = LMe();
+  return !(m && m.id) && !window.PrjOn && !INTER && !gstPar();
+}
+/* קישור ההורים (`?for=dad`), והתלמיד בדרך — בלי. */
+function gstPar() { return !!forDad; }
+function gstWeek() {
+  var t = Date.parse(tkIlDay() + 'T00:00:00Z'), s = Date.parse(PROGRAM.startDate + 'T00:00:00Z');
+  var d = Math.round((t - s) / 864e5);
+  return d >= 0 ? Math.floor(d / 7) + 1 : 1;
+}
+/* בשבוע n מגרילים על הדף של שבוע n-1 (כמו rafNext_ בשרת). */
+function gstHas(n) {
+  return TRACKS.some(function (T) { var r = T.cal && T.cal[n - 2]; return !!(r && r[2] && r[2] !== 'סיום'); });
+}
+function gstNr() {
+  var p = gstWeek(), last = GST_LW || 0;
+  if (gstHas(p) && !(last >= p)) return p;
+  for (var n = p + 1; n < p + 14; n++) if (gstHas(n)) return n;
+  return 0;
+}
+function gstTk() {
+  var nr = gstNr(), l = 0, q = 0, all = LGet('learned', {}) || {};
+  if (nr) TRACKS.forEach(function (T) {
+    var r = T.cal && T.cal[nr - 2];
+    if (!r || !r[2]) return;
+    if (all[T.id + '|' + (nr - 1)]) l = 1;
+    var m = String(localStorage.getItem('df:qres:' + T.id + '|' + String(r[2]).replace(/["'׳״\s]/g, '')) || '').match(/^(\d+)\/(\d+)$/);
+    var a = m ? +m[1] : 0, n = m ? +m[2] : 0;
+    if (n > 0 && (a * 5 >= n * 4 || (n >= 3 && a >= n - 1))) q = 1;
+  });
+  return { l: l, q: q, f: 0, t: l + q, nr: nr };
+}
+function gstGo() {
+  try { window.scrollTo(0, 0); } catch (e) {}
+  $('hero-go').onclick();
+}
+window.ChalGuest = function () { if (gstOn()) gstGo(); };
+function gstDraw() {
+  var box = $('gstx');
+  if (!box) return;
+  if (!gstOn()) { box.hidden = true; box.innerHTML = ''; return; }
+  /* "איך זוכים בכרטיסים?" — המסך יושב בתוך הבית (#done), שמוסתר בנחיתה. */
+  var how = $('tkhow');
+  if (how && how.parentNode !== document.body) document.body.appendChild(how);
+  var nx = gstTk();
+  box.innerHTML = '<div class="mytk" id="gst-tk">' + tkCardHtml({ v: 2, nx: nx, n: 0, l: [] }) +
+      (UI.gstTkNote ? '<p class="gst-nt">' + esc(UI.gstTkNote) + '</p>' : '') +
+      '<button type="button" class="gst-go" onclick="gstGo()">' + esc(JOIN.goBtn + ' ←') + '</button></div>' +
+    '<div id="gst-ch"></div>';
+  box.hidden = false;
+  if (window.CHAL && CHAL.card) CHAL.card($('gst-ch'));
+}
+/* השבוע של ההגרלה האחרונה שפורסמה — מהרשימה הציבורית, פעם בשעה לכל היותר. */
+function gstLw() {
+  var c = LGet('gstLw', null);
+  if (c && c.at > Date.now() - 36e5) { GST_LW = c.w; return; }
+  var api = typeof LApi === 'function' ? LApi() : '';
+  if (!api || typeof LJsonp !== 'function') return;
+  LJsonp(api + (api.indexOf('?') < 0 ? '?' : '&') + 'raffle=all&t=' + Date.now(), 20000).then(function (d) {
+    if (!d || !d.list) return;
+    var w = d.list[0] ? parseInt(d.list[0].wk, 10) || 0 : 0;
+    LSet('gstLw', { at: Date.now(), w: w });
+    if (w !== GST_LW) { GST_LW = w; gstDraw(); }
+  }, function () {});
+}
+if (gstOn()) {
+  var gc = LGet('gstLw', null);
+  if (gc) GST_LW = gc.w;
+  gstDraw();
+  gstLw();
+}
 
 /* ============================================================
    מסך הפתיחה — הנראות של עמוד הצוות.

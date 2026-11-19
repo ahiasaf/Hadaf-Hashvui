@@ -3183,7 +3183,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.542';
+var APP_VERSION = '8.99.543';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -17797,7 +17797,7 @@ function rafPicHtml(dis) {
    ============================================================ */
 var CHA = { test: false, d: null, busy: false, msg: '', at: 0 };
 function chaKey() { return (CFG.readKey || '').trim(); }
-/* מזהי התלמיד של המכשיר הזה — "המפעיל" שרואה את הכרטיס גם בחשיפה "מוזמנים". */
+/* מזהי התלמיד של המכשיר הזה — "המפעיל" של האתגר. */
 function chaMe() {
   var out = [];
   try {
@@ -17806,11 +17806,6 @@ function chaMe() {
     if (w && out.indexOf(String(w)) < 0) out.push(String(w));
   } catch (e) {}
   return out.join(',');
-}
-/* חשיפה — "כולם" ↔ "רק אני והמוזמנים". אישור אחד. */
-function chaExp(v) {
-  if (!SureLater(chaExp, this, arguments)) return;
-  chaAct('exposure', { v: v, me: chaMe() }, false);
 }
 /* פתיחת הגרלה ידנית — אישור אחד, ואז אותו מסלול של הגרלה רגילה. */
 function chaOpenMan() {
@@ -18851,7 +18846,7 @@ function chaMs(m, d, dis) {
         }).join('');
     }
     h += chaMsgBox('done' + k, UI.chaMsgDone, d.left > 0 ? fill(UI.chaDoneMsg, { th: m.th, left: d.left }) : fill(UI.chaDoneEnd, { th: m.th }));
-    if (!CHA.test) h += chaPushBox('ms', String(k), m.push, d.exp === 'מוזמנים' ? UI.chaPushMToQ : UI.chaPushMTo, dis);
+    if (!CHA.test) h += chaPushBox('ms', String(k), m.push, UI.chaPushMTo, dis);
   }
   if (m.st === 'נסגרה ללא זוכה') h += '<p class="h">' + esc(fill(UI.chaNoneH, { t: chaT(m.noneAt) })) + '</p>';
   return h + '</div>';
@@ -19007,15 +19002,10 @@ function chaPaint() {
       '<div class="fld"><label class="label">' + esc(UI.chaMeals) + '</label><input type="number" min="1" max="100" id="cha-meals" value="10" dir="ltr"></div>' +
       (CHA.test ? '<div class="fld"><label class="label">' + esc(UI.chaStep) + '</label><input type="number" min="1" max="50" id="cha-step" value="2" dir="ltr"></div>' +
                   '<div class="fld"><label class="label">' + esc(UI.chaWin) + '</label><input type="number" min="1" max="1440" id="cha-win" value="3" dir="ltr"></div>' : '') +
-      '<div class="pp-h">' + esc(UI.chaExpH) + '</div>' +
-      '<label class="cha-chk" style="display:block"><input type="radio" name="cha-exp" value="מוזמנים" checked> <b>' + esc(UI.chaExpQ) + '</b></label>' +
-      '<p class="h" style="margin-inline-start:26px">' + esc(UI.chaExpQP) + '</p>' +
-      '<label class="cha-chk" style="display:block"><input type="radio" name="cha-exp" value="כולם"> <b>' + esc(UI.chaExpAll) + '</b></label>' +
-      '<p class="h" style="margin-inline-start:26px">' + esc(UI.chaExpAllP) + '</p>' +
       '<label class="cha-chk"><input type="checkbox" id="cha-terms"> ' + esc(UI.chaTerms) + '</label>' +
       '<button class="btn p" type="button" style="margin-top:10px"' + dis + ' onclick="chaAct(\'activate\',{meals:chaVal(\'cha-meals\'),' +
       'step:chaVal(\'cha-step\'),winMin:chaVal(\'cha-win\'),terms:document.getElementById(\'cha-terms\').checked?\'1\':\'\',' +
-      'exp:(document.querySelector(\'input[name=cha-exp]:checked\')||{}).value||\'מוזמנים\',me:chaMe()})">' +
+      'me:chaMe()})">' +
       esc(UI.chaGo) + '</button></div>';
     if (CHA.test) h += '<div class="adm-card"><button class="btn g" type="button"' + dis + ' onclick="chaAct(\'tclear\')">' + esc(UI.chaClear) + '</button></div>';
     el.innerHTML = h;
@@ -19046,12 +19036,6 @@ function chaPaint() {
     (d.dlv ? '<p class="h">' + esc(fill(UI.chaDlvLine, { n: d.dlv })) + '</p>' : '') +
     '<div class="fld"><label class="label">' + esc(UI.chaExtAdd) + '</label><input type="number" min="1" max="100" id="cha-add" value="1" dir="ltr"></div>' +
     '<button class="btn ' + (d.left <= 1 ? 'p' : 'g') + '" type="button"' + dis + ' onclick="chaAct(\'extend\',{add:chaVal(\'cha-add\')})">' + esc(UI.chaExt) + '</button></div>';
-  /* החשיפה — שורת מצב בולטת, וכפתור אחד לשנות. */
-  var quiet = d.exp === 'מוזמנים';
-  h += '<div class="adm-card' + (quiet ? ' cha-alert' : '') + '"><h4>' + esc(quiet ? UI.chaExpNowQ : UI.chaExpNowAll) + '</h4>' +
-    '<p class="h">' + esc(quiet ? UI.chaExpQP : UI.chaExpAllP) + '</p>' +
-    '<button class="btn ' + (quiet ? 'p' : 'g') + '" type="button"' + dis + ' onclick="chaExp(\'' + (quiet ? 'כולם' : 'מוזמנים') + '\')">' +
-      esc(quiet ? UI.chaExpGoAll : UI.chaExpGoQ) + '</button></div>';
   /* כל השאר — בלחיצה (8.99.404): תפריט של ארבע שורות, וכל שורה פותחת רק
      את הכלי שלה, עם "חזרה" (וגם כפתור החזרה של הטלפון — chaMoreGo). */
   var T = { man: '', msg: '', inst: '', hist: '' };
@@ -19068,9 +19052,7 @@ function chaPaint() {
   /* ההודעות המוכנות — שום דבר לא יוצא בלי הבעלים. */
   T.msg = (CHA.test ? '' : chaTmBox(d, dis)) +
     '<div class="pp-h">' + esc(UI.chaMsgsH) + '</div><p class="h">' + esc(UI.chaMsgsP) + '</p>' +
-    (CHA.test ? '' : d.exp === 'מוזמנים' && (!d.pushL || d.pushL.st === 'none')
-      ? '<div class="pp-h">' + esc(UI.chaPushLH) + '</div><p class="h">' + esc(UI.chaPushLQuiet) + '</p>'
-      : chaPushBox('launch', '', d.pushL, UI.chaPushLTo, dis)) +
+    (CHA.test ? '' : chaPushBox('launch', '', d.pushL, UI.chaPushLTo, dis)) +
     /* המודעה בפתיחת האפליקציה — נפרדת מההתראה (8.99.453). */
     (CHA.test ? '' : '<div class="pp-h">' + esc(UI.chaPromoH) + '</div><p class="h">' + esc(fill(UI.chaPromoP, { n: d.pv || 1 })) + '</p>' +
       '<button class="btn p" type="button"' + dis + ' onclick="chaPromo()">' + esc(UI.chaPromoGo) + '</button>') +

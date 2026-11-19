@@ -71,7 +71,10 @@
   /* ---- מי אני, ואיפה השרת ---- */
   function me() { var m = LMe(); return m && m.id ? m : null; }
   /* ההדגמה במקרן (prj.js) — תלמיד חדש בלי פרופיל, והשולחן מוצג מתחת לבאנר. */
-  function student() { var m = me(); return !!(m && m.first && m.role !== 'dad') || !!window.PrjOn; }
+  function student() { var m = me(); return !!(m && m.first && m.role !== 'dad') || !!window.PrjOn || guest(); }
+  /* **תלמיד שעוד לא נרשם** (8.99.543, אחיאסף): בנחיתה של join.html (`window.ChalGuest`) — השולחן
+     הריק, ובמקום וואטסאפ — כפתור ההצטרפות. אין לו קוד ואין לו מזהה, ולכן אין פנייה מעבר ל-?challenge=my. */
+  function guest() { return !me() && typeof window.ChalGuest === 'function' && !window.PrjOn; }
   function ids() {
     var m = me(), out = [];
     if (m) out.push(m.id);
@@ -461,7 +464,7 @@
   }
   /* הקוד מראש, בשקט — שהכפתור יהיה קישור ישיר (בלי המתנה בלחיצה). */
   function codeWarm() {
-    if (LGet(codeKey(), '') || codeWarm.on) return;
+    if (LGet(codeKey(), '') || codeWarm.on || guest()) return;
     codeWarm.on = 1;
     api('ref', { id: ids().join(',') }).then(function (d) {
       if (d && d.status === 'ok' && d.code) LSet(codeKey(), d.code);
@@ -652,7 +655,7 @@
   function promo(d) {
     /* סבב (8.99.453): "להציג שוב לכולם" בניהול מעלה את `pv` — כל מכשיר רואה פעם אחת לכל סבב. */
     var pv = String(d && d.pv || 1);
-    if (!d || !d.on || d.ended || !student() || !shown(d) || refAny() || String(LGet('chPromo', '')) === pv) return;
+    if (!d || !d.on || d.ended || !student() || guest() || refAny() || String(LGet('chPromo', '')) === pv) return;
     LSet('chPromo', pv);
     if (tv(d)) return;
     promoShow(startSeats(), null);
@@ -714,17 +717,8 @@
      הכרטיס בבית התלמיד.
      ============================================================ */
   function sync() {}
-  /* **חשיפה** (8.99.352): ב"מוזמנים" השרת מחזיר `pub:false` למי שאינו משתתף
-     — אין כרטיס בבית ואין חלון השקה. מכשיר הניהול (df:admOk) רואה תמיד.
-     הנחיתה מקישור ועמוד האתגר — פתוחים לכל מי שיש לו קישור.
-     "המסך שלי כתלמיד" (asStuOn) — גם הוא רואה: זה השלב שבו אחיאסף בודק
-     כתלמיד אמיתי, גם כשהופעל ממכשיר אחר. */
-  function shown(d) {
-    if (d && d.pub !== false) return true;
-    return isAdminView() || asStuOn();
-  }
   function cardDraw(box, d) {
-    if (!d || !d.on || !student() || !shown(d)) { box.innerHTML = ''; return; }
+    if (!d || !d.on || !student()) { box.innerHTML = ''; return; }
     /* מוזמן מכמה חברים, או רשום שהגיע מקישור — הבחירה היא הכרטיס. */
     var ch = choiceHtml(d);
     if (ch) {
@@ -744,6 +738,8 @@
     tabWire(d, function () { cardDraw(box, cached() || d); });
     wireSit(function (x) { cardDraw(box, x); });
     waWire('ch-wa', d.ended ? null : frOf(), function () { cardDraw(box, cached() || d); });
+    var gj = document.getElementById('ch-gjoin');
+    if (gj) gj.onclick = function () { window.ChalGuest(); };
     if (!d.ended) codeWarm();
   }
   function card(box) {
@@ -854,6 +850,8 @@
   function tailHtml(d) {
     var v = tv(d);
     if (d.ended || (v && !v.t.mine)) return '';
+    /* לפני ההרשמה אי אפשר להזמין — כפתור ההצטרפות במקום וואטסאפ (8.99.543). */
+    if (guest()) return '<button type="button" class="ch-btn ch-cta" id="ch-gjoin">' + esc(((window.JOIN && JOIN.goBtn) || '') + ' ←') + '</button>';
     /* 8.99.460 (אחיאסף): הבהרה ליד ההזמנה — אפשר להזמין גם חברים רשומים. ריק = לא מוצג. */
     var any = U('chWaAny');
     return waBtn(U('chWaMore'), frPh(), 'ch-wa') + (any ? '<p class="ch-tline">' + esc(any) + '</p>' : '');
@@ -867,7 +865,7 @@
       (home ? yayHtml(d.me) + noteHtml(d) + offerHtml(d) : '') + '<span class="ch-chip">' + esc(U('chSpecialChip')) + '</span>' +
       '<h2 class="ch-hh sm">' + esc(titleOf(v)) + '</h2><p class="ch-prize">' + esc(U('chPrize')) + '</p>' +
       tableHtml(seats, midOf(st, seats, lit), false, true, !!(v && v.t.mine && !d.ended), colOf(d, v)) +
-      dotsHtml(d) + tabsHtml(d) + (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') +
+      tabsHtml(d) + (line ? '<p class="ch-tline">' + esc(line) + '</p>' : '') +
       tailHtml(d) + (v || home ? '' : howHtml()) + countHtml(d) + '</div>' + invHtml(d);
   }
   /* **החגיגה** (8.99.455): המכשיר זוכר מה ראה בכל שולחן (`df:chSeen`). צלחת שעברה לסיום מאז —
@@ -907,15 +905,6 @@
       return '<button type="button" class="ch-tab ch-k' + i + '" data-t="' + esc(t.id) + '" title="' + esc(nm) + '" aria-pressed="' + (t.id === cur) + '"' +
         (OPEN ? ' disabled' : '') + '>' + esc(tp(U('chTabN'), { n: i + 1 })) + '</button>';
     }).join('') + plus + '</div>';
-  }
-  /* נקודות מתחת לשולחן — "1 מתוך 2" לקורא המסך. */
-  function dotsHtml(d) {
-    var T = tabs(d), v = tv(d), cur = v && v.t ? v.t.id : '';
-    if (T.length < 2) return '';
-    var at = 0;
-    T.forEach(function (t, i) { if (t.id === cur) at = i; });
-    return '<div class="ch-dots" role="img" aria-label="' + esc(tp(U('chTabOf'), { i: at + 1, n: T.length })) + '">' +
-      T.map(function (t, i) { return '<i' + (i === at ? ' class="on"' : '') + '></i>'; }).join('') + '</div>';
   }
   /* מעבר בין השולחנות — לחיצה על לשונית, או החלקה על השולחן. */
   function tabWire(d, redraw) {

@@ -1497,6 +1497,8 @@ body.alon .qfab,body.alon .qhint,body.alon #chtog,body.alon #dktog,body.alon #si
   <!-- החידון של הדף — כמה נענו בדרך, ושליחה. השאלות עצמן אינן כאן:
        עונים עליהן רק בתוך הדף, ליד הקטע (doneQPaint_). -->
   <div id="done-q" class="dn-soon" style="display:none"></div>
+  <!-- תלמיד שעוד לא נרשם — כפתור ההצטרפות (8.99.543, dnJoinPaint_). -->
+  <a class="btn p" id="done-join" style="display:none"></a>
   <!-- לימוד עם ההורה — שורה בתוך המסך, לא חלון מעליו (pair.js line) -->
   <div id="done-pair" style="display:none"></div>
 </div></div>
@@ -5551,7 +5553,8 @@ function finish() {
   var qOpen = !pq.length && quizOpen(key), soon = !pq.length && !hasQ && isWeekDaf();
   var pairOn = $('done-pair').style.display !== 'none';
   doneQPaint_();
-  if (!pq.length && !qOpen && !soon && !pairOn) {
+  /* מי שלמד בלי להירשם — המסך נפתח גם בשביל כפתור ההצטרפות (8.99.543). */
+  if (!pq.length && !qOpen && !soon && !pairOn && !dnGuest_()) {
     if (doneMarked_) toast(JOIN.markedOk);
     bar();
     return;
@@ -5565,6 +5568,7 @@ function finish() {
   $('done-sub').textContent = sub;
   dnTimePaint_();
   dnTkPaint_(0);
+  dnJoinPaint_();
   var a = $('to-quiz'), sn = $('done-soon');
   a.style.display = qOpen ? '' : 'none';
   a.href = stuQuizUrl(key); a.textContent = UI.dnQuiz || '';
@@ -5896,6 +5900,21 @@ function qzLand_() {
     LEAVING = true;
     location.href = 'join.html' + (i ? '?inst=' + i : '');
   }, 1600);
+}
+/* ---- מי שלמד בלי להירשם (8.99.543, אחיאסף) ----
+   כפתור ההצטרפות במסך הסיום: מכשיר בלי פרופיל, שאינו של צוות. הלימוד והחידון
+   כבר במכשיר ויוצאים בהרשמה (LPreJoin). `go=1` — ישר אל ההרשמה. */
+function dnGuest_() {
+  var me = (typeof LMe === 'function') ? LMe() : null;
+  return !(me && me.id) && !quiet() && !staffDev() && !!(window.JOIN && JOIN.goBtn);
+}
+function dnJoinPaint_() {
+  var a = $('done-join'), on = dnGuest_();
+  if (!a) return;
+  a.style.display = on ? '' : 'none';
+  if (!on) return;
+  a.textContent = JOIN.goBtn + ' ←';
+  a.href = PageUrl('join') + '?go=1';
 }
 /* ---- כרטיס הלימוד במסך הסיום (8.99.338) ----
    מהשרת (?tkd): הכרטיס נרשם — שורה. בדיקת הזמן שקטה (8.99.355): השרת
