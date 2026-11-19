@@ -617,6 +617,152 @@ var GUIDE_UI = (function () {
 
   /* ---------- שלושת המסלולים ----------
      כל שלב: הכיתוב, ההסבר, והציור. */
+
+  /* ============================================================
+     **מדריך מונפש** (8.99.544, אחיאסף 19.11) — אייפון.
+     ============================================================
+     "כמו המדריכים של גוגל: איור שמראה את צורת המסך, אתה כאילו
+     לוחץ, נפתח תפריט — ושם לא רואים את התפריט המקורי עם כל
+     הפרטים, אלא רק את הפרט החשוב."
+
+     כל שלב הוא סצנה אחת שחוזרת על עצמה: המסך (מה שיש עכשיו),
+     אצבע שמגיעה אל הדבר שלוחצים עליו ולוחצת, ומה שנפתח בעקבות
+     הלחיצה. מה שאינו חשוב — אפור ודהוי או לא מצויר בכלל; הדבר
+     שלוחצים עליו — בצבע מלא ועם המילה שלו (`ilShare`, `ilAddHome`,
+     `ilAdd` ב-GUIDE, נערכים מהניהול). אותם שלבים ואותו נוסח מתחת.
+
+     **חשיפה מדורגת:** הניהול (`{ ill: true }`), ומכשיר שפתח עמוד עם
+     `?gill=1` (`df:gill`; `?gill=0` מכבה). כל השאר — הצילומים, כמו קודם.
+     בלי תנועה (prefers-reduced-motion) — המסך עם הטבעת, בלי אנימציה.
+     ============================================================ */
+  var FAINT = '#E9E3D6', GHOST = '#DDD5C5';
+  function ghostPage(y) {
+    var h = '', i;
+    for (i = 0; i < 6; i++)
+      h += '<rect x="30" y="' + (y + i * 15) + '" width="' + (140 - (i % 3) * 28) +
+           '" height="6" rx="3" fill="' + FAINT + '"/>';
+    return h;
+  }
+  /* מילה בתוך הציור — מימין לשמאל, מעוגנת לנקודה הימנית. */
+  function word(x, y, t, opt) {
+    opt = opt || {};
+    return '<text x="' + x + '" y="' + y + '" direction="rtl" text-anchor="start" ' +
+      'font-size="' + (opt.size || 12) + '" font-weight="800" fill="' + (opt.col || INK) +
+      '" style="font-family:inherit">' + esc(t) + '</text>';
+  }
+  /* הסרגל של וואטסאפ/ספארי — שלוש הנקודות בצבע מלא, השאר דהוי. */
+  function ilBar(lit) {
+    return '<rect x="16" y="282" width="168" height="44" fill="#FBF9F4"/>' +
+      '<rect x="52" y="289" width="96" height="24" rx="12" fill="' + GHOST + '"/>' +
+      '<circle cx="168" cy="301" r="13" fill="' + FAINT + '"/>' +
+      '<circle cx="32" cy="301" r="15" fill="#fff" stroke="' + (lit ? 'var(--gold)' : '#CFC7B6') +
+        '" stroke-width="' + (lit ? 2.5 : 1.2) + '"/>' + icDots(32, 301, 6, '#0B2550');
+  }
+  /* התפריט שנפתח מהנקודות — רק "שיתוף", והשאר רמז דהוי. */
+  function ilMenu(lit) {
+    return '<rect x="24" y="196" width="156" height="82" rx="16" fill="#fff" ' +
+        'stroke="var(--rule)" filter="url(#gi-sh)"/>' +
+      (lit ? rowLit(32, 216, 140) : '') +
+      icShare(160, 216, 1.1, '#0B2550') + word(146, 220.5, g('ilShare')) +
+      '<rect x="36" y="238" width="132" height="1" fill="#F0EBE0"/>' +
+      '<rect x="80" y="248" width="66" height="6" rx="3" fill="' + FAINT + '"/>' +
+      '<rect x="96" y="264" width="50" height="6" rx="3" fill="' + FAINT + '"/>';
+  }
+  /* גיליון השיתוף, חלקי — האייקון שלנו למעלה, וחץ "הצגת עוד" בולט. */
+  function ilSheetPart(lit) {
+    var h = '<rect x="16" y="196" width="168" height="134" rx="18" fill="#fff" ' +
+        'stroke="var(--rule)" filter="url(#gi-sh)"/>' + appIcon(148, 208, 24) +
+      '<rect x="74" y="213" width="66" height="6" rx="3" fill="#CFC7B6"/>' +
+      '<rect x="92" y="224" width="48" height="5" rx="2.5" fill="' + FAINT + '"/>', i;
+    for (i = 0; i < 4; i++)
+      h += '<circle cx="' + (156 - i * 36) + '" cy="256" r="11" fill="' + FAINT + '"/>';
+    for (i = 0; i < 3; i++)
+      h += '<circle cx="' + (156 - i * 36) + '" cy="298" r="12" fill="' + FAINT + '"/>';
+    return h + '<circle cx="48" cy="298" r="14" fill="#fff" stroke="' +
+        (lit ? 'var(--gold)' : '#CFC7B6') + '" stroke-width="' + (lit ? 2.5 : 1.2) + '"/>' +
+      '<path d="M42 295l6 6 6-6" fill="none" stroke="#0B2550" stroke-width="2.4" ' +
+        'stroke-linecap="round" stroke-linejoin="round"/>';
+  }
+  /* הגיליון פרוס — רק "הוספה למסך הבית" בולטת. */
+  function ilSheet(lit) {
+    var h = '<rect x="16" y="70" width="168" height="260" rx="18" fill="#fff" ' +
+        'stroke="var(--rule)" filter="url(#gi-sh)"/>' + appIcon(148, 82, 24) +
+      '<rect x="74" y="87" width="66" height="6" rx="3" fill="#CFC7B6"/>', i;
+    for (i = 0; i < 4; i++)
+      h += '<circle cx="' + (156 - i * 36) + '" cy="130" r="11" fill="' + FAINT + '"/>';
+    for (i = 0; i < 4; i++)
+      h += '<rect x="34" y="' + (166 + i * 24) + '" width="132" height="14" rx="7" fill="#F6F2EA"/>';
+    return h + (lit ? rowLit(28, 284, 146) : '') +
+      icAddHome(160, 284, 1.05, '#0B2550') + word(146, 288.5, g('ilAddHome'));
+  }
+  /* חלון האישור — "הוספה" הכחול בפינה השמאלית, השאר דהוי. */
+  function ilConfirm(lit) {
+    return '<rect x="16" y="14" width="168" height="120" rx="18" fill="#fff" ' +
+        'stroke="var(--rule)" filter="url(#gi-sh)"/>' +
+      '<circle cx="164" cy="40" r="12" fill="' + FAINT + '"/>' +
+      '<path d="M160 36l8 8M168 36l-8 8" stroke="#B9B1A2" stroke-width="2" stroke-linecap="round"/>' +
+      '<rect x="88" y="37" width="44" height="6" rx="3" fill="' + FAINT + '"/>' +
+      '<rect x="22" y="27" width="56" height="26" rx="13" fill="#0A84FF"' +
+        (lit ? ' stroke="var(--gold)" stroke-width="2.5"' : '') + '/>' +
+      word(70, 44.5, g('ilAdd'), { col: '#fff', size: 11 }) +
+      appIcon(144, 68, 30) +
+      '<rect x="74" y="78" width="60" height="7" rx="3.5" fill="#CFC7B6"/>' +
+      '<rect x="74" y="92" width="44" height="5" rx="2.5" fill="' + FAINT + '"/>';
+  }
+  /* מסך הבית — האייקון שלנו, וסביבו רמזים אפורים. */
+  function ilHome() {
+    var h = '<rect x="16" y="14" width="168" height="312" rx="21" fill="#EEF1F6"/>', r, c;
+    for (r = 0; r < 3; r++)
+      for (c = 0; c < 4; c++) {
+        if (r === 1 && c === 1) continue;
+        h += '<rect x="' + (30 + c * 36) + '" y="' + (60 + r * 46) +
+             '" width="28" height="28" rx="8" fill="#DCE1EA"/>';
+      }
+    return h;
+  }
+  function ilMine() {
+    return appIcon(66, 106, 28) + '<rect x="62" y="140" width="36" height="5" rx="2.5" fill="#B9C1CF"/>';
+  }
+  /* האפליקציה נפתחת — מסך כחול והסמל במרכזו. */
+  function ilOpen() {
+    return '<rect x="16" y="14" width="168" height="312" rx="21" fill="#0B2550"/>' +
+      appIcon(70, 140, 60);
+  }
+  /* הסצנה: מה שעל המסך (`b`), האצבע שלוחצת על (x,y), ומה שנפתח (`a`). */
+  /* וילון בהיר מאחורי מה שנפתח — המסך הקודם נשאר רמז, לא בליל. */
+  function scrim() { return '<rect x="16" y="14" width="168" height="312" rx="21" fill="#F7F4EC" opacity=".86"/>'; }
+  function scene(b, x, y, a) {
+    return '<defs><filter id="gi-sh" x="-10%" y="-10%" width="120%" height="130%">' +
+        '<feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0B2550" flood-opacity=".14"/>' +
+      '</filter></defs>' +
+      '<g class="gi-b">' + b + '</g>' +
+      '<circle class="gi-r" cx="' + x + '" cy="' + y + '" r="16" fill="none" stroke="var(--gold)" stroke-width="3"/>' +
+      '<g transform="translate(' + x + ',' + y + ')"><g class="gi-f">' +
+        '<circle r="11" fill="rgba(11,37,80,.28)" stroke="#fff" stroke-width="2.5"/>' +
+      '</g></g>' +
+      '<g class="gi-a">' + a + '</g>';
+  }
+  var ILL = {
+    n1:  function () { return scene(ghostPage(40) + ilBar(1), 32, 301, scrim() + ilMenu(0)); },
+    n2:  function () { return scene(ghostPage(40) + ilBar(0) + ilMenu(1), 120, 216, scrim() + ilSheetPart(0)); },
+    s2e: function () { return scene(ghostPage(40) + ilSheetPart(1), 48, 298, scrim() + ilSheet(0)); },
+    s3:  function () { return scene(ghostPage(40) + ilSheet(1), 110, 284, scrim() + ilConfirm(0)); },
+    s4:  function () { return scene(ghostPage(40) + ilConfirm(1), 50, 40, ilHome() + ilMine()); },
+    s5:  function () { return scene(ilHome() + ilMine(), 80, 120, ilOpen()); }
+  };
+  (function () {
+    try {
+      var m = /[?&]gill=([01])\b/.exec(location.search);
+      if (m) {
+        if (m[1] === '1') localStorage.setItem('df:gill', '1');
+        else localStorage.removeItem('df:gill');
+      }
+    } catch (e) {}
+  })();
+  var ILL_ON = false;
+  function illDev() { try { return localStorage.getItem('df:gill') === '1'; } catch (e) { return false; } }
+  function illus(key) { return '<div class="gi">' + phone(ILL[key]()) + '</div>'; }
+
   var DROID = [['a1', droidDots], ['a2', droidMenu], ['a3', droidOk]];
   /* פיירפוקס: אין בו הצעת התקנה, ו"הוספה למסך הבית" חבויה
      מתחת ל"עוד". ארבעה שלבים, כולם צילום (PICS) — הציור שבצד
@@ -786,7 +932,7 @@ var GUIDE_UI = (function () {
         '<ol class="gut-ol">' +
         L.map(function (s, i) {
           var key = s[0], art = s[1], left = (i % 2 === 1);
-          var vis = PICS[key] ? pic(PICS[key]) : (art ? phone(art()) : '');
+          var vis = ILL_ON && ILL[key] ? illus(key) : PICS[key] ? pic(PICS[key]) : (art ? phone(art()) : '');
           return '<li class="gut-st ' + (left ? 'gut-l' : 'gut-r') +
               (vis ? '' : ' gut-tx') + '">' +
             (i ? trailCurve(left) : '') +
@@ -945,6 +1091,7 @@ var GUIDE_UI = (function () {
     EDGE_ON = !!(opt && opt.edge);
     /* `trail` — הניהול, שמראה את המסלול החדש לכל סוג מכשיר. */
     TRAIL = !!(opt && opt.trail) || trailOn();
+    ILL_ON = !!(opt && opt.ill) || illDev();
     LIST = steps(); at = 0;
     css();
     draw();
@@ -1099,9 +1246,22 @@ var GUIDE_UI = (function () {
       '.gut-tx .gut-n{position:static;box-shadow:none}',
       '.gut-tx .gut-t{width:auto;margin:0}',
       '.gut-go{margin-top:22px;font-size:1.05rem}',
+      /* המדריך המונפש (ILL): 4.2 שניות — אצבע מגיעה, לוחצת, ונפתח מה שנפתח. */
+      '.gi .gu-art{animation:none}',
+      '.gu-trail .gi .gu-art{height:auto;aspect-ratio:200/340}',
+      '.gi-f{transform-box:fill-box;transform-origin:center;animation:gi-f 4.2s ease-in-out infinite}',
+      '.gi-r{transform-box:fill-box;transform-origin:center;opacity:0;animation:gi-r 4.2s ease-out infinite}',
+      '.gi-a{opacity:0;animation:gi-a 4.2s ease-out infinite}',
+      '.gi-b{animation:gi-b 4.2s ease-out infinite}',
+      '@keyframes gi-f{0%{transform:translate(34px,46px);opacity:0}12%{opacity:1}36%{transform:translate(0,0) scale(1)}',
+      '  42%{transform:translate(0,0) scale(.78)}48%{transform:translate(0,0) scale(1);opacity:1}58%{opacity:0}100%{opacity:0}}',
+      '@keyframes gi-r{0%,40%{opacity:0;transform:scale(.6)}44%{opacity:1}60%{opacity:0;transform:scale(1.9)}100%{opacity:0}}',
+      '@keyframes gi-a{0%,48%{opacity:0;transform:translateY(18px)}60%{opacity:1;transform:translateY(0)}92%{opacity:1}100%{opacity:0}}',
+      '@keyframes gi-b{0%,100%{opacity:1}}',
       /* מי שמעדיף בלי תנועה — מקבל בלי תנועה. */
       '@media (prefers-reduced-motion:reduce){',
       '  .gu-ring,.gu-ring2,.gu-scroll{animation:none}',
+      '  .gi-f,.gi-a,.gi-b{animation:none}.gi-a{opacity:0}.gi-r{animation:none;opacity:1}',
       '  .gu-slide,.gu-slide.on,.gu-end{transition:none;transform:none}}'
     ].join('\n');
     document.head.appendChild(st);
