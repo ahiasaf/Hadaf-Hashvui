@@ -291,6 +291,12 @@ body.chav-on main{grid-template-columns:minmax(0,1fr) minmax(0,380px)}
 .own-edit:empty:before{content:attr(data-ph);color:var(--ink-3,#8B93A8)}
 .own-edit b,.own-edit strong,.own-read b,.own-read strong{font-weight:800;color:var(--ink)}
 .own-read{margin:0 0 6px;line-height:1.85}
+/* הגופן של הפירוש — עברית מגופן אחד בכל המשקלים (8.99.539). בלעדיו,
+   בחלק מהמכשירים המודגש נלקח מגופן אחר של המערכת ויושב נמוך מהשורה. */
+@font-face{font-family:'NotoHeDaf';font-style:normal;font-weight:100 900;font-display:swap;
+  src:url(fonts/noto-sans-hebrew.woff2) format('woff2');
+  unicode-range:U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
+.own-read,.own-edit{font-family:'NotoHeDaf',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 /* איור בתוך הפירוש — רוחב מלא, גובה טבעי, בלי חיתוך */
 .own-img{display:block;width:100%;height:auto;object-fit:contain;margin:4px 0 12px;
   border-radius:12px;box-shadow:0 2px 10px rgba(11,37,80,.12);background:#fff}

@@ -1862,3 +1862,9 @@ node scratchpad/smoke.js     # כל המסכים, שתי רזולוציות
   full — `chRefFull` · max — `chRefMax`. bad/self — noteHtml, wait — כלום, לא רשום — הנחיתה. אחרי "כן" — `chSitOk` לבד.
 * בשרת: `tb` בהזמנה במצב in — השולחן שבו יושבים יחד (קריאה בלבד). שיוכים וזכאות לא שונו.
 * בדיקה: `NODE_PATH=$(npm root -g) node tools/chtest/reftop.js` (27) · tables.js (59).
+
+## פירוש לנוער — גופן משלו (8.99.539)
+
+* המודגש נראה נמוך מהשורה (מכשיר עם Chrome, 19.11): המשקל 800 נלקח מגופן אחר של המערכת. עכשיו `.own-read`/`.own-edit`
+  ב-learn.html — `NotoHeDaf` (`fonts/noto-sans-hebrew.woff2`, משתנה 100–900, עברית בלבד — unicode-range), כך שהרגיל
+  והמודגש מאותו קובץ. ספרות ולטינית — גופן המערכת. הפסוק (`.psuk`) — פרנק-רוהל, ללא שינוי.
