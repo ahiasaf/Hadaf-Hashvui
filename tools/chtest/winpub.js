@@ -13,6 +13,11 @@ var L0 = c.rafAll_();
 ok(L0.status === 'ok' && !L0.list.some(function (x) { return x.ch; }), 'pending draw is not published', L0);
 // אישור
 var k = String(pend[pend.length - 1].k);
+// 8.99.540: האישור דורש שובר בורגר במלאי (ראש השולחן מקבל אותו)
+c.Utilities.getUuid = function () { return require('crypto').randomUUID(); };
+c.PropertiesService.getScriptProperties().setProperty('READ_KEY', 'k');
+c.doPost({ postData: { contents: JSON.stringify({ action: 'vchadd', key: 'k', bid: 'w1', rows: [{ t: 'ארוחה', p: 'burger', c: 'BG-W', x: '2026-12-30' }] }) } });
+T.exec();
 var ap = c.chAct_({ test: false }, { ms: k }, 'approve');
 ok(ap && ap.status === 'ok', 'approve ok', ap);
 T.exec();

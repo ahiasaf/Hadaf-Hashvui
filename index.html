@@ -3183,7 +3183,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.539';
+var APP_VERSION = '8.99.540';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -18498,12 +18498,15 @@ function chaWorld(t) {
 function chaAct(op, p, sure) {
   if (sure !== false && !SureLater(chaAct, this, arguments)) return;
   CHA.busy = true; chaPaint();
+  /* 8.99.540: באישור — נוסח ההתראה לחברי השולחן (ראש השולחן קיבל את השובר). */
+  if (op === 'approve') { p.vt = UI.chHeadVchT || ''; p.vb = UI.chHeadVchB || ''; }
   chaCall(op, p).then(function (r) {
     CHA.busy = false;
     if (op === 'draw' && r && (r.status === 'ok' || r.status === 'none')) chaRqDrop(p.ms);
     if (!r || r.status !== 'ok') { CHA.msg = (r && r.message) || UI.chaFail; chaPaint(); return; }
     CHA.msg = op === 'tclear' ? UI.chaClearOk : '';
-    return chaLoad();
+    var warn = r.warn || '';
+    return chaLoad().then(function () { if (warn) { CHA.msg = warn; chaPaint(); } });
   }, function () { CHA.busy = false; CHA.msg = UI.chaFail; chaPaint(); });
 }
 /* מפתח ההגרלה נשמר עד שהשרת ענה — לחיצה חוזרת אחרי תקלת רשת

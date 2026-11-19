@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 233;
+var SCRIPT_VERSION = 234;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -11684,10 +11684,11 @@ function rafPrize_(P) {
   var ck = 'raf:pz:' + rafPrzVer_() + ':' + (dad ? 'd:' : '') + mine.join(',');
   if (String(P.fresh || '') !== '1') { var c0 = rc.get(ck); if (c0) { try { return JSON.parse(c0); } catch (x) {} } }
   var T = rafRead_();
-  if (!T.rows.length) return none;
-  var out = rafWinsOf_(P, T);
-  if (!out.length) return none;
-  var picks = rafPrzPicks_(), late = [];
+  var out = T.rows.length ? rafWinsOf_(P, T) : [];
+  /* השובר של השולחן הזוכה בחבר מביא חבר (8.99.540) — לראש השולחן. */
+  var CV = chVchWins_(P);
+  if (!out.length && !CV.length) return none;
+  var picks = out.length ? rafPrzPicks_() : {}, late = [];
   out.forEach(function (o) {
     o.z = rafPrzRow_(T, o.r, picks);
     if (o.z.over) late.push(o.r);
@@ -11711,6 +11712,10 @@ function rafPrize_(P) {
   if (on) { res.von = 1; res.vs = V ? vchStock_(V).a : {}; }
   /* החדשה ראשונה */
   res.list.reverse();
+  if (CV.length && V) CV.forEach(function (o) {
+    res.list.unshift({ rid: o.rid, wk: '', wid: o.wid, kid: '', p: V.c(o.r, 'פרס'), how: CH_VCH_HOW_, due: '', st: '',
+                       v: vchPub_(V, o.r), pp: 1, ch: 1 });
+  });
   try { rc.put(ck, JSON.stringify(res), 300); } catch (x2) {}
   return res;
 }
@@ -11908,7 +11913,9 @@ function vchLinkPut_(V, r, rid) {
    ============================================================ */
 var VCH_TAB = 'שוברים';
 var VCH_COLS_ = ['מזהה', 'סוג פרס', 'פרס', 'קוד', 'קישור מימוש', 'תפוגה', 'סטטוס', 'שויך לתלמיד',
-                 'תאריך שיוך', 'הגרלה', 'שם', 'אופן', 'מומש', 'עלות', 'נוסף', 'נצפה'];
+                 'תאריך שיוך', 'הגרלה', 'שם', 'אופן', 'מומש', 'עלות', 'נוסף', 'נצפה',
+                 /* חבר מביא חבר (8.99.540): כל המזהים של ראש השולחן — chVchWins_ */
+                 'מזהי הזוכה'];
 var VCH_LOW_ = 3;
 function vchOn_() {
   try { return PropertiesService.getScriptProperties().getProperty('VCH_ON') === '1'; } catch (e) { return false; }
@@ -12079,9 +12086,10 @@ function rafVUsed_(P) {
   if (!lock.tryLock(20000)) return { status: 'busy' };
   try {
     var T = rafRead_(), V = vchTbl_(false);
-    if (!T.rows.length || !V) return { status: 'denied' };
+    if (!V) return { status: 'denied' };
     var r = -1;
-    rafWinsOf_(P, T).forEach(function (o) { var q = vchWin_(V, o.rid, o.ids); if (q > 0 && V.c(q, 'מזהה') === vid) r = q; });
+    if (T.rows.length) rafWinsOf_(P, T).forEach(function (o) { var q = vchWin_(V, o.rid, o.ids); if (q > 0 && V.c(q, 'מזהה') === vid) r = q; });
+    chVchWins_(P, V).forEach(function (o) { if (V.c(o.r, 'מזהה') === vid) r = o.r; });
     if (r < 0) return { status: 'denied' };
     if (V.c(r, 'סטטוס') !== 'מומש') {
       vchPut_(V, r, 'סטטוס', 'מומש');
@@ -12103,11 +12111,14 @@ function rafVSeen_(P) {
   if (!lock.tryLock(20000)) return { status: 'busy' };
   try {
     var T = rafRead_();
-    if (!T.rows.length || !vchTbl_(false)) return { status: 'denied' };
+    if (!vchTbl_(false)) return { status: 'denied' };
     var V = vchTbl_(true), rs = [], sn = {}, now = new Date().toISOString(), put = 0;
-    rafWinsOf_(P, T).forEach(function (o) {
+    if (T.rows.length) rafWinsOf_(P, T).forEach(function (o) {
       var q = vchWin_(V, o.rid, o.ids);
       if (q > 0 && want.indexOf(V.c(q, 'מזהה')) >= 0 && rs.indexOf(q) < 0) rs.push(q);
+    });
+    chVchWins_(P, V).forEach(function (o) {
+      if (want.indexOf(V.c(o.r, 'מזהה')) >= 0 && rs.indexOf(o.r) < 0) rs.push(o.r);
     });
     if (!rs.length) return { status: 'denied' };
     rs.forEach(function (r) { if (!V.c(r, 'נצפה')) { vchPut_(V, r, 'נצפה', now); put++; } });
@@ -14232,6 +14243,8 @@ var CH_MS_COLS_ = ['הגרלה', 'סף', 'מצב', 'נפתח', 'נסגר', 'הו
                    'נסגרה ללא זוכה', 'בדיקה',
                    /* התראת התוצאות — מצב השליחה (chPush_, 8.99.351) */
                    'התראה',
+                   /* ההודעה לחברי השולחן שראש השולחן קיבל את השובר (chHeadPush_, 8.99.540) */
+                   'הודעת שובר',
                    /* "ידני" — נפתחה בלחיצת הבעלים ולא בסף (chOpenMan_, 8.99.352).
                       אינה נספרת בספים של 50, אבל צורכת ארוחה מהמלאי. */
                    'אופן'];
@@ -16032,12 +16045,23 @@ function chAct_(U, P, op) {
       var Z = chGrpRow_(U, m['נבחרה']);
       if (!Z.g) return { status: 'error', message: 'הקבוצה לא נמצאה' };
       if (op === 'approve') {
+        /* ראש השולחן מקבל את השובר (8.99.540, החלטת אחיאסף) — לפני הסימון "זכתה":
+           אין שובר בורגר זמין — שום דבר לא נשמר. בעולם הבדיקה — בלי שובר ובלי הודעה. */
+        var HV = U.test ? null : chHeadVch_(M, Z.g);
+        if (HV && HV.err) return { status: 'error', message: HV.err };
         Z.g['מצב'] = CH_G_.won;
         chPut_(Z.T, Z.g);
         m['מצב'] = CH_M_.ok;
         m['אושר ב'] = now;
+        if (HV) m['קוד שובר'] = HV.v.c || '';
         chPut_(X.T, m);
-        return { status: 'ok' };
+        if (!HV) return { status: 'ok' };
+        SpreadsheetApp.flush();
+        var HP = chHeadPush_(U, K, M, Z.g, k, HV, P);
+        m['הודעת שובר'] = JSON.stringify(HP);
+        chPut_(X.T, m);
+        return { status: 'ok', vch: 1, push: HP.st,
+                 warn: HP.st === 'sent' || HP.st === 'none' ? '' : 'השובר שויך לראש השולחן, אבל ההודעה לחברים לא נשלחה' + (HP.why ? ' (' + HP.why + ')' : '') };
       }
       var why = String(P.why || '').trim().slice(0, 300);
       if (!why) return { status: 'error', message: 'צריך לכתוב את הסיבה, לפי התנאים שפורסמו' };
@@ -16066,7 +16090,7 @@ function chAct_(U, P, op) {
       if (m['מצב'] !== CH_M_.ok) return { status: 'error', message: 'אפשר לסמן מסירה רק אחרי אישור הזוכים' };
       m['מצב'] = CH_M_.dlv;
       m['נמסר ב'] = now;
-      m['קוד שובר'] = String(P.code || '').trim().slice(0, 80);
+      m['קוד שובר'] = String(P.code || '').trim().slice(0, 80) || m['קוד שובר'] || '';
       chPut_(X.T, m);
       return { status: 'ok' };
     }
@@ -16087,6 +16111,79 @@ function chAct_(U, P, op) {
    · fail · unk. מזהה הודעה קבוע לכל הודעה, ולכן גם ניסיון חוזר אינו מגיע
    פעמיים לאותו מכשיר (push-send.js). "sent" — לא שולחים שוב; "unk" — רק
    בבקשה מפורשת (`force`), באותו מזהה. */
+/* ============================================================
+   השובר של השולחן הזוכה (8.99.540, החלטת אחיאסף)
+   ============================================================
+   באישור הזוכים: **ראש השולחן** — `מזמין` בשורת הקבוצה, כלומר מי שישב ראשון
+   מבין הארבעה בהקפאה (בעל השולחן, ואם יצא — הוותיק מבין הנשארים) — מקבל
+   שובר בורגר מהמלאי ב"שוברים" (issueVoucher_). מזהה הזכייה `ch:<קבוצה>`;
+   `מזהי הזוכה` — כל המזהים שלו, כך שהבית מוצא את השובר בלי לקרוא את "לומדים".
+   אין שובר זמין — err, ושום דבר לא נכתב. אישור חוזר אחרי תקלה — אותו שובר. */
+var CH_VCH_P_ = 'burger', CH_VCH_HOW_ = 'חבר מביא חבר';
+function chIdsOf_(M, id) {
+  var out = [id];
+  Object.keys(M.al || {}).forEach(function (x) { if (M.al[x] === id && out.indexOf(x) < 0) out.push(x); });
+  return out.filter(function (x) { return /^[\w:.\-]{1,60}$/.test(x); });
+}
+function chHeadVch_(M, g) {
+  var head = g['מזמין'];
+  if (!head) return { err: 'לשולחן אין ראש — לא ניתן לשייך שובר' };
+  var p = M.ppl[head] || {}, ws = chIdsOf_(M, head), rid = 'ch:' + g['קבוצה'];
+  var V = vchTbl_(true), cx = { V: V, rid: rid, ws: ws, name: ((p.f || '') + ' ' + (p.l || '')).trim(), how: CH_VCH_HOW_ };
+  var v = issueVoucher_(head, CH_VCH_P_, cx), r = cx.have || -1;
+  if (!v && !cx.have) return { err: 'אין שובר בורגראנץ׳ זמין במלאי — מוסיפים בניהול ← ההגרלה ← שוברי זכייה, ומאשרים שוב' };
+  if (r < 0) r = vchOf_(V, rid, [head]);
+  if (r > 0) {
+    if (V.c(r, 'מזהי הזוכה') !== ws.join(' ')) { vchPut_(V, r, 'מזהי הזוכה', ws.join(' ')); SpreadsheetApp.flush(); }
+    v = vchPub_(V, r);
+  }
+  rafPrzBump_();
+  return { head: head, first: p.f || '', v: v || {} };
+}
+/* ההודעה לשלושת החברים — הנוסח מהניהול (`vt`/`vb`, {name} = השם הפרטי של ראש השולחן).
+   מזהה הודעה קבוע לכל הגרלה; נוסח ריק — לא נשלח (`none`). */
+function chHeadPush_(U, K, M, g, k, HV, P) {
+  var name = HV.first || '';
+  var t = String(P.vt || '').replace(/\{name\}/g, name).trim().slice(0, 120);
+  var b = String(P.vb || '').replace(/\{name\}/g, name).trim().slice(0, 400);
+  if (!b) return { st: 'none' };
+  var ids = [];
+  ['חבר 1', 'חבר 2', 'חבר 3', 'מזמין'].forEach(function (c) {
+    var id = g[c];
+    if (!id || id === HV.head) return;
+    chIdsOf_(M, id).forEach(function (x) { if (ids.indexOf(x) < 0) ids.push(x); });
+  });
+  if (!ids.length) return { st: 'none' };
+  var mid = 'ch-r' + K.t0 + '-V' + k;
+  var r = ghFire_(t || 'חבר מביא חבר', b, '', '', '', 'חבר מביא חבר', 'chaver', '', '',
+                  JSON.stringify({ ids: ids }), false, mid, 'השובר של השולחן — הגרלה ' + k);
+  var o = { st: r.status === 'ok' ? 'sent' : 'fail', at: new Date().toISOString(), n: ids.length };
+  if (r.status !== 'ok') o.why = String(r.message || '').slice(0, 200);
+  return o;
+}
+/* השוברים של חבר מביא חבר שמשויכים לי — לבית ולמסך השוברים (rafPrize_, vused, vseen).
+   מזהים → { r, rid, ids }. רק לתלמיד עצמו. בלי לקרוא את "שוברים" כשאין לאף מזהה שלי
+   שובר כזה (מפה במטמון, מתחלפת עם rafPrzBump_). */
+function chVchWins_(P, V) {
+  if (String(P.role || '') === 'dad') return [];
+  var mine = String(P.id || '').split(',').map(function (x) { return x.trim(); })
+    .filter(function (x) { return /^[\w:.\-]{1,60}$/.test(x); }).slice(0, 4);
+  if (!mine.length) return [];
+  var rc = CacheService.getScriptCache(), ck = 'raf:chv:' + rafPrzVer_(), map = null;
+  try { var c0 = rc.get(ck); if (c0) map = JSON.parse(c0); } catch (x) {}
+  if (map && !mine.some(function (x) { return map[x]; })) return [];
+  if (V === undefined) V = vchTbl_(false);
+  if (!V) return [];
+  var out = [], m2 = {};
+  for (var r = 1; r < V.rows.length; r++) {
+    if (V.c(r, 'אופן') !== CH_VCH_HOW_ || V.c(r, 'סטטוס') === 'זמין') continue;
+    var ws = (V.c(r, 'מזהי הזוכה') || V.c(r, 'שויך לתלמיד')).split(/\s+/).filter(Boolean);
+    ws.forEach(function (x) { m2[x] = 1; });
+    if (mine.some(function (x) { return ws.indexOf(x) >= 0; })) out.push({ r: r, rid: V.c(r, 'הגרלה'), ids: ws, wid: V.c(r, 'שויך לתלמיד') });
+  }
+  if (!map) { try { rc.put(ck, JSON.stringify(m2), 21600); } catch (x2) {} }
+  return out;
+}
 function chPushMid_(U, K, kind, k) {
   var D = U.test ? chDemo_() : null;
   /* השקה חוזרת (8.99.453): סבב 2 ומעלה — מזהה הודעה משלו (`-L2`…). */
