@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 244;
+var SCRIPT_VERSION = 245;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -11794,6 +11794,7 @@ function autoTxFill_() {
   if (!has('CH_AUTO_TX', 'vb')) need = need.concat(['chHeadVchT', 'chHeadVchB']);
   if (!pr.getProperty('VCH_PUSH_AB')) need = need.concat(['vchAutoT', 'vchAutoB']);
   if (!pr.getProperty('VCH_PUSH_B')) need = need.concat(['vchGotT', 'vchGotB']);
+  if (!pr.getProperty('RAF_CO_B')) need = need.concat(['rafCoT', 'rafCoB']);
   if (!pr.getProperty('VCH_PRZ_N')) need = need.concat(RAF_PRIZES.map(function (k) { return 'przN_' + k; }));
   if (!need.length) return 0;
   var T = autoTxMap_(need), n = 0;
@@ -11801,6 +11802,7 @@ function autoTxFill_() {
   if (T.chHeadVchB) { pr.setProperty('CH_AUTO_TX', JSON.stringify({ vt: T.chHeadVchT || '', vb: T.chHeadVchB })); n++; }
   if (T.vchAutoB) { pr.setProperty('VCH_PUSH_AT', T.vchAutoT || ''); pr.setProperty('VCH_PUSH_AB', T.vchAutoB); n++; }
   if (T.vchGotB) { pr.setProperty('VCH_PUSH_T', T.vchGotT || ''); pr.setProperty('VCH_PUSH_B', T.vchGotB); n++; }
+  if (T.rafCoB) { pr.setProperty('RAF_CO_T', T.rafCoT || ''); pr.setProperty('RAF_CO_B', T.rafCoB); n++; }
   var pn = {};
   RAF_PRIZES.forEach(function (k) { if (T['przN_' + k]) pn[k] = T['przN_' + k]; });
   if (Object.keys(pn).length === RAF_PRIZES.length) { pr.setProperty('VCH_PRZ_N', JSON.stringify(pn)); n++; }
@@ -11975,6 +11977,7 @@ function rafPrzAdm_(T, d) {
     x.dph = row ? t.c(row, 'טלפון ההורה') : '';
     x.first = row ? t.c(row, 'שם') : String(x.name || '').split(/\s+/)[0];
     x.pz = z;
+    x.cad = T.c(r, 'מודעה לרכז'); x.cwa = T.c(r, 'וואטסאפ לרכז');
     /* נרשם בנוכחות ועוד לא התקין — כמו `nodev` בלוח: השורה (או המזהה, בלי
        שורה) היא Am…, ואין לה מזהה מכשיר שנבלע. טלפון — אינו ראיה לכאן או לכאן. */
     var main = row ? t.c(row, 'מזהה') : x.win;
@@ -12554,6 +12557,7 @@ function rafWadm_(P) {
       /* נוסחי ההגרלות האוטומטיות של יום ראשון (8.99.552). */
       if (P.rwb) pr.setProperty('RAF_AUTO_TX', JSON.stringify({ wt: String(P.rwt || '').slice(0, 120), wb: String(P.rwb).slice(0, 400),
                                                                 dt: String(P.rdt || '').slice(0, 120), db: String(P.rdb || '').slice(0, 400) }));
+      if (P.rcb) { pr.setProperty('RAF_CO_T', String(P.rct || '').slice(0, 120)); pr.setProperty('RAF_CO_B', String(P.rcb).slice(0, 400)); }
       if (P.hvb) pr.setProperty('CH_AUTO_TX', JSON.stringify({ vt: String(P.hvt || '').slice(0, 120), vb: String(P.hvb).slice(0, 400) }));
       if (P.vpn) { var pj = JSON.parse(String(P.vpn)); if (pj && typeof pj === 'object') pr.setProperty('VCH_PRZ_N', JSON.stringify(pj).slice(0, 2000)); }
     } catch (ep) {}
@@ -12572,7 +12576,7 @@ function rafWadm_(P) {
       var ln = d.lines[i], z = rafPrzRow_(T, ln, picks);
       var ws = (T.c(ln, 'מזהי הזוכה') || T.c(ln, 'זוכה')).split(/\s+/);
       var kr = rowOfId_(t, x.win), row = kr >= 1 ? t.rows[kr] : null;
-      var o = { name: String(x.name || '').trim(), inst: x.inst || nm[x.code] || '', code: x.key,
+      var o = { name: String(x.name || '').trim(), inst: x.inst || nm[x.code] || '', code: x.key, ic: x.code,
                 p: z.p, how: z.how, st: z.st, due: z.due,
                 ph: row ? t.c(row, 'טלפון') : '',
                 first: row ? t.c(row, 'שם') : String(x.name || '').split(/\s+/)[0] };
@@ -12589,6 +12593,9 @@ function rafWadm_(P) {
       /* שובר שנמסר ועוד לא קושר (8.99.486) — הרכז מקשר אותו לפי המזהה. */
       else if (V) { var hl = vchHeld_(V, rid, ws); if (hl.length) o.lk = hl.map(function (q) { return { id: V.c(q, 'מזהה'), p: V.c(q, 'פרס'), c: V.c(q, 'קוד') }; }); }
       o.rid = rid;
+      /* הרכז לכל זוכה (8.99.556) — המודעה והוואטסאפ עם השובר; מתי נשלחו. */
+      if (!o.co) { if (!co) co = rafCoords_(); o.co = co.err ? { err: 1 } : (co.m[x.code] || {}); }
+      o.cad = T.c(ln, 'מודעה לרכז'); o.cwa = T.c(ln, 'וואטסאפ לרכז'); o.cpu = T.c(ln, 'הודעה לרכז');
       /* ראה שזכה (8.99.551) — מתי; או ראה את השובר. */
       o.ws = T.c(ln, 'ראה שזכה') || (o.v && o.v.sn) || '';
       /* ממתין לשובר (8.99.546): בחר, אין לו שובר, ההגרלה מהתקופה של השוברים. */
@@ -12981,9 +12988,57 @@ function rafflePub_(P) {
       } catch (err) { o.st = 'unk'; o.msg = String(err); }
       rafPartSave_(T, d);
     });
+    /* הרכזים של המוסדות שיש בהם זוכה (8.99.556) — פעם אחת לכל שורת זוכה. */
+    try { rafCoPush_(T, d); } catch (ec) {}
     var out = rafPartsOut_(d);
     out.status = 'ok';
     return out;
+  } finally { lock.releaseLock(); }
+}
+/* ============================================================
+   הרכז יודע שמישהו מהישיבה שלו זכה (8.99.556, אחיאסף 20.11).
+   ============================================================
+   בפרסום (גם האוטומטי של יום ראשון): לכל מוסד שיש בו זוכה — התראה לכל רכז מאושר
+   ב"גישה" באותה ישיבה (תפקיד שמכיל "רכז", לא ר"ם; מצב "אושר"), למכשיר שלו. אחת לשורת
+   זוכה (עמודה "הודעה לרכז": נשלח/אין רכז/נכשל + מתי). הנוסח — ui.rafCoT/rafCoB, נשמר
+   בשרת כמו שאר הנוסחים (wadm / autoTxFill_). בלי נוסח — לא נשלח ולא מסומן. */
+function rafCoPush_(T, d) {
+  var pr = PropertiesService.getScriptProperties(), t = pr.getProperty('RAF_CO_T') || '', b = pr.getProperty('RAF_CO_B') || '';
+  if (!b) return;
+  var A = limAcc_();
+  if (!A) return;
+  var nm = rafInstNm_();
+  d.rows.forEach(function (x, i) {
+    if (!x.win) return;
+    var r = d.lines[i];
+    if (T.c(r, 'הודעה לרכז')) return;
+    var ids = [];
+    A.forEach(function (a) {
+      if (a.st === 'אושר' && a.inst === x.code && /רכז/.test(a.role) && !limRam_(a.role) && a.id && ids.indexOf(a.id) < 0) ids.push(a.id);
+    });
+    var st = 'אין רכז באפליקציה';
+    if (ids.length) {
+      var fx = function (q) { return String(q).replace(/\{name\}/g, String(x.name || '').trim()).replace(/\{inst\}/g, x.inst || nm[x.code] || '').trim(); };
+      var res = ghFire_(fx(t).slice(0, 120) || 'הגרלה', fx(b).slice(0, 400), '', '', '', 'הגרלה', 'zochim', '', '',
+                        JSON.stringify({ ids: ids }), false, rafMid_(d, 'co') + '-' + (x.key || x.code), 'רכז — ' + (x.inst || x.code));
+      st = res && res.status === 'ok' ? 'נשלח' : 'נכשל';
+    }
+    rafSet_(T, { lines: [r] }, [['הודעה לרכז', st + ' · ' + new Date().toISOString()]]);
+  });
+}
+/* ?raffle=cosent&key=&rid=&code=&k=ad|wa — הבעלים שלח לרכז את המודעה / את הוואטסאפ עם השובר. פעם אחת. */
+function rafCoSent_(P) {
+  var k = String(P.k || ''), col = k === 'ad' ? 'מודעה לרכז' : k === 'wa' ? 'וואטסאפ לרכז' : '';
+  if (!col) return { status: 'error', message: 'סוג' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(15000)) return { status: 'busy' };
+  try {
+    var T = rafRead_(), d = rafById_(T, String(P.rid || ''));
+    if (!d) return { status: 'error', message: 'ההגרלה לא נמצאה' };
+    var r = rafLn_(T, d, P.code);
+    if (r < 0) return { status: 'error', message: 'אין זוכה במוסד הזה' };
+    if (!T.c(r, col)) { rafSet_(T, { lines: [r] }, [[col, new Date().toISOString()]]); SpreadsheetApp.flush(); }
+    return { status: 'ok', at: rafRead_().c(r, col) };
   } finally { lock.releaseLock(); }
 }
 
@@ -14020,6 +14075,7 @@ function raffleRoute_(e) {
     if (op === 'vsent') return reply_(e, rafVSent_(P));
     if (op === 'vswap') return reply_(e, rafVSwap_(P));
     if (op === 'vback') return reply_(e, vchBack_(P));
+    if (op === 'cosent') return reply_(e, rafCoSent_(P));
     /* מצב ההגרלות האוטומטיות (8.99.554) — האם הנוסחים נשמרו (אורך בלבד, בלי התוכן) והמצב האחרון. */
     if (op === 'autost') {
       if (String(P.fill || '') === '1') { try { autoTxFill_(); } catch (fx) {} }
@@ -14028,6 +14084,7 @@ function raffleRoute_(e) {
       var pn0 = {}; try { pn0 = JSON.parse(pa.getProperty('VCH_PRZ_N') || '{}') || {}; } catch (x1) {}
       return reply_(e, { status: 'ok', raf: { wt: ln('RAF_AUTO_TX', 'wt'), wb: ln('RAF_AUTO_TX', 'wb'), dt: ln('RAF_AUTO_TX', 'dt'), db: ln('RAF_AUTO_TX', 'db') },
         ch: { vt: ln('CH_AUTO_TX', 'vt'), vb: ln('CH_AUTO_TX', 'vb') },
+        co: String(pa.getProperty('RAF_CO_B') || '').length,
         vch: { got: String(pa.getProperty('VCH_PUSH_B') || '').length, autoT: String(pa.getProperty('VCH_PUSH_AT') || '').length,
                autoB: String(pa.getProperty('VCH_PUSH_AB') || '').length, names: Object.keys(pn0).length },
         st: pa.getProperty('RAF_AUTO_ST') || '' });
