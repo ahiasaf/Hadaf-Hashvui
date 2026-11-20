@@ -619,23 +619,23 @@ var GUIDE_UI = (function () {
      כל שלב: הכיתוב, ההסבר, והציור. */
 
   /* ============================================================
-     **מדריך מונפש** (8.99.544, אחיאסף 19.11) — אייפון.
+     **מדריך מונפש** (8.99.544–545, אחיאסף) — כל המכשירים, לכל מתקין.
      ============================================================
      "כמו המדריכים של גוגל: איור שמראה את צורת המסך, אתה כאילו
-     לוחץ, נפתח תפריט — ושם לא רואים את התפריט המקורי עם כל
-     הפרטים, אלא רק את הפרט החשוב."
+     לוחץ, נפתח תפריט — ושם רואים רק את הפרט החשוב."
+     "שכל הסרטונים יהיו ברצף אחד, בקצב הזה; כפתור להפעיל מהתחלה
+     כמו ביוטיוב, ומי שרוצה — שלב אחרי שלב." (8.99.545)
 
-     כל שלב הוא סצנה אחת שחוזרת על עצמה: המסך (מה שיש עכשיו),
-     אצבע שמגיעה אל הדבר שלוחצים עליו ולוחצת, ומה שנפתח בעקבות
-     הלחיצה. מה שאינו חשוב — אפור ודהוי או לא מצויר בכלל; הדבר
-     שלוחצים עליו — בצבע מלא ועם המילה שלו (`ilShare`, `ilAddHome`,
-     `ilAdd` ב-GUIDE, נערכים מהניהול). אותם שלבים ואותו נוסח מתחת.
-
-     **חשיפה מדורגת:** הניהול (`{ ill: true }`), ומכשיר שפתח עמוד עם
-     `?gill=1` (`df:gill`; `?gill=0` מכבה). כל השאר — הצילומים, כמו קודם.
-     בלי תנועה (prefers-reduced-motion) — המסך עם הטבעת, בלי אנימציה.
+     כל שלב הוא סצנה של 4.2 שניות: המסך, אצבע שמגיעה ולוחצת (טבעת זהב),
+     ומה שנפתח — שהוא בדיוק המסך של השלב הבא. מה שאינו חשוב דהוי.
+     **המילה שעל הכפתור/השורה נלקחת מהנוסח של השלב** — מה שבין
+     המירכאות ב-GUIDE (למשל a2: בחרו "התקנת אפליקציה"), כך שעריכה
+     בניהול משנה גם את הציור. בלי מירכאות — בלי מילה.
+     הנגן (drawSeq): טלפון אחד שמריץ את כל השלבים ברצף, פעם אחת; מתחתיו
+     המשפט של השלב, מספרי השלבים, ו"הקודם · מההתחלה · הבא". לחיצה על
+     שלב — עוצרת עליו (הסצנה שלו חוזרת). בלי תנועה — בלי ריצה מעצמה.
      ============================================================ */
-  var FAINT = '#E9E3D6', GHOST = '#DDD5C5';
+  var FAINT = '#E9E3D6', GHOST = '#DDD5C5', NAVY = '#0B2550';
   function ghostPage(y) {
     var h = '', i;
     for (i = 0; i < 6; i++)
@@ -643,125 +643,249 @@ var GUIDE_UI = (function () {
            '" height="6" rx="3" fill="' + FAINT + '"/>';
     return h;
   }
+  /* המילה שבין המירכאות בנוסח של השלב. */
+  function qw(k) { var m = /["“”״]([^"“”״]+)["“”״]/.exec(g(k)); return m ? m[1] : ''; }
   /* מילה בתוך הציור — מימין לשמאל, מעוגנת לנקודה הימנית. */
   function word(x, y, t, opt) {
     opt = opt || {};
-    return '<text x="' + x + '" y="' + y + '" direction="rtl" text-anchor="start" ' +
-      'font-size="' + (opt.size || 12) + '" font-weight="800" fill="' + (opt.col || INK) +
-      '" style="font-family:inherit">' + esc(t) + '</text>';
+    return t ? '<text x="' + x + '" y="' + y + '" direction="rtl" text-anchor="start" ' +
+      'font-size="' + (opt.size || (String(t).length > 18 ? 8.5 : String(t).length > 14 ? 10 : 12)) + '" font-weight="800" fill="' + (opt.col || INK) +
+      '" style="font-family:inherit">' + esc(t) + '</text>' : '';
   }
-  /* הסרגל של וואטסאפ/ספארי — שלוש הנקודות בצבע מלא, השאר דהוי. */
-  function ilBar(lit) {
+  function lit(on) { return on ? ' stroke="var(--gold)" stroke-width="2.5"' : ''; }
+  /* ---- סמלים קטנים לשורות ---- */
+  function icInstall(x, y, k, col) {
+    return '<g transform="translate(' + x + ',' + y + ') scale(' + (k || 1) + ')" fill="none" stroke="' + (col || INK) +
+      '" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="-5" y="-7" width="10" height="14" rx="2"/>' +
+      '<path d="M0 -4v6M-2.5 -0.5L0 2l2.5-2.5"/></g>';
+  }
+  function icChev(x, y, k, col) {
+    return '<g transform="translate(' + x + ',' + y + ') scale(' + (k || 1) + ')" fill="none" stroke="' + (col || INK) +
+      '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M-5 -2l5 5 5-5"/></g>';
+  }
+  function icPlusC(x, y, k, col) {
+    return '<g transform="translate(' + x + ',' + y + ') scale(' + (k || 1) + ')" fill="none" stroke="' + (col || INK) +
+      '" stroke-width="1.7" stroke-linecap="round"><circle r="6"/><path d="M0 -3v6M-3 0h6"/></g>';
+  }
+  function icHome(x, y, k, col) {
+    return '<g transform="translate(' + x + ',' + y + ') scale(' + (k || 1) + ')" fill="none" stroke="' + (col || INK) +
+      '" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M-6 0l6-6 6 6M-4 -1v6h8v-6"/></g>';
+  }
+  /* ---- אייפון: הסרגל שלמטה (וואטסאפ/ספארי) ---- */
+  function ilBar(on) {
     return '<rect x="16" y="282" width="168" height="44" fill="#FBF9F4"/>' +
       '<rect x="52" y="289" width="96" height="24" rx="12" fill="' + GHOST + '"/>' +
       '<circle cx="168" cy="301" r="13" fill="' + FAINT + '"/>' +
-      '<circle cx="32" cy="301" r="15" fill="#fff" stroke="' + (lit ? 'var(--gold)' : '#CFC7B6') +
-        '" stroke-width="' + (lit ? 2.5 : 1.2) + '"/>' + icDots(32, 301, 6, '#0B2550');
+      '<circle cx="32" cy="301" r="15" fill="#fff" stroke="' + (on ? 'var(--gold)' : '#CFC7B6') +
+        '" stroke-width="' + (on ? 2.5 : 1.2) + '"/>' + icDots(32, 301, 6, NAVY);
   }
-  /* התפריט שנפתח מהנקודות — רק "שיתוף", והשאר רמז דהוי. */
-  function ilMenu(lit) {
-    return '<rect x="24" y="196" width="156" height="82" rx="16" fill="#fff" ' +
-        'stroke="var(--rule)" filter="url(#gi-sh)"/>' +
-      (lit ? rowLit(32, 216, 140) : '') +
-      icShare(160, 216, 1.1, '#0B2550') + word(146, 220.5, g('ilShare')) +
+  function ilMenu(on) {
+    return '<rect x="24" y="196" width="156" height="82" rx="16" fill="#fff" stroke="var(--rule)" filter="url(#gi-sh)"/>' +
+      (on ? rowLit(32, 216, 140) : '') + icShare(160, 216, 1.1, NAVY) + word(146, 220.5, qw('n2')) +
       '<rect x="36" y="238" width="132" height="1" fill="#F0EBE0"/>' +
       '<rect x="80" y="248" width="66" height="6" rx="3" fill="' + FAINT + '"/>' +
       '<rect x="96" y="264" width="50" height="6" rx="3" fill="' + FAINT + '"/>';
   }
-  /* גיליון השיתוף, חלקי — האייקון שלנו למעלה, וחץ "הצגת עוד" בולט. */
-  function ilSheetPart(lit) {
-    var h = '<rect x="16" y="196" width="168" height="134" rx="18" fill="#fff" ' +
-        'stroke="var(--rule)" filter="url(#gi-sh)"/>' + appIcon(148, 208, 24) +
-      '<rect x="74" y="213" width="66" height="6" rx="3" fill="#CFC7B6"/>' +
+  function ilSheetPart(on) {
+    var h = '<rect x="16" y="196" width="168" height="134" rx="18" fill="#fff" stroke="var(--rule)" filter="url(#gi-sh)"/>' +
+      appIcon(148, 208, 24) + '<rect x="74" y="213" width="66" height="6" rx="3" fill="#CFC7B6"/>' +
       '<rect x="92" y="224" width="48" height="5" rx="2.5" fill="' + FAINT + '"/>', i;
-    for (i = 0; i < 4; i++)
-      h += '<circle cx="' + (156 - i * 36) + '" cy="256" r="11" fill="' + FAINT + '"/>';
-    for (i = 0; i < 3; i++)
-      h += '<circle cx="' + (156 - i * 36) + '" cy="298" r="12" fill="' + FAINT + '"/>';
-    return h + '<circle cx="48" cy="298" r="14" fill="#fff" stroke="' +
-        (lit ? 'var(--gold)' : '#CFC7B6') + '" stroke-width="' + (lit ? 2.5 : 1.2) + '"/>' +
-      '<path d="M42 295l6 6 6-6" fill="none" stroke="#0B2550" stroke-width="2.4" ' +
-        'stroke-linecap="round" stroke-linejoin="round"/>';
+    for (i = 0; i < 4; i++) h += '<circle cx="' + (156 - i * 36) + '" cy="256" r="11" fill="' + FAINT + '"/>';
+    for (i = 0; i < 3; i++) h += '<circle cx="' + (156 - i * 36) + '" cy="298" r="12" fill="' + FAINT + '"/>';
+    return h + '<circle cx="48" cy="298" r="14" fill="#fff" stroke="' + (on ? 'var(--gold)' : '#CFC7B6') +
+        '" stroke-width="' + (on ? 2.5 : 1.2) + '"/>' + icChev(48, 297, 1.15, NAVY);
   }
-  /* הגיליון פרוס — רק "הוספה למסך הבית" בולטת. */
-  function ilSheet(lit) {
-    var h = '<rect x="16" y="70" width="168" height="260" rx="18" fill="#fff" ' +
-        'stroke="var(--rule)" filter="url(#gi-sh)"/>' + appIcon(148, 82, 24) +
-      '<rect x="74" y="87" width="66" height="6" rx="3" fill="#CFC7B6"/>', i;
-    for (i = 0; i < 4; i++)
-      h += '<circle cx="' + (156 - i * 36) + '" cy="130" r="11" fill="' + FAINT + '"/>';
-    for (i = 0; i < 4; i++)
-      h += '<rect x="34" y="' + (166 + i * 24) + '" width="132" height="14" rx="7" fill="#F6F2EA"/>';
-    return h + (lit ? rowLit(28, 284, 146) : '') +
-      icAddHome(160, 284, 1.05, '#0B2550') + word(146, 288.5, g('ilAddHome'));
+  function ilSheet(on) {
+    var h = '<rect x="16" y="70" width="168" height="260" rx="18" fill="#fff" stroke="var(--rule)" filter="url(#gi-sh)"/>' +
+      appIcon(148, 82, 24) + '<rect x="74" y="87" width="66" height="6" rx="3" fill="#CFC7B6"/>', i;
+    for (i = 0; i < 4; i++) h += '<circle cx="' + (156 - i * 36) + '" cy="130" r="11" fill="' + FAINT + '"/>';
+    for (i = 0; i < 4; i++) h += '<rect x="34" y="' + (166 + i * 24) + '" width="132" height="14" rx="7" fill="#F6F2EA"/>';
+    return h + (on ? rowLit(28, 284, 146) : '') + icAddHome(160, 284, 1.05, NAVY) + word(146, 288.5, qw('s3'));
   }
-  /* חלון האישור — "הוספה" הכחול בפינה השמאלית, השאר דהוי. */
-  function ilConfirm(lit) {
-    return '<rect x="16" y="14" width="168" height="120" rx="18" fill="#fff" ' +
-        'stroke="var(--rule)" filter="url(#gi-sh)"/>' +
+  function ilConfirm(on) {
+    return '<rect x="16" y="14" width="168" height="120" rx="18" fill="#fff" stroke="var(--rule)" filter="url(#gi-sh)"/>' +
       '<circle cx="164" cy="40" r="12" fill="' + FAINT + '"/>' +
       '<path d="M160 36l8 8M168 36l-8 8" stroke="#B9B1A2" stroke-width="2" stroke-linecap="round"/>' +
       '<rect x="88" y="37" width="44" height="6" rx="3" fill="' + FAINT + '"/>' +
-      '<rect x="22" y="27" width="56" height="26" rx="13" fill="#0A84FF"' +
-        (lit ? ' stroke="var(--gold)" stroke-width="2.5"' : '') + '/>' +
-      word(70, 44.5, g('ilAdd'), { col: '#fff', size: 11 }) +
-      appIcon(144, 68, 30) +
+      '<rect x="22" y="27" width="56" height="26" rx="13" fill="#0A84FF"' + lit(on) + '/>' +
+      word(70, 44.5, qw('s4'), { col: '#fff', size: 11 }) + appIcon(144, 68, 30) +
       '<rect x="74" y="78" width="60" height="7" rx="3.5" fill="#CFC7B6"/>' +
       '<rect x="74" y="92" width="44" height="5" rx="2.5" fill="' + FAINT + '"/>';
   }
-  /* מסך הבית — האייקון שלנו, וסביבו רמזים אפורים. */
+  /* ---- אנדרואיד: סרגל הכתובת למעלה, ⋮ בצד (`left` — פיירפוקס, אופרה) ---- */
+  function aBar(left, on) {
+    var x = left ? 34 : 166;
+    return '<rect x="16" y="20" width="168" height="32" fill="#FBF9F4"/>' +
+      '<rect x="' + (left ? 52 : 30) + '" y="28" width="118" height="16" rx="8" fill="' + GHOST + '"/>' +
+      '<circle cx="' + x + '" cy="36" r="13" fill="#fff" stroke="' + (on ? 'var(--gold)' : '#CFC7B6') +
+        '" stroke-width="' + (on ? 2.5 : 1.2) + '"/>' +
+      '<circle cx="' + x + '" cy="30" r="2" fill="' + NAVY + '"/><circle cx="' + x + '" cy="36" r="2" fill="' + NAVY + '"/>' +
+      '<circle cx="' + x + '" cy="42" r="2" fill="' + NAVY + '"/>';
+  }
+  /* תפריט שנפתח למעלה — השורה החשובה בלבד, ושתי שורות דהויות. */
+  function aMenu(t, ic, on) {
+    return '<rect x="24" y="56" width="152" height="96" rx="14" fill="#fff" stroke="var(--rule)" filter="url(#gi-sh)"/>' +
+      (on ? rowLit(30, 78, 140) : '') + ic(158, 78, 1.1, NAVY) + word(144, 82.5, t) +
+      '<rect x="36" y="98" width="128" height="1" fill="#F0EBE0"/>' +
+      '<rect x="78" y="110" width="70" height="6" rx="3" fill="' + FAINT + '"/>' +
+      '<rect x="98" y="130" width="50" height="6" rx="3" fill="' + FAINT + '"/>';
+  }
+  /* חלון אישור: הסמל שלנו, והכפתור הכחול עם המילה. `y` — הגובה (op5 — חלון שני). */
+  function aDlg(t, on, y) {
+    y = y || 112;
+    return '<rect x="22" y="' + y + '" width="156" height="118" rx="16" fill="#fff" stroke="var(--rule)" filter="url(#gi-sh)"/>' +
+      appIcon(134, y + 18, 34) + '<rect x="56" y="' + (y + 26) + '" width="66" height="8" rx="4" fill="#CFC7B6"/>' +
+      '<rect x="44" y="' + (y + 44) + '" width="78" height="6" rx="3" fill="' + FAINT + '"/>' +
+      '<rect x="34" y="' + (y + 74) + '" width="64" height="26" rx="13" fill="#1F6FE0"' + lit(on) + '/>' +
+      word(90, y + 91.5, t, { col: '#fff', size: 11 }) +
+      '<rect x="112" y="' + (y + 84) + '" width="40" height="6" rx="3" fill="' + FAINT + '"/>';
+  }
+  function dlgTap(y) { return [66, (y || 112) + 87]; }
+  /* ---- סמסונג: הסרגל שלמטה, ☰ בשמאל, ותפריט שעולה מלמטה ---- */
+  function sBar(on) {
+    var h = '<rect x="16" y="292" width="168" height="34" fill="#FBF9F4"/>', i;
+    for (i = 0; i < 4; i++) h += '<rect x="' + (128 - i * 28) + '" y="305" width="10" height="8" rx="2" fill="' + GHOST + '"/>';
+    return h + '<circle cx="37" cy="309" r="13" fill="#fff" stroke="' + (on ? 'var(--gold)' : '#CFC7B6') +
+      '" stroke-width="' + (on ? 2.5 : 1.2) + '"/><g stroke="' + NAVY + '" stroke-width="2" stroke-linecap="round">' +
+      '<path d="M31 304h12M31 309h12M31 314h12"/></g>';
+  }
+  function sMenu(t, ic, on) {
+    return '<rect x="24" y="196" width="152" height="92" rx="14" fill="#fff" stroke="var(--rule)" filter="url(#gi-sh)"/>' +
+      (on ? rowLit(30, 218, 140) : '') + ic(158, 218, 1.1, NAVY) + word(144, 222.5, t) +
+      '<rect x="36" y="238" width="128" height="1" fill="#F0EBE0"/>' +
+      '<rect x="78" y="250" width="70" height="6" rx="3" fill="' + FAINT + '"/>' +
+      '<rect x="98" y="268" width="50" height="6" rx="3" fill="' + FAINT + '"/>';
+  }
+  /* ---- הסוף: מסך הבית, האייקון שלנו, והאפליקציה נפתחת ---- */
   function ilHome() {
     var h = '<rect x="16" y="14" width="168" height="312" rx="21" fill="#EEF1F6"/>', r, c;
     for (r = 0; r < 3; r++)
       for (c = 0; c < 4; c++) {
         if (r === 1 && c === 1) continue;
-        h += '<rect x="' + (30 + c * 36) + '" y="' + (60 + r * 46) +
-             '" width="28" height="28" rx="8" fill="#DCE1EA"/>';
+        h += '<rect x="' + (30 + c * 36) + '" y="' + (60 + r * 46) + '" width="28" height="28" rx="8" fill="#DCE1EA"/>';
       }
     return h;
   }
-  function ilMine() {
-    return appIcon(66, 106, 28) + '<rect x="62" y="140" width="36" height="5" rx="2.5" fill="#B9C1CF"/>';
-  }
-  /* האפליקציה נפתחת — מסך כחול והסמל במרכזו. */
-  function ilOpen() {
-    return '<rect x="16" y="14" width="168" height="312" rx="21" fill="#0B2550"/>' +
-      appIcon(70, 140, 60);
-  }
-  /* הסצנה: מה שעל המסך (`b`), האצבע שלוחצת על (x,y), ומה שנפתח (`a`). */
+  function ilMine() { return appIcon(66, 106, 28) + '<rect x="62" y="140" width="36" height="5" rx="2.5" fill="#B9C1CF"/>'; }
+  function ilOpen() { return '<rect x="16" y="14" width="168" height="312" rx="21" fill="' + NAVY + '"/>' + appIcon(70, 140, 60); }
+  function homeNew() { return ilHome() + ilMine(); }
   /* וילון בהיר מאחורי מה שנפתח — המסך הקודם נשאר רמז, לא בליל. */
   function scrim() { return '<rect x="16" y="14" width="168" height="312" rx="21" fill="#F7F4EC" opacity=".86"/>'; }
+  /* הסצנה: מה שעל המסך (`b`), האצבע שלוחצת על (x,y), ומה שנפתח (`a`). */
   function scene(b, x, y, a) {
     return '<defs><filter id="gi-sh" x="-10%" y="-10%" width="120%" height="130%">' +
-        '<feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0B2550" flood-opacity=".14"/>' +
-      '</filter></defs>' +
+        '<feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0B2550" flood-opacity=".14"/></filter></defs>' +
       '<g class="gi-b">' + b + '</g>' +
       '<circle class="gi-r" cx="' + x + '" cy="' + y + '" r="16" fill="none" stroke="var(--gold)" stroke-width="3"/>' +
       '<g transform="translate(' + x + ',' + y + ')"><g class="gi-f">' +
-        '<circle r="11" fill="rgba(11,37,80,.28)" stroke="#fff" stroke-width="2.5"/>' +
-      '</g></g>' +
+        '<circle r="11" fill="rgba(11,37,80,.28)" stroke="#fff" stroke-width="2.5"/></g></g>' +
       '<g class="gi-a">' + a + '</g>';
   }
+  var GP = function () { return ghostPage(72); };
   var ILL = {
+    /* אייפון */
     n1:  function () { return scene(ghostPage(40) + ilBar(1), 32, 301, scrim() + ilMenu(0)); },
-    n2:  function () { return scene(ghostPage(40) + ilBar(0) + ilMenu(1), 120, 216, scrim() + ilSheetPart(0)); },
+    n2:  function () { return scene(ghostPage(40) + ilBar(0) + ilMenu(1), 160, 216, scrim() + ilSheetPart(0)); },
     s2e: function () { return scene(ghostPage(40) + ilSheetPart(1), 48, 298, scrim() + ilSheet(0)); },
-    s3:  function () { return scene(ghostPage(40) + ilSheet(1), 110, 284, scrim() + ilConfirm(0)); },
-    s4:  function () { return scene(ghostPage(40) + ilConfirm(1), 50, 40, ilHome() + ilMine()); },
-    s5:  function () { return scene(ilHome() + ilMine(), 80, 120, ilOpen()); }
+    s3:  function () { return scene(ghostPage(40) + ilSheet(1), 160, 284, scrim() + ilConfirm(0)); },
+    s4:  function () { return scene(ghostPage(40) + ilConfirm(1), 50, 40, homeNew()); },
+    s5:  function () { return scene(homeNew(), 80, 120, ilOpen()); },
+    /* כרום */
+    a1:  function () { return scene(GP() + aBar(0, 1), 166, 36, scrim() + aMenu(qw('a2'), icInstall, 0)); },
+    a2:  function () { return scene(GP() + aBar(0, 0) + aMenu(qw('a2'), icInstall, 1), 158, 78, scrim() + aDlg(qw('a3'), 0)); },
+    a3:  function () { var t = dlgTap(); return scene(GP() + aDlg(qw('a3'), 1), t[0], t[1], homeNew()); },
+    /* פיירפוקס */
+    f1:  function () { return scene(GP() + aBar(1, 1), 34, 36, scrim() + aMenu(qw('f2'), icChev, 0)); },
+    f2:  function () { return scene(GP() + aBar(1, 0) + aMenu(qw('f2'), icChev, 1), 158, 78, scrim() + aMenu(qw('f3'), icAddHome, 0)); },
+    f3:  function () { return scene(GP() + aBar(1, 0) + aMenu(qw('f3'), icAddHome, 1), 158, 78, scrim() + aDlg(qw('f4'), 0)); },
+    f4:  function () { var t = dlgTap(); return scene(GP() + aDlg(qw('f4'), 1), t[0], t[1], homeNew()); },
+    /* סמסונג */
+    sm1: function () { return scene(ghostPage(40) + sBar(1), 37, 309, scrim() + sMenu(qw('sm2'), icPlusC, 0)); },
+    sm2: function () { return scene(ghostPage(40) + sBar(0) + sMenu(qw('sm2'), icPlusC, 1), 158, 218, scrim() + sMenu(qw('sm3'), icHome, 0)); },
+    sm3: function () { return scene(ghostPage(40) + sBar(0) + sMenu(qw('sm3'), icHome, 1), 158, 218, scrim() + aDlg(qw('sm4'), 0)); },
+    sm4: function () { var t = dlgTap(); return scene(ghostPage(40) + aDlg(qw('sm4'), 1), t[0], t[1], homeNew()); },
+    sm5: function () { return scene(homeNew(), 80, 120, ilOpen()); },
+    /* אופרה */
+    op1: function () { return scene(GP() + aBar(1, 1), 34, 36, scrim() + aMenu(qw('op2'), icPlusC, 0)); },
+    op2: function () { return scene(GP() + aBar(1, 0) + aMenu(qw('op2'), icPlusC, 1), 158, 78, scrim() + aMenu(qw('op3'), icHome, 0)); },
+    op3: function () { return scene(GP() + aBar(1, 0) + aMenu(qw('op3'), icHome, 1), 158, 78, scrim() + aDlg(qw('op4'), 0)); },
+    op4: function () { var t = dlgTap(); return scene(GP() + aDlg(qw('op4'), 1), t[0], t[1], scrim() + aDlg(qw('op5'), 0, 186)); },
+    op5: function () { var t = dlgTap(186); return scene(GP() + aDlg(qw('op5'), 1, 186), t[0], t[1], homeNew()); },
+    op6: function () { return scene(homeNew(), 80, 120, ilOpen()); }
   };
-  (function () {
-    try {
-      var m = /[?&]gill=([01])\b/.exec(location.search);
-      if (m) {
-        if (m[1] === '1') localStorage.setItem('df:gill', '1');
-        else localStorage.removeItem('df:gill');
-      }
-    } catch (e) {}
-  })();
-  var ILL_ON = false;
-  function illDev() { try { return localStorage.getItem('df:gill') === '1'; } catch (e) { return false; } }
-  function illus(key) { return '<div class="gi">' + phone(ILL[key]()) + '</div>'; }
+  function illAll(L) { return L.every(function (s) { return !!ILL[s[0]]; }); }
+
+  /* ---------- הנגן ---------- */
+  var SEQ_MS = 4200, SQ = { i: 0, t: null, run: false, L: null, io: null };
+  function seqStop() { if (SQ.t) { clearTimeout(SQ.t); SQ.t = null; } SQ.run = false; }
+  function seqEl(id) { return HOST ? HOST.querySelector('#' + id) : null; }
+  function seqShow(i) {
+    var L = SQ.L, st = seqEl('gs-st');
+    if (!L || !st) return;
+    SQ.i = at = Math.max(0, Math.min(i, L.length - 1));
+    st.innerHTML = '<div class="gi">' + phone(ILL[L[SQ.i][0]]()) + '</div>';
+    seqEl('gs-n').textContent = String(SQ.i + 1);
+    seqEl('gs-t').textContent = tx(L[SQ.i][0]);
+    var ds = HOST.querySelectorAll('.gs-d');
+    for (var k = 0; k < ds.length; k++) ds[k].setAttribute('aria-current', k === SQ.i ? 'step' : 'false');
+    var end = !SQ.run && SQ.i === L.length - 1;
+    var ag = seqEl('gs-ag');
+    if (ag) ag.className = 'gs-b gs-ag' + (end ? ' on' : '');
+  }
+  function seqNext() {
+    SQ.t = setTimeout(function () {
+      SQ.t = null;
+      if (!SQ.run || !seqEl('gs-st')) return;
+      if (SQ.i >= SQ.L.length - 1) { SQ.run = false; seqShow(SQ.i); return; }
+      seqShow(SQ.i + 1); seqNext();
+    }, SEQ_MS);
+  }
+  function seqPlay() { seqStop(); SQ.run = true; seqShow(0); seqNext(); }
+  function seqGo(i) { seqStop(); seqShow(i); }
+  function reduced() { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } }
+  var IC_AGAIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.6-5.9" fill="none" stroke="currentColor" ' +
+    'stroke-width="2.4" stroke-linecap="round"/><path d="M3 4v5h5" fill="none" stroke="currentColor" stroke-width="2.4" ' +
+    'stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  function drawSeq(L) {
+    var nums = String(g('trailNum')).split(','), n = L.length;
+    var nw = (nums[n - 1] || '').replace(/^\s+|\s+$/g, '') || String(n);
+    seqStop(); SQ.L = L;
+    HOST.innerHTML =
+      '<div class="gu gu-seq">' +
+        '<div class="gut-hd" role="heading" aria-level="2"><span>' + esc(fill(g('trailT1'), { n: nw })) + '</span> ' +
+          '<span class="gut-gold">' + esc(g('trailT2')) + '</span></div>' +
+        '<div class="gs-st" id="gs-st" aria-hidden="true"></div>' +
+        '<p class="gs-cap" aria-live="polite"><b class="gs-n" id="gs-n">1</b><span id="gs-t"></span></p>' +
+        '<div class="gs-ds">' + L.map(function (s, i) {
+          return '<button type="button" class="gs-d" data-i="' + i + '" aria-label="' + esc((i + 1) + '. ' + tx(s[0])) +
+            '">' + (i + 1) + '</button>';
+        }).join('') + '</div>' +
+        '<div class="gs-ct">' +
+          '<button type="button" class="gs-b" id="gs-pv"><i aria-hidden="true">→</i><span>' + esc(g('back')) + '</span></button>' +
+          '<button type="button" class="gs-b gs-ag" id="gs-ag"><i>' + IC_AGAIN + '</i><span>' + esc(g('again')) + '</span></button>' +
+          '<button type="button" class="gs-b" id="gs-nx"><i aria-hidden="true">←</i><span>' + esc(g('fwd')) + '</span></button>' +
+        '</div>' +
+      '</div>';
+    var ds = HOST.querySelectorAll('.gs-d');
+    for (var k = 0; k < ds.length; k++) ds[k].onclick = function () { seqGo(+this.getAttribute('data-i')); };
+    seqEl('gs-pv').onclick = function () { seqGo(SQ.i - 1); };
+    seqEl('gs-nx').onclick = function () { seqGo(SQ.i + 1); };
+    seqEl('gs-ag').onclick = seqPlay;
+    seqShow(0);
+    /* מתחיל לרוץ רק כשהטלפון על המסך — מי שגולל אליו מתחיל מהשלב הראשון. */
+    if (reduced()) return;
+    var st = seqEl('gs-st');
+    if (window.IntersectionObserver) {
+      if (SQ.io) SQ.io.disconnect();
+      var done = false;
+      SQ.io = new IntersectionObserver(function (es) {
+        if (done || !es[0] || !es[0].isIntersecting) return;
+        done = true; SQ.io.disconnect(); SQ.io = null;
+        if (SQ.L === L && seqEl('gs-st') === st && !SQ.t && SQ.i === 0) seqPlay();
+      }, { threshold: 0.5 });
+      SQ.io.observe(st);
+    } else seqPlay();
+  }
 
   var DROID = [['a1', droidDots], ['a2', droidMenu], ['a3', droidOk]];
   /* פיירפוקס: אין בו הצעת התקנה, ו"הוספה למסך הבית" חבויה
@@ -874,6 +998,8 @@ var GUIDE_UI = (function () {
   function draw() {
     if (!HOST) return;
     var L = LIST || (LIST = steps());
+    /* הנגן — לכל מסלול שכל שלביו מצוירים (8.99.545, לכולם). אדג' — מילים בלבד. */
+    if (L !== EDGE && illAll(L)) { drawSeq(L); return; }
     if (TRAIL || L === EDGE) { drawTrail(L); return; }
     if (PLAY) { drawPlay(L); return; }
     HOST.innerHTML =
@@ -932,7 +1058,7 @@ var GUIDE_UI = (function () {
         '<ol class="gut-ol">' +
         L.map(function (s, i) {
           var key = s[0], art = s[1], left = (i % 2 === 1);
-          var vis = ILL_ON && ILL[key] ? illus(key) : PICS[key] ? pic(PICS[key]) : (art ? phone(art()) : '');
+          var vis = PICS[key] ? pic(PICS[key]) : (art ? phone(art()) : '');
           return '<li class="gut-st ' + (left ? 'gut-l' : 'gut-r') +
               (vis ? '' : ' gut-tx') + '">' +
             (i ? trailCurve(left) : '') +
@@ -1082,7 +1208,7 @@ var GUIDE_UI = (function () {
   }
 
   function mount(host, onDone, opt) {
-    playStop();
+    playStop(); seqStop();
     HOST = host; ONDONE = onDone || null;
     PLAY = !!(opt && opt.play);
     GO = !!(opt && opt.go);
@@ -1091,14 +1217,13 @@ var GUIDE_UI = (function () {
     EDGE_ON = !!(opt && opt.edge);
     /* `trail` — הניהול, שמראה את המסלול החדש לכל סוג מכשיר. */
     TRAIL = !!(opt && opt.trail) || trailOn();
-    ILL_ON = !!(opt && opt.ill) || illDev();
     LIST = steps(); at = 0;
     css();
     draw();
   }
   /* פתיחה מחדש מתחילה מההתחלה: מי שחזר הנה לא השלים, והמשך
      מאמצע הוא ניחוש. */
-  function reset() { playStop(); at = 0; LIST = null; }
+  function reset() { playStop(); seqStop(); at = 0; LIST = null; }
 
   function css() {
     if (document.getElementById('gu-css')) return;
@@ -1246,6 +1371,25 @@ var GUIDE_UI = (function () {
       '.gut-tx .gut-n{position:static;box-shadow:none}',
       '.gut-tx .gut-t{width:auto;margin:0}',
       '.gut-go{margin-top:22px;font-size:1.05rem}',
+      /* הנגן (drawSeq): טלפון אחד, המשפט, מספרי השלבים, ושלושה כפתורים. */
+      '.gu-seq .gut-hd{margin-bottom:12px}',
+      '.gs-st{width:min(250px,72%);margin:0 auto}',
+      '.gs-st .gu-art{display:block;width:100%;max-width:none;height:auto;aspect-ratio:200/340;margin:0}',
+      '.gs-cap{display:flex;align-items:center;justify-content:center;gap:10px;min-height:3.2em;margin:12px 0 0;',
+      '  font-size:1.08rem;font-weight:800;line-height:1.35;color:var(--blue-d,#0B2550);text-align:right}',
+      '.gs-n{flex:none;width:32px;height:32px;border-radius:50%;background:var(--blue-d,#0B2550);color:#fff;',
+      '  display:flex;align-items:center;justify-content:center;font-size:1rem}',
+      '.gs-ds{display:flex;justify-content:center;gap:7px;margin-top:10px;flex-wrap:wrap}',
+      '.gs-d{width:30px;height:30px;border-radius:50%;border:2px solid var(--rule,#E3DDD0);background:#fff;',
+      '  color:var(--ink-2);font:inherit;font-size:.85rem;font-weight:800;cursor:pointer;padding:0}',
+      '.gs-d[aria-current=step]{background:var(--gold,#C99A2E);border-color:var(--gold,#C99A2E);color:#fff}',
+      '.gs-ct{display:flex;justify-content:center;gap:10px;margin-top:12px}',
+      '.gs-b{flex:1 1 0;max-width:110px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;',
+      '  border-radius:14px;border:2px solid var(--rule,#E3DDD0);background:#fff;color:var(--blue-d,#0B2550);',
+      '  font:inherit;font-size:.8rem;font-weight:800;cursor:pointer}',
+      '.gs-b i{font-style:normal;font-size:1.3rem;line-height:1;display:block}',
+      '.gs-b svg{width:22px;height:22px;display:block}',
+      '.gs-ag.on{background:var(--blue-d,#0B2550);border-color:var(--blue-d,#0B2550);color:#fff}',
       /* המדריך המונפש (ILL): 4.2 שניות — אצבע מגיעה, לוחצת, ונפתח מה שנפתח. */
       '.gi .gu-art{animation:none}',
       '.gu-trail .gi .gu-art{height:auto;aspect-ratio:200/340}',
@@ -1273,6 +1417,8 @@ var GUIDE_UI = (function () {
   function seek(n) {
     var L = LIST || (LIST = steps());
     at = Math.max(0, Math.min(n | 0, L.length - 1));
+    /* בנגן — עוצרים על השלב (הניהול חוזר לשלב שעמד עליו אחרי כל הקלדה). */
+    if (SQ.L === L && seqEl('gs-st')) seqGo(at);
   }
 
   return { mount: mount, reset: reset, steps: steps, css: css,

@@ -3183,7 +3183,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.544';
+var APP_VERSION = '8.99.545';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -16191,7 +16191,7 @@ var GU_TXT = {
 /* שלבי האייפון המשותפים, לפי הסדר שבמסלול. `s2e` — פריסת
    גיליון השיתוף — נוסף אחריו ונשכח כאן, וכך היה נוסח שאי
    אפשר להגיע אליו בעריכה. */
-var GU_IOS = ['guide.s2e','guide.s3','guide.s4','guide.s5','guide.ilShare','guide.ilAddHome','guide.ilAdd'];
+var GU_IOS = ['guide.s2e','guide.s3','guide.s4','guide.s5'];
 
 function guPick(k) {
   guKind = k;
@@ -16243,7 +16243,7 @@ function guPaint() {
   if (!box || typeof GUIDE_UI === 'undefined') return;
   GUIDE_UI.force(guKind);
   /* `trail` — מסלול הגלילה, לכל סוג מכשיר (בריף 28.10). */
-  GUIDE_UI.mount(box, function () { guAt = 0; guPaint(); }, { trail: true, ill: true });
+  GUIDE_UI.mount(box, function () { guAt = 0; guPaint(); }, { trail: true });
   /* `mount` פותח בשלב הראשון. כאן חוזרים לשלב שהוא עמד עליו —
      אחרת כל הקלדה בתיבה מחזירה את הציור להתחלה. */
   if (guAt) GUIDE_UI.seek(guAt);
