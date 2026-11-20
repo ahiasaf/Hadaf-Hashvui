@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 251;
+var SCRIPT_VERSION = 252;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -11961,7 +11961,7 @@ function rafPrize_(P) {
   res.list.reverse();
   if (CV.length && V) CV.forEach(function (o) {
     res.list.unshift({ rid: o.rid, wk: '', wid: o.wid, kid: '', p: V.c(o.r, 'פרס'), how: CH_VCH_HOW_, due: '', st: '',
-                       v: vchPub_(V, o.r), pp: 1, ch: 1 });
+                       v: vchPub_(V, o.r), pp: V.c(o.r, 'הערה').indexOf(VCH_QUIET_) >= 0 ? 0 : 1, ch: 1 });
   });
   try { rc.put(ck, JSON.stringify(res), 300); } catch (x2) {}
   return res;
@@ -16673,7 +16673,13 @@ function chAct_(U, P, op) {
       m['קוד שובר'] = HV2.v.c || '';
       chPut_(X.T, m);
       SpreadsheetApp.flush();
-      if (QUIET) return { status: 'ok', vch: 1, push: 'quiet', fixed: 1 };
+      if (QUIET) {
+        /* בשקט גם בתוך האפליקציה: בלי חלון "יש לך שובר" בכניסה (pp: 0 ב-rafPrize_). השובר עצמו — גלוי כרגיל. */
+        var VQ = vchTbl_(true), rq = chVchRow_(VQ, 'ch:' + ZH.g['קבוצה']);
+        if (rq > 0) { var nq = VQ.c(rq, 'הערה'); vchPut_(VQ, rq, 'הערה', ((nq ? nq + ' | ' : '') + VCH_QUIET_ + ' ' + new Date().toISOString()).slice(0, 1000)); SpreadsheetApp.flush(); }
+        rafPrzBump_();
+        return { status: 'ok', vch: 1, push: 'quiet', fixed: 1 };
+      }
       /* כבר נשלחה הודעה על השובר הזה (אישור/השלמה קודמים) — לא שולחים שוב. */
       var HP0 = rafPartGet_(m['הודעת שובר']);
       if (HP0 && HP0.st === 'sent') return { status: 'ok', vch: 1, push: 'sent' };
@@ -16743,7 +16749,7 @@ function chVchRow_(V, rid) {
 /* שובר מסוג אחר על השולחן (8.99.561 — ארוחת ילדים שיצאה לפני התיקון), שלא מומש:
    מבוטל (נשמר ב"שוברים שלא חולקו" — אפשר להחזיר למלאי), ו"קוד שובר" מתרוקן.
    רק כשיש "ארוחה לארבעה" זמינה — אחרת שום דבר לא זז. */
-var VCH_EXPOSED_ = '[נחשף]';
+var VCH_EXPOSED_ = '[נחשף]', VCH_QUIET_ = '[הוחלף בשקט]';
 function chVchFix_(V, rid) {
   var r = chVchRow_(V, rid);
   if (r < 0 || V.c(r, 'פרס') === CH_VCH_P_) return { none: 1 };

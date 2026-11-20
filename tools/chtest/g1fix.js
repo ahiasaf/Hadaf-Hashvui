@@ -58,6 +58,7 @@ ok(c.vchBack_({ vid: V.c(kid, 'מזהה') }).status === 'error', 'old voucher no
 var P1 = raf({ raffle: 'prize', id: head, fresh: '1' });
 var it = (P1.list || []).filter(function (x) { return x.ch; })[0];
 ok(it && it.v && /^CMB-/.test(it.v.c) && it.v.st === 'in' && it.p === 'meal4', 'head sees combo at home', it);
+ok(it && it.pp === 0, 'no in-app popup for the quiet replacement', it && it.pp);
 // ניסיון חוזר — לא מקצה ולא שולח
 T.exec();
 var h2 = c.chAct_(U, { ms: String(ms.k), vt: vt, vb: vb }, 'hvch');
