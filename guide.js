@@ -874,6 +874,7 @@ var GUIDE_UI = (function () {
       '<div class="gu gu-seq">' +
         '<div class="gut-hd" role="heading" aria-level="2"><span>' + esc(fill(g('trailT1'), { n: nw })) + '</span> ' +
           '<span class="gut-gold">' + esc(g('trailT2')) + '</span></div>' +
+        (g('intro') ? '<p class="gut-sub">' + esc(g('intro')) + '</p>' : '') +
         '<div class="gs-st" id="gs-st" aria-hidden="true"></div>' +
         '<p class="gs-cap" aria-live="polite"><b class="gs-n" id="gs-n">1</b><span id="gs-t"></span></p>' +
         '<div class="gs-ds">' + L.map(function (s, i) {
