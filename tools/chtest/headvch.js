@@ -34,7 +34,7 @@ ok(m1.st === c.CH_M_.pend && sent.length === 0, 'no stock → still pending, not
 // 2. יש שובר בורגר (ושובר פיצה) — אישור
 var A = post({ action: 'vchadd', key: 'k', bid: 'h1', rows: [
   { t: 'פיצה', p: 'pizza', c: 'PZ-9', x: '2026-12-31' },
-  { t: 'ארוחה', p: 'burger', c: 'BG-7', u: 'https://x.example/7', x: '2026-12-30' }] });
+  { t: 'ארוחה', p: 'meal4', c: 'BG-7', u: 'https://x.example/7', x: '2026-12-30' }] });
 ok(A.status === 'ok' && A.add === 2, 'stock added', A);
 T.exec();
 var r2 = c.chAct_(U, { ms: String(ms.k), vt: vt, vb: vb }, 'approve');
@@ -74,11 +74,13 @@ var MR3 = c.chTab_(c.CH_MS_, c.CH_MS_COLS_).rows.filter(function (r) { return St
 ok(rh.status === 'ok' && MR3['קוד שובר'] === 'BG-7' && sent.length === ns + 1, 'hvch: same voucher, push sent', [rh, MR3['קוד שובר']]);
 var nAss = 0, V9 = c.vchTbl_(false); for (var q9 = 1; q9 < V9.rows.length; q9++) if (V9.c(q9, 'שויך לתלמיד') === head) nAss++;
 ok(nAss === 1, 'no second voucher', nAss);
+var AD = c.chAdm_(c.chSync_(U), U), xa = AD.ms.filter(function (x) { return String(x.k) === String(ms.k); })[0];
+ok(xa && xa.code === 'BG-7' && !xa.vk, 'adm shows code after hvch (button gone)', xa && [xa.code, xa.vk]);
 
 // 3. הבית של ראש השולחן — "לצפייה בשובר"; של חבר — כלום
 var P1 = raf({ raffle: 'prize', id: head, fresh: '1' });
 var it = (P1.list || []).filter(function (x) { return x.ch; })[0];
-ok(it && it.v && it.v.c === 'BG-7' && it.v.st === 'in' && it.pp === 1 && it.p === 'burger', 'head sees voucher at home', P1);
+ok(it && it.v && it.v.c === 'BG-7' && it.v.st === 'in' && it.pp === 1 && it.p === 'meal4', 'head sees voucher at home', P1);
 var P2 = raf({ raffle: 'prize', id: mem[0], fresh: '1' });
 ok(!(P2.list || []).some(function (x) { return x.v; }), 'member has no voucher', P2);
 ok(!(raf({ raffle: 'prize', id: head, role: 'dad', fresh: '1' }).list || []).some(function (x) { return x.ch; }), 'not via role=dad');
@@ -102,5 +104,24 @@ var MR5 = c.chTab_(c.CH_MS_, c.CH_MS_COLS_).rows.filter(function (r) { return St
 ok(r5.status === 'ok' && MR5['קוד שובר'] === 'BG-7', 'deliver without code keeps voucher code', MR5['קוד שובר']);
 // 6. מי שאינו זוכה בשום דבר — רשימה ריקה
 ok((raf({ raffle: 'prize', id: 'DNOBODYX', fresh: '1' }).list || []).length === 0, 'non-winner: empty');
+// 7. (8.99.561) שובר מסוג אחר על שולחן — מוחלף בארוחה לארבעה רק כשיש במלאי
+ok(c.CH_VCH_P_ === 'meal4', 'table voucher type = meal4');
+post({ action: 'vchadd', key: 'k', bid: 'h7', rows: [{ t: 'ארוחת ילדים', p: 'burger', c: 'BG-9', x: '2026-12-30' }] });
+T.exec();
+var V7 = c.vchTbl_(true), v7 = c.issueVoucher_('DX7', 'burger', { V: V7, rid: 'ch:X7', ws: ['DX7'], how: 'x' });
+ok(v7 && v7.c === 'BG-9', 'wrong-type voucher on table (setup)', v7);
+var f0 = c.chVchFix_(c.vchTbl_(true), 'ch:X7');
+var V7b = c.vchTbl_(true), r7 = c.chVchRow_(V7b, 'ch:X7');
+ok(f0.err && r7 > 0 && V7b.c(r7, 'קוד') === 'BG-9', 'no meal4 stock → nothing changes', f0);
+post({ action: 'vchadd', key: 'k', bid: 'h8', rows: [{ t: 'ארוחה לארבעה', p: 'meal4', c: 'M4-1', x: '2026-12-30' }] });
+T.exec();
+var V7c = c.vchTbl_(true), f1 = c.chVchFix_(V7c, 'ch:X7');
+var bg9 = -1; for (var q7 = 1; q7 < V7c.rows.length; q7++) if (V7c.c(q7, 'קוד') === 'BG-9') bg9 = q7;
+ok(f1.ok && V7c.c(bg9, 'סטטוס') === 'בוטל' && c.chVchRow_(V7c, 'ch:X7') < 0, 'old voucher cancelled', f1);
+var v8 = c.issueVoucher_('DX7', 'meal4', { V: V7c, rid: 'ch:X7', ws: ['DX7'], how: 'x' });
+ok(v8 && v8.c === 'M4-1', 'meal4 issued after fix', v8);
+ok(c.chVchFix_(c.vchTbl_(true), 'ch:X7').none, 'meal4 on table → nothing to fix');
+var SK = c.vchStock_(c.vchTbl_(true));
+ok(SK.by.meal4 && SK.by.meal4.s === 1, 'stock lists meal4', SK.by.meal4);
 console.log('checks', n, 'fails', fails);
 process.exit(fails ? 1 : 0);

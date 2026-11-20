@@ -3184,7 +3184,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.560';
+var APP_VERSION = '8.99.561';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -7282,7 +7282,8 @@ function scriptGet(params) {
   var q = Object.keys(params).map(function (k) {
     return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
   }).join('&');
-  return pingScript(url + (url.indexOf('?') < 0 ? '?' : '&') + q);
+  /* ✓ על הכפתור שנלחץ, כשהשרת אישר (8.99.561, ActAfter ב-data.js). */
+  return ActAfter(ActSig(), pingScript(url + (url.indexOf('?') < 0 ? '?' : '&') + q));
 }
 
 function callSay(s) { callSync.state = s; callSync.at = Date.now();
@@ -16842,6 +16843,8 @@ function rafRedo(code) {
 /* ---- פנייה לזוכים (8.99.297): נוסח אחד, וואטסאפ לכל זוכה (ולהורה), ומצב הפרס ----
    הטלפונים מגיעים רק במצב ההגרלה, בסיסמה (rafPrzAdm_). הנוסח — במכשיר. */
 var RAF_PRZ = ['burger', 'maafe', 'pretzel', 'pizza', 'book'];
+/* סוגי השוברים במלאי (8.99.561): + "ארוחה לארבעה" — רק לשולחן הזוכה בחבר מביא חבר. */
+var VCH_PRZ = RAF_PRZ.concat(['meal4']);
 /* שני נוסחים: לזוכה, ולהורה ("{שם} זכה"). */
 function rafWaTx(k) { var v = Store.get(k === 'd' ? 'rafWaDadTx' : 'rafWaTx', ''); return v || (k === 'd' ? UI.rafWaDadTx : UI.rafWaTx); }
 function rafWaSet(k, v) { Store.set(k === 'd' ? 'rafWaDadTx' : 'rafWaTx', v); }
@@ -17030,7 +17033,7 @@ function vchParse(rows) {
   return { rows: out, bad: bad, hasT: col.t !== undefined };
 }
 function vchGuess(t) {
-  var G = [['burger', /בורגר|burger|ארוחת ילדים/i], ['maafe', /מאפה|נאמן|קפה/i], ['pretzel', /פרצל|pretzel/i],
+  var G = [['meal4', /לארבעה|ל-?4|four/i], ['burger', /בורגר|burger|ארוחת ילדים/i], ['maafe', /מאפה|נאמן|קפה/i], ['pretzel', /פרצל|pretzel/i],
            ['pizza', /פיצה|pizza/i], ['book', /ספר|סטימצקי|steimatzky|book/i]];
   for (var i = 0; i < G.length; i++) if (G[i][1].test(t)) return G[i][0];
   return '';
@@ -17130,7 +17133,7 @@ function vchCard() {
   if (!d) return h + '<button class="btn g"' + dis + ' onclick="vchLoad()">' + esc(VCH.busy ? UI.vchBusy : UI.vchLoad) + '</button>' + msg + '</div>';
   if (d.low && d.low.length) h += '<div class="cond" style="margin-top:10px">' +
     esc(fill(UI.vchLow, { n: d.lowN, list: d.low.map(vchPz).join(' · ') })) + '</div>';
-  var ks = RAF_PRZ.filter(function (k) { return d.by[k] && d.by[k].n; });
+  var ks = VCH_PRZ.filter(function (k) { return d.by[k] && d.by[k].n; });
   h += '<div class="pp-h">' + esc(UI.vchStockH) + '</div>' + (ks.length ? '<div class="plist">' + ks.map(function (k) {
     var b = d.by[k];
     return '<div class="prow2 ' + (b.a > d.lowN ? 'ok' : 'warn') + '"><span class="pm">' + b.a + '</span><div style="flex:1"><b>' +
@@ -17149,7 +17152,7 @@ function vchCard() {
       return '<div class="fld" style="margin-top:10px"><div class="label">' +
         esc(T.t ? fill(UI.vchMap, { t: T.t, n: T.n }) : fill(UI.vchMapAll, { n: T.n })) + '</div>' +
         '<select class="ct-sel" onchange="vchMapSet(' + i + ',this.value)"><option value="">' + esc(UI.vchMapPick) + '</option>' +
-        RAF_PRZ.map(function (k) { return '<option value="' + k + '"' + (VCH.map[T.t] === k ? ' selected' : '') + '>' + esc(vchPz(k)) + '</option>'; }).join('') +
+        VCH_PRZ.map(function (k) { return '<option value="' + k + '"' + (VCH.map[T.t] === k ? ' selected' : '') + '>' + esc(vchPz(k)) + '</option>'; }).join('') +
         '</select></div>';
     }).join('') +
       (VCH.bad ? '<p class="h">' + esc(fill(UI.vchAddBad, { n: VCH.bad })) + '</p>' : '') +
@@ -18775,7 +18778,7 @@ function chaMs(m, d, dis) {
           esc(chaWa(fill(UI.chaWinMsg, { name: p.f }), p.ph)) + '">' + esc(fill(UI.chaWinMsgBtn, { name: p.f })) + '</a>';
       }).join('') +
         /* אושר בלי שובר (לפני 8.99.540) — שובר לראש השולחן מהמלאי, והתראה לחברים (8.99.559). */
-        (!m.code && !CHA.test ? '<button class="btn p" type="button" style="margin-top:10px"' + dis + ' onclick="chaAct(\'hvch\',{ms:\'' + k + '\'})">' +
+        ((!m.code || m.vk) && !CHA.test ? '<button class="btn p" type="button" style="margin-top:10px"' + dis + ' onclick="chaAct(\'hvch\',{ms:\'' + k + '\'})">' +
           esc(fill(UI.chaHVch, { g: m.sel.by.f })) + '</button>' : '') +
         '<div class="fld" style="margin-top:12px"><label class="label">' + esc(UI.chaCode) + '</label>' +
         '<input type="text" dir="ltr" id="cha-cd-' + k + '"></div><p class="h">' + esc(UI.chaCodeNote) + '</p>' +

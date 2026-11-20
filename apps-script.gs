@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 249;
+var SCRIPT_VERSION = 250;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -11639,6 +11639,9 @@ function rafRedo_(P) {
        אחד מחמשת הפרסים וכותב "הוגרל" (rafPrzAuto_, בכל קריאה).
    "מצב פרס" = "הגיע" — הפרס נמסר (המנגנון ייבנה בהמשך). */
 var RAF_PRIZES = ['burger', 'maafe', 'pretzel', 'pizza', 'book'];
+/* סוגי השוברים במלאי (8.99.561): הפרסים לבחירה + "ארוחה לארבעה" — רק לראש השולחן הזוכה
+   בחבר מביא חבר (CH_VCH_P_). אינו מוצע בבחירת פרס ואינו מוגרל לזוכה רגיל. */
+var VCH_PRIZES_ = RAF_PRIZES.concat(['meal4']);
 /* **שבועיים לבחור** (8.99.546, אחיאסף 20.11 — היה יומיים), ו**אין בחירה אוטומטית**: מי שלא בחר
    עד המועד — הבחירה נסגרת, והמערכת לא מגרילה לו פרס (rafPrzAuto_ כבר לא נקרא). */
 var RAF_PRZ_MS = 14 * 24 * 3600 * 1000;
@@ -12246,7 +12249,7 @@ function vchOf_(V, rid, ids) {
 /* המלאי: a — זמינים (לא פגי תוקף); לכל פרס גם כמה שויכו/מומשו/פגו. */
 function vchStock_(V) {
   var a = {}, by = {};
-  RAF_PRIZES.forEach(function (k) { a[k] = 0; by[k] = { a: 0, s: 0, u: 0, x: 0, n: 0 }; });
+  VCH_PRIZES_.forEach(function (k) { a[k] = 0; by[k] = { a: 0, s: 0, u: 0, x: 0, n: 0 }; });
   if (!V) return { a: a, by: by };
   for (var r = 1; r < V.rows.length; r++) {
     var p = V.c(r, 'פרס'), st = V.c(r, 'סטטוס');
@@ -12639,7 +12642,7 @@ function vchAdm_(P) {
     list.push(o);
   }
   list.sort(function (a, b) { return a.at < b.at ? 1 : a.at > b.at ? -1 : 0; });
-  var low = RAF_PRIZES.filter(function (k) { return S.by[k].n > 0 && S.by[k].a <= VCH_LOW_; });
+  var low = VCH_PRIZES_.filter(function (k) { return S.by[k].n > 0 && S.by[k].a <= VCH_LOW_; });
   var out = { status: 'ok', on: vchOn_() ? 1 : 0, by: S.by, low: low, lowN: VCH_LOW_, list: list.slice(0, 60), n: list.length,
               back: vchBackList_(V) };
   if (P.bid) {
@@ -12709,7 +12712,7 @@ function vchAdd_(d) {
     var stamp = Date.now().toString(36), now = new Date().toISOString();
     rows.forEach(function (x, i) {
       var c = String(x && x.c || '').trim().slice(0, 200), p = String(x && x.p || ''), ex = vchDay_(x && x.x);
-      if (!c || RAF_PRIZES.indexOf(p) < 0 || !ex) { bad++; return; }
+      if (!c || VCH_PRIZES_.indexOf(p) < 0 || !ex) { bad++; return; }
       if (have[c]) { dup++; return; }
       have[c] = 1;
       var u = String(x.u || '').trim().slice(0, 500);
@@ -16412,11 +16415,17 @@ function chAdm_(M, U) {
     });
   }
   /* קוד השובר — רק כאן, מהגיליון הפרטי. ומצב ההתראה על התוצאות. */
-  var T = chTab_(CH_MS_, CH_MS_COLS_), mine = chMine_(U), K0 = { t0: M.t0 };
+  var T = chTab_(CH_MS_, CH_MS_COLS_), mine = chMine_(U), K0 = { t0: M.t0 }, VW;
   T.rows.filter(mine).forEach(function (r) {
     o.ms.forEach(function (x) {
       if (String(x.k) !== String(r['הגרלה'])) return;
       x.code = r['קוד שובר'];
+      /* 8.99.561: השובר מסוג אחר מ"ארוחה לארבעה" — הניהול מציע להחליף. */
+      if (x.code && !U.test) {
+        if (VW === undefined) VW = vchTbl_(false);
+        var vr = chVchRow_(VW, 'ch:' + r['נבחרה']);
+        if (vr > 0 && VW.c(vr, 'פרס') !== CH_VCH_P_ && VW.c(vr, 'סטטוס') !== 'מומש') x.vk = 1;
+      }
       x.push = chPushFix_(rafPartGet_(r['התראה']), chPushMid_(U, K0, 'ms', x.k));
     });
   });
@@ -16630,10 +16639,17 @@ function chAct_(U, P, op) {
     /* שובר לראש השולחן אחורה (8.99.559): שולחן שאושר לפני 8.99.540 בלי שובר — אותו מסלול של האישור. */
     if (op === 'hvch') {
       if (m['מצב'] !== CH_M_.ok || !m['נבחרה']) return { status: 'error', message: 'רק לשולחן שאושר ועוד לא סומן "נמסר"' };
-      if (m['קוד שובר']) return { status: 'error', message: 'לשולחן הזה כבר יש שובר' };
       if (U.test) return { status: 'error', message: 'בעולם הבדיקה אין שוברים' };
       var ZH = chGrpRow_(U, m['נבחרה']);
       if (!ZH.g) return { status: 'error', message: 'הקבוצה לא נמצאה' };
+      /* 8.99.561: יש קוד — רק כשהשובר מסוג אחר (ארוחת ילדים), מחליפים בארוחה לארבעה. */
+      if (m['קוד שובר']) {
+        var FX = chVchFix_(vchTbl_(true), 'ch:' + ZH.g['קבוצה']);
+        if (FX.none) return { status: 'error', message: 'לשולחן הזה כבר יש שובר' };
+        if (FX.err) return { status: 'error', message: FX.err };
+        m['קוד שובר'] = '';
+        chPut_(X.T, m);
+      }
       var HV2 = chHeadVch_(M, ZH.g);
       if (HV2.err) return { status: 'error', message: HV2.err };
       m['קוד שובר'] = HV2.v.c || '';
@@ -16686,11 +16702,35 @@ function chAct_(U, P, op) {
    שובר בורגר מהמלאי ב"שוברים" (issueVoucher_). מזהה הזכייה `ch:<קבוצה>`;
    `מזהי הזוכה` — כל המזהים שלו, כך שהבית מוצא את השובר בלי לקרוא את "לומדים".
    אין שובר זמין — err, ושום דבר לא נכתב. אישור חוזר אחרי תקלה — אותו שובר. */
-var CH_VCH_P_ = 'burger', CH_VCH_HOW_ = 'חבר מביא חבר';
+/* 8.99.561 (אחיאסף): שובר "ארוחה לארבעה" — סוג נפרד במלאי. לא ארוחת ילדים. */
+var CH_VCH_P_ = 'meal4', CH_VCH_HOW_ = 'חבר מביא חבר';
 function chIdsOf_(M, id) {
   var out = [id];
   Object.keys(M.al || {}).forEach(function (x) { if (M.al[x] === id && out.indexOf(x) < 0) out.push(x); });
   return out.filter(function (x) { return /^[\w:.\-]{1,60}$/.test(x); });
+}
+/* השובר שמשויך לזכייה של השולחן (rid = ch:<קבוצה>), או -1. */
+function chVchRow_(V, rid) {
+  if (!V) return -1;
+  for (var r = 1; r < V.rows.length; r++) {
+    var st = V.c(r, 'סטטוס');
+    if (V.c(r, 'הגרלה') === rid && st !== 'זמין' && st !== 'בוטל') return r;
+  }
+  return -1;
+}
+/* שובר מסוג אחר על השולחן (8.99.561 — ארוחת ילדים שיצאה לפני התיקון), שלא מומש:
+   מבוטל (נשמר ב"שוברים שלא חולקו" — אפשר להחזיר למלאי), ו"קוד שובר" מתרוקן.
+   רק כשיש "ארוחה לארבעה" זמינה — אחרת שום דבר לא זז. */
+function chVchFix_(V, rid) {
+  var r = chVchRow_(V, rid);
+  if (r < 0 || V.c(r, 'פרס') === CH_VCH_P_) return { none: 1 };
+  if (V.c(r, 'סטטוס') === 'מומש') return { err: 'השובר הקודם כבר מומש — לא מחליפים' };
+  if (!(vchStock_(V).a[CH_VCH_P_] > 0)) return { err: 'אין שובר "ארוחה לארבעה" זמין במלאי — מוסיפים בניהול ← ההגרלה ← שוברי זכייה' };
+  var old = V.c(r, 'הערה');
+  vchPut_(V, r, 'סטטוס', 'בוטל');
+  vchPut_(V, r, 'הערה', (old ? old + ' · ' : '') + 'הוחלף בארוחה לארבעה ' + new Date().toISOString().slice(0, 10));
+  SpreadsheetApp.flush();
+  return { ok: 1 };
 }
 function chHeadVch_(M, g) {
   var head = g['מזמין'];
@@ -16698,7 +16738,7 @@ function chHeadVch_(M, g) {
   var p = M.ppl[head] || {}, ws = chIdsOf_(M, head), rid = 'ch:' + g['קבוצה'];
   var V = vchTbl_(true), cx = { V: V, rid: rid, ws: ws, name: ((p.f || '') + ' ' + (p.l || '')).trim(), how: CH_VCH_HOW_ };
   var v = issueVoucher_(head, CH_VCH_P_, cx), r = cx.have || -1;
-  if (!v && !cx.have) return { err: 'אין שובר בורגראנץ׳ זמין במלאי — מוסיפים בניהול ← ההגרלה ← שוברי זכייה, ומאשרים שוב' };
+  if (!v && !cx.have) return { err: 'אין שובר "ארוחה לארבעה" זמין במלאי — מוסיפים בניהול ← ההגרלה ← שוברי זכייה, ומאשרים שוב' };
   if (r < 0) r = vchOf_(V, rid, [head]);
   if (r > 0) {
     if (V.c(r, 'מזהי הזוכה') !== ws.join(' ')) { vchPut_(V, r, 'מזהי הזוכה', ws.join(' ')); SpreadsheetApp.flush(); }

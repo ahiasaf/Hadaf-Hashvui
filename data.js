@@ -171,6 +171,7 @@ function sureFind_(sig) {
 }
 function sureOn_(x, el) {
   x.el = el;
+  x.act = actSig_(el);
   x.html = el.innerHTML;
   x.css = el.getAttribute('style');
   el.__sure = x;
@@ -303,12 +304,80 @@ function SureThen(cb, onCancel, msg) {
 function SureLater(fn, self, args, onCancel, msg) {
   if (SURE.go) return true;
   var a = Array.prototype.slice.call(args || []);
-  SureThen(function () {
-    SURE.go = 1;
-    try { fn.apply(self, a); } finally { SURE.go = 0; }
+  var x = SureThen(function () {
+    SURE.go = 1; SURE.act = x.act || '';
+    try { fn.apply(self, a); } finally { SURE.go = 0; SURE.act = ''; }
   }, onCancel, msg);
   return false;
 }
+/* ------------------------------------------------------------
+   "✓" על כפתור שהפעולה שלו הצליחה (8.99.561) — רוחבי.
+   ------------------------------------------------------------
+   אחרי "ביטול · 4" הפעולה יוצאת לשרת. כשהשרת ענה "ok", הכפתור שנלחץ
+   נשאר מסומן ✓ ולא לחיץ — גם כשהמסך צויר מחדש לפני שהרענון הביא את
+   המצב החדש (עומס, תשובה ישנה). לפי onclick עם ארגומנטים בלבד (כפתור
+   כללי כמו f() — לא), בלשונית הזו, לרבע שעה; אחר כך — מה שהשרת אומר.
+   ActSig() — בתוך הפעולה, מיד בלחיצה; ActDone(sig) — כשהשרת אישר. */
+var ACT_MS = 15 * 60 * 1000;
+function actSig_(el) {
+  var o = el && el.getAttribute ? el.getAttribute('onclick') : '';
+  return o && /\([^)\s]/.test(o) ? el.tagName + '|' + o : '';
+}
+function actMap_() {
+  var m = {};
+  try { m = JSON.parse(sessionStorage.getItem('df:actDone') || '{}') || {}; } catch (e) {}
+  var now = Date.now();
+  for (var k in m) if (!(now - m[k] < ACT_MS)) delete m[k];
+  return m;
+}
+function ActSig() { return SURE.go ? SURE.act || '' : ''; }
+function ActDone(sig) {
+  if (!sig) return;
+  var m = actMap_();
+  m[sig] = Date.now();
+  try { sessionStorage.setItem('df:actDone', JSON.stringify(m)); } catch (e) {}
+  actWatch_();
+  ActSweep();
+}
+/* thenable שהשרת ענה עליו ok → ✓. מחזיר אותו בלי לשנות. */
+function ActAfter(sig, p) {
+  if (sig && p && p.then) p.then(function (r) { if (r && (r.status === 'ok' || r.status === 'success')) ActDone(sig); }, function () {});
+  return p;
+}
+function ActSweep() {
+  if (typeof document === 'undefined') return;
+  var m = actMap_(), n = 0;
+  for (var sig in m) {
+    n++;
+    var i = sig.indexOf('|'), oc = sig.slice(i + 1), L = document.getElementsByTagName(sig.slice(0, i));
+    for (var k = 0; k < L.length; k++) {
+      var el = L[k];
+      if (el.__sure || el.__act || el.getAttribute('onclick') !== oc) continue;
+      el.__act = 1;
+      el.disabled = true;
+      el.setAttribute('aria-disabled', 'true');
+      el.style.opacity = '.6';
+      el.style.pointerEvents = 'none';
+      el.textContent = '✓ ' + el.textContent;
+    }
+  }
+  return n;
+}
+var ACT_OB = null;
+function actWatch_() {
+  if (ACT_OB || typeof MutationObserver === 'undefined' || !document.body) return;
+  var t = 0;
+  ACT_OB = new MutationObserver(function () {
+    if (t) return;
+    t = setTimeout(function () { t = 0; if (!ActSweep() && ACT_OB) { ACT_OB.disconnect(); ACT_OB = null; } }, 0);
+  });
+  ACT_OB.observe(document.body, { childList: true, subtree: true });
+}
+(function () {
+  if (typeof document === 'undefined' || !document.addEventListener) return;
+  var go = function () { if (ActSweep()) actWatch_(); };
+  if (document.body) go(); else document.addEventListener('DOMContentLoaded', go);
+})();
 (function () {
   if (typeof document === 'undefined' || !document.addEventListener) return;
   document.addEventListener('click', function (e) {
@@ -369,7 +438,7 @@ var SHEET_TAB = 'מוסדות';
    במטמון, ולכן היא נמשכת מהרשת מיד — גם תחת ה-Worker הישן.
 
    חייבת להיות זהה ל-APP_VERSION. `tools/preflight.py` בודק. */
-var DAF_REV = '8.99.560';
+var DAF_REV = '8.99.561';
 /* ============================================================
    עדכון קריטי — רק הוא מודיע למשתמש.
    ============================================================
@@ -1278,6 +1347,8 @@ var UI = {
   przN_pretzel: 'פרצל קלאסי מתוק סוכר קינמון', przS_pretzel: 'מיסטר פרצלס',
   przN_pizza:  'פיצה משפחתית + תוספת', przS_pizza: 'פיצה סטורי',
   przN_book:   'ספר דיגיטלי',      przS_book:   'סטימצקי',
+  /* שובר לשולחן הזוכה בחבר מביא חבר בלבד (8.99.561) — לא בבחירת הפרס. */
+  przN_meal4:  'ארוחה לארבעה',     przS_meal4:  'בורגרנץ\'',
   /* הבאנר בבית — לזוכה עד שהפרס נמסר */
   przBanWin: '🎉 זכית בהגרלה! לבחירת פרס',
   przBanDad: '🎉 {name} זכה בהגרלה! לבחירת פרס',
@@ -9578,6 +9649,7 @@ var TEXT_FIELDS = [
   { k:'ui.przN_pretzel', lbl:'פרס 3 · שם' }, { k:'ui.przS_pretzel', lbl:'פרס 3 · רשת' },
   { k:'ui.przN_pizza', lbl:'פרס 4 · שם' }, { k:'ui.przS_pizza', lbl:'פרס 4 · רשת' },
   { k:'ui.przN_book', lbl:'פרס 5 · שם' }, { k:'ui.przS_book', lbl:'פרס 5 · רשת' },
+  { k:'ui.przN_meal4', lbl:'שובר השולחן הזוכה (חבר מביא חבר) · שם' }, { k:'ui.przS_meal4', lbl:'שובר השולחן הזוכה · רשת' },
   { k:'ui.przBanWin', lbl:'באנר בבית — זוכה שעוד לא בחר' },
   { k:'ui.przBanDad', lbl:'באנר בבית — להורה · {name}' },
   { k:'ui.przBanSoon', lbl:'באנר בבית — אחרי הבחירה' },

@@ -310,8 +310,8 @@ function coHtml(x, rid) {
 function coCall(q) {
   var u = api(), s2 = '';
   for (var k in q) s2 += '&' + k + '=' + encodeURIComponent(q[k]);
-  return fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + 'key=' + encodeURIComponent(KEY) + s2 + '&t=' + Date.now())
-    .then(function (r) { return r.json(); });
+  return ActAfter(ActSig(), fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + 'key=' + encodeURIComponent(KEY) + s2 + '&t=' + Date.now())
+    .then(function (r) { return r.json(); }));
 }
 function coDone(d) {
   if (d && d.status === 'out') SayMsg(UI.vchAttOut);
