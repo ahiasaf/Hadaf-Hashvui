@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 241;
+var SCRIPT_VERSION = 242;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -12524,7 +12524,7 @@ function rafWadm_(P) {
       var ws = (T.c(ln, 'מזהי הזוכה') || T.c(ln, 'זוכה')).split(/\s+/);
       var kr = rowOfId_(t, x.win), row = kr >= 1 ? t.rows[kr] : null;
       var o = { name: String(x.name || '').trim(), inst: x.inst || nm[x.code] || '', code: x.key,
-                p: z.p, how: z.how, st: z.st,
+                p: z.p, how: z.how, st: z.st, due: z.due,
                 ph: row ? t.c(row, 'טלפון') : '',
                 first: row ? t.c(row, 'שם') : String(x.name || '').split(/\s+/)[0] };
       var main = row ? t.c(row, 'מזהה') : x.win;

@@ -239,7 +239,7 @@ function coHtml(x, rid) {
   var a = "'" + esc(rid) + "','" + esc(x.code) + "','" + esc(one) + "'";
   var pz = x.st === 'arr' ? UI.rafPrzArr : x.p ?
     tp(UI[x.how === 'הוגרל' ? 'rafPrzByAuto' : x.how === 'רכז' ? 'rafPrzByAdm' : 'rafPrzByMe'], { p: przNm(x.p) }) : '';
-  var v = x.v, vs = lk.length ? tp(UI.vchStHeld, { c: lk.map(function (q) { return q.c; }).join(' · ') }) : !v ? (x.vw ? UI.vchStWait : UI.vchStNone) : v.st === 'used' ? UI.vchStUsedZ : v.sn ? tp(UI.vchStSeen, { t: when(v.sn) }) :
+  var v = x.v, vs = lk.length ? tp(UI.vchStHeld, { c: lk.map(function (q) { return q.c; }).join(' · ') }) : !v ? (x.vw ? UI.vchStWait : !x.p && x.st !== 'arr' ? (x.due ? tp(UI.zchNoPick, { t: when(x.due) }) : UI.zchNoPick0) : UI.vchStNone) : v.st === 'used' ? UI.vchStUsedZ : v.sn ? tp(UI.vchStSeen, { t: when(v.sn) }) :
     v.snt ? tp(UI.vchStSent, { t: when(v.snt) }) : UI.vchStSet;
   var b = coWa(x, rid);
   if (lk.length > 1) b += '';
