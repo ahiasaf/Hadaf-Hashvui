@@ -3183,7 +3183,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.551';
+var APP_VERSION = '8.99.552';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -14681,7 +14681,10 @@ function vtLoad() {
   var pn = {};
   RAF_PRZ.forEach(function (k) { pn[k] = UI['przN_' + k] || k; });
   scriptGet({ raffle: 'wadm', key: key, vt: UI.vchGotT || '', vb: UI.vchGotB || '',
-              vat: UI.vchAutoT || '', vab: UI.vchAutoB || '', vpn: JSON.stringify(pn) }).then(function (d) {
+              vat: UI.vchAutoT || '', vab: UI.vchAutoB || '', vpn: JSON.stringify(pn),
+              /* ההגרלות האוטומטיות של יום ראשון (8.99.552) — אותם נוסחים של הפרסום בלחיצה. */
+              rwt: UI.rafWinT || '', rwb: UI.rafWinB || '', rdt: UI.rafDadT || '', rdb: UI.rafDadB || '',
+              hvt: UI.chHeadVchT || '', hvb: UI.chHeadVchB || '' }).then(function (d) {
     if (!d || d.status !== 'ok' || !d.list) return;
     var send = [], wait = [];
     d.list.forEach(function (r) {

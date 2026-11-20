@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 240;
+var SCRIPT_VERSION = 241;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -7827,6 +7827,8 @@ function autoRecount() {
   try { amdaSyncLocked_(); } catch (ae) {}
   /* ההורה והבן למדו שניהם — כרטיס אבא אוטומטי (8.99.512). */
   try { pairAuto_(); } catch (pe) {}
+  /* ההגרלות של יום ראשון 16:00 (8.99.552) — השבועית והשולחנות. */
+  try { rafAutoSun_(); } catch (se) {}
   /* בחירה אוטומטית אחרי חמישי 19:00 (8.99.551), ואז שוברים מהמלאי לממתינים וההתראות (8.99.546). */
   try { rafPrzAutoAll_(); } catch (ze) {}
   try { vchFill_(); } catch (ve) {}
@@ -11743,6 +11745,67 @@ function rafPrzAuto_(T, rows) {
     rafPrzBump_();
   } finally { lock.releaseLock(); }
 }
+/* ============================================================
+   ההגרלות האוטומטיות של יום ראשון (8.99.552, אחיאסף 20.11).
+   ============================================================
+   בכל יום ראשון מ-16:00 (שעון ישראל), בהרצה השעתית הראשונה (autoRecount):
+   · **ההגרלה השבועית** — כללית, 10 זוכים מכל הזכאים (rafGenDraw_ — משקל לפי כרטיסים,
+     מי שזכה השבוע בחוץ), ומתפרסמת מיד (rafflePub_) — הודעה לזוכים ולהוריהם.
+   · **הגרלת השולחנות** — אותו מסלול של הלחיצות: open (הקפאה + איפוס אישי) ← draw ← approve
+     (שובר לראש השולחן + הודעה לחברים). אין שובר בורגר — נשאר "ממתין לאישור" בניהול.
+   הנוסחים — מהניהול (rafWadm_ שומר RAF_AUTO_TX / CH_AUTO_TX בכל כניסה). אין נוסח — לא מפרסמים,
+   ומנסים בשעה הבאה. המצב — מאפיין RAF_AUTO_ST ({ day, raf, ch, ... }); שלב שהושלם לא חוזר.
+   ההגרלה לפי מוסדות והגרלות באמצע השבוע — ידניות, ללא שינוי. */
+var RAF_AUTO_N_ = 10, RAF_AUTO_H_ = 16;
+function rafBusy_(o) { return !o || o.status === 'busy' || /רצה כרגע/.test(String(o.message || '')); }
+function rafAutoSun_(force) {
+  var now = new Date();
+  if (!force) {
+    if (Utilities.formatDate(now, 'Asia/Jerusalem', 'u') !== '7') return null;
+    if (parseInt(Utilities.formatDate(now, 'Asia/Jerusalem', 'HH'), 10) < RAF_AUTO_H_) return null;
+  }
+  var pr = PropertiesService.getScriptProperties(), day = Utilities.formatDate(now, 'Asia/Jerusalem', 'yyyy-MM-dd'), st = {};
+  try { st = JSON.parse(pr.getProperty('RAF_AUTO_ST') || '{}') || {}; } catch (e0) { st = {}; }
+  if (st.day !== day) st = { day: day };
+  if (st.raf && st.ch) return st;
+  if (!st.raf) { try { st.raf = rafAutoRaf_(pr, st); } catch (e1) { st.rafErr = String(e1).slice(0, 200); } }
+  if (!st.ch) { try { st.ch = chAutoSun_(pr, st); } catch (e2) { st.chErr = String(e2).slice(0, 200); } }
+  pr.setProperty('RAF_AUTO_ST', JSON.stringify(st));
+  return st;
+}
+/* '' — לנסות שוב בשעה הבאה; אחרת — התוצאה הסופית ליום הזה. */
+function rafAutoRaf_(pr, st) {
+  var tx = null;
+  try { tx = JSON.parse(pr.getProperty('RAF_AUTO_TX') || 'null'); } catch (e) {}
+  if (!tx || !tx.wb) { st.rafWhy = 'אין נוסח — נכנסים לניהול'; return ''; }
+  var d = rafGenDraw_({ n: RAF_AUTO_N_, who: 'אוטומטי' });
+  if (d.status !== 'ok') return rafBusy_(d) ? '' : 'לא הוגרל: ' + (d.message || d.status);
+  var d2 = rafById_(rafRead_(), d.rid);
+  if (d2.st === 'פורסם') return 'פורסם · ' + d.rid;
+  var p = rafflePub_({ rid: d.rid, exp: rafExp_(rafAud_(d2)), who: 'אוטומטי',
+                       wt: tx.wt || '', wb: tx.wb, at: '', ab: '', dt: tx.dt || '', db: tx.db || '' });
+  if (p.status === 'changed' || rafBusy_(p)) return '';
+  if (p.status === 'error') return 'לא פורסם: ' + p.message;
+  return 'פורסם · ' + d.rid;
+}
+function chAutoSun_(pr, st) {
+  var U = { test: false };
+  if (!st.chk) {
+    var o = chAct_(U, {}, 'open');
+    if (o.status !== 'ok') return rafBusy_(o) ? '' : 'לא נפתחה: ' + (o.message || o.status);
+    st.chk = String(o.ms);
+  }
+  if (!st.chsel) {
+    var d = chAct_(U, { ms: st.chk, rq: 'auto' + st.day.replace(/-/g, '') }, 'draw');
+    if (d.status !== 'ok') return rafBusy_(d) ? '' : 'לא הוגרל: ' + (d.message || d.status);
+    st.chsel = d.sel;
+  }
+  var tx = {};
+  try { tx = JSON.parse(pr.getProperty('CH_AUTO_TX') || '{}') || {}; } catch (e) {}
+  var a = chAct_(U, { ms: st.chk, vt: tx.vt || '', vb: tx.vb || '' }, 'approve');
+  if (a.status !== 'ok') return rafBusy_(a) ? '' : 'ממתין לאישור בניהול: ' + (a.message || a.status);
+  return 'אושר · שולחן ' + st.chsel + (a.warn ? ' · ' + a.warn : '');
+}
 /* הבחירה האוטומטית אחרי המועד (8.99.551) — בכל שעה (autoRecount), לפני החלוקה מהמלאי.
    רק הגרלות מתקופת השוברים (VCH_POP_FROM_), זוכה שלא בחר ופרס שלא "הגיע". */
 function rafPrzAutoAll_() {
@@ -12439,6 +12502,10 @@ function rafWadm_(P) {
       pr.setProperty('VCH_PUSH_B', String(P.vb || '').slice(0, 400));
       pr.setProperty('VCH_PUSH_AT', String(P.vat || '').slice(0, 120));
       pr.setProperty('VCH_PUSH_AB', String(P.vab || '').slice(0, 400));
+      /* נוסחי ההגרלות האוטומטיות של יום ראשון (8.99.552). */
+      if (P.rwb) pr.setProperty('RAF_AUTO_TX', JSON.stringify({ wt: String(P.rwt || '').slice(0, 120), wb: String(P.rwb).slice(0, 400),
+                                                                dt: String(P.rdt || '').slice(0, 120), db: String(P.rdb || '').slice(0, 400) }));
+      if (P.hvb) pr.setProperty('CH_AUTO_TX', JSON.stringify({ vt: String(P.hvt || '').slice(0, 120), vb: String(P.hvb).slice(0, 400) }));
       if (P.vpn) { var pj = JSON.parse(String(P.vpn)); if (pj && typeof pj === 'object') pr.setProperty('VCH_PRZ_N', JSON.stringify(pj).slice(0, 2000)); }
     } catch (ep) {}
   }
