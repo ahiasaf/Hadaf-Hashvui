@@ -3184,7 +3184,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.558';
+var APP_VERSION = '8.99.559';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -18439,7 +18439,7 @@ function chaAct(op, p, sure) {
   if (sure !== false && !SureLater(chaAct, this, arguments)) return;
   CHA.busy = true; chaPaint();
   /* 8.99.540: באישור — נוסח ההתראה לחברי השולחן (ראש השולחן קיבל את השובר). */
-  if (op === 'approve') { p.vt = UI.chHeadVchT || ''; p.vb = UI.chHeadVchB || ''; }
+  if (op === 'approve' || op === 'hvch') { p.vt = UI.chHeadVchT || ''; p.vb = UI.chHeadVchB || ''; }
   chaCall(op, p).then(function (r) {
     CHA.busy = false;
     if (op === 'draw' && r && (r.status === 'ok' || r.status === 'none')) chaRqDrop(p.ms);
@@ -18774,6 +18774,9 @@ function chaMs(m, d, dis) {
         return '<a class="btn g" style="margin-top:6px" target="_blank" rel="noopener" href="' +
           esc(chaWa(fill(UI.chaWinMsg, { name: p.f }), p.ph)) + '">' + esc(fill(UI.chaWinMsgBtn, { name: p.f })) + '</a>';
       }).join('') +
+        /* אושר בלי שובר (לפני 8.99.540) — שובר לראש השולחן מהמלאי, והתראה לחברים (8.99.559). */
+        (!m.code && !CHA.test ? '<button class="btn p" type="button" style="margin-top:10px"' + dis + ' onclick="chaAct(\'hvch\',{ms:\'' + k + '\'})">' +
+          esc(fill(UI.chaHVch, { g: m.sel.by.f })) + '</button>' : '') +
         '<div class="fld" style="margin-top:12px"><label class="label">' + esc(UI.chaCode) + '</label>' +
         '<input type="text" dir="ltr" id="cha-cd-' + k + '"></div><p class="h">' + esc(UI.chaCodeNote) + '</p>' +
         '<button class="btn p" type="button"' + dis + ' onclick="chaAct(\'deliver\',{ms:\'' + k + '\',code:chaVal(\'cha-cd-' + k + '\')})">' + esc(UI.chaDlv) + '</button>';

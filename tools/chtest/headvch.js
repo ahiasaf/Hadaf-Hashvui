@@ -65,6 +65,16 @@ if (tb) {
   ok(vm.st === 'won' && vm.hm === 0 && vm.hd === hf, 'member view: voucher with head', vm);
 }
 
+// 2ב. שובר אחורה (8.99.559): כבר יש — נדחה; בלי קוד (כמו אישור ישן) — אותו שובר, בלי חדש, והתראה
+ok(c.chAct_(U, { ms: String(ms.k), vt: vt, vb: vb }, 'hvch').status === 'error', 'hvch refused when code exists');
+var MT = c.chTab_(c.CH_MS_, c.CH_MS_COLS_), MR2 = MT.rows.filter(function (r) { return String(r['הגרלה']) === String(ms.k) && r['בדיקה'] !== 'כן'; })[0];
+MR2['קוד שובר'] = ''; c.chPut_(MT, MR2); T.exec();
+var ns = sent.length, rh = c.chAct_(U, { ms: String(ms.k), vt: vt, vb: vb }, 'hvch');
+var MR3 = c.chTab_(c.CH_MS_, c.CH_MS_COLS_).rows.filter(function (r) { return String(r['הגרלה']) === String(ms.k) && r['בדיקה'] !== 'כן'; })[0];
+ok(rh.status === 'ok' && MR3['קוד שובר'] === 'BG-7' && sent.length === ns + 1, 'hvch: same voucher, push sent', [rh, MR3['קוד שובר']]);
+var nAss = 0, V9 = c.vchTbl_(false); for (var q9 = 1; q9 < V9.rows.length; q9++) if (V9.c(q9, 'שויך לתלמיד') === head) nAss++;
+ok(nAss === 1, 'no second voucher', nAss);
+
 // 3. הבית של ראש השולחן — "לצפייה בשובר"; של חבר — כלום
 var P1 = raf({ raffle: 'prize', id: head, fresh: '1' });
 var it = (P1.list || []).filter(function (x) { return x.ch; })[0];
@@ -84,7 +94,7 @@ ok(us.status === 'ok' && us.v.st === 'used', 'head marks used', us);
 // 4. אישור שוב — לא אפשרי, לא נשלח שוב, לא שובר שני
 T.exec();
 var r4 = c.chAct_(U, { ms: String(ms.k), vt: vt, vb: vb }, 'approve');
-ok(r4.status === 'error' && sent.length === 1, 'approve again → refused, nothing sent', r4);
+ok(r4.status === 'error' && sent.length === 2, 'approve again → refused, nothing sent (1 approve + 1 hvch)', r4);
 // 5. מסירה בלי קוד — הקוד נשמר
 T.exec();
 var r5 = c.chAct_(U, { ms: String(ms.k) }, 'deliver');

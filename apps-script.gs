@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 247;
+var SCRIPT_VERSION = 248;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -16601,6 +16601,24 @@ function chAct_(U, P, op) {
       chPut_(X.T, m);
       return { status: 'ok' };
     }
+    /* שובר לראש השולחן אחורה (8.99.559): שולחן שאושר לפני 8.99.540 בלי שובר — אותו מסלול של האישור. */
+    if (op === 'hvch') {
+      if (m['מצב'] !== CH_M_.ok || !m['נבחרה']) return { status: 'error', message: 'רק לשולחן שאושר ועוד לא סומן "נמסר"' };
+      if (m['קוד שובר']) return { status: 'error', message: 'לשולחן הזה כבר יש שובר' };
+      if (U.test) return { status: 'error', message: 'בעולם הבדיקה אין שוברים' };
+      var ZH = chGrpRow_(U, m['נבחרה']);
+      if (!ZH.g) return { status: 'error', message: 'הקבוצה לא נמצאה' };
+      var HV2 = chHeadVch_(M, ZH.g);
+      if (HV2.err) return { status: 'error', message: HV2.err };
+      m['קוד שובר'] = HV2.v.c || '';
+      chPut_(X.T, m);
+      SpreadsheetApp.flush();
+      var HP2 = chHeadPush_(U, K, M, ZH.g, k, HV2, P);
+      m['הודעת שובר'] = JSON.stringify(HP2);
+      chPut_(X.T, m);
+      return { status: 'ok', vch: 1, push: HP2.st,
+               warn: HP2.st === 'sent' || HP2.st === 'none' ? '' : 'השובר שויך לראש השולחן, אבל ההודעה לחברים לא נשלחה' + (HP2.why ? ' (' + HP2.why + ')' : '') };
+    }
     if (op === 'close') {
       if (m['מצב'] !== CH_M_.ready) return { status: 'error', message: 'אפשר לסגור רק הגרלה שממתינה להגרלה' };
       if (chCands_(M, mm).length) return { status: 'error', message: 'יש עדיין מועמדים כשירים' };
@@ -17481,7 +17499,7 @@ function challengeRoute_(e) {
     if (op === 'dmpre') return reply_(e, chDemoPre_());
     if (op === 'dmready') return reply_(e, chDemoReady_());
     if (op === 'dmend') return reply_(e, chDemoEnd_(P));
-    if (['activate', 'extend', 'last', 'date', 'note', 'draw', 'approve', 'dq', 'close', 'deliver', 'open', 'rule', 'promo', 'tout'].indexOf(op) >= 0) {
+    if (['activate', 'extend', 'last', 'date', 'note', 'draw', 'approve', 'dq', 'close', 'deliver', 'open', 'rule', 'promo', 'tout', 'hvch'].indexOf(op) >= 0) {
       return reply_(e, chAct_(U, P, op));
     }
     return reply_(e, { status: 'error', message: 'פעולה לא מוכרת' });
