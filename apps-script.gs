@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 250;
+var SCRIPT_VERSION = 251;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -12207,6 +12207,7 @@ function vchTbl_(create) {
   }
   var v = sh.getDataRange().getValues(), ix = {};
   for (var i = 0; i < v[0].length; i++) ix[String(v[0][i]).trim()] = i;
+  vchKindFix_(v, ix);
   if (create) VCH_COLS_.forEach(function (k) {
     if (ix[k] !== undefined) return;
     var at = sh.getLastColumn();
@@ -12220,6 +12221,18 @@ function vchTbl_(create) {
     if (k === 'תפוגה') return vchDay_(x);
     return x instanceof Date ? x.toISOString() : String(x == null ? '' : x).trim();
   } };
+}
+/* זיהוי שוברי "ארוחה לארבעה" שנטענו בלי מזהה פרס (8.99.562): "סוג פרס" אומר קומבינה/לארבעה,
+   ו"פרס" ריק, לא מוכר, או burger (שיוך שגוי). **בזיכרון בלבד** — הגיליון לא נכתב כאן; כל הקוראים
+   (המלאי, issueVoucher_, התצוגה) רואים meal4. ארוחת ילדים ("ארוחת ילדים", בלי קומבינה/לארבעה) — לא זזה. */
+var VCH_MEAL4_RX_ = /קומבינ|לארבע|ל\s*-?\s*4(?!\d)|for\s*4|four/i;
+function vchKindFix_(v, ix) {
+  if (ix['פרס'] === undefined || ix['סוג פרס'] === undefined) return;
+  for (var r = 1; r < v.length; r++) {
+    var p = String(v[r][ix['פרס']] == null ? '' : v[r][ix['פרס']]).trim();
+    if (p === 'meal4' || (p && p !== 'burger' && VCH_PRIZES_.indexOf(p) >= 0)) continue;
+    if (VCH_MEAL4_RX_.test(String(v[r][ix['סוג פרס']] || ''))) v[r][ix['פרס']] = 'meal4';
+  }
 }
 function vchPut_(V, r, k, val) {
   V.sh.getRange(r + 1, V.ix[k] + 1).setValue(val === '' ? '' : "'" + String(val));
@@ -12679,6 +12692,8 @@ function vchBack_(P) {
     for (var q = 1; q < V.rows.length; q++) if (V.c(q, 'מזהה') === vid) { r = q; break; }
     if (r < 0) return { status: 'error', message: 'השובר לא נמצא' };
     if (V.c(r, 'סטטוס') !== 'בוטל') return { status: 'error', message: 'רק שובר שבוטל חוזר למלאי' };
+    /* 8.99.562: שובר שהקוד שלו הוצג לזוכה (הוחלף אחרי שויך) — לא חוזר למלאי; מחזירים לספק. */
+    if (V.c(r, 'הערה').indexOf(VCH_EXPOSED_) >= 0) return { status: 'error', message: 'השובר נחשף לזוכה — לא חוזר למלאי' };
     if (vchExp_(V, r)) return { status: 'error', message: 'פג תוקפו — לא חוזר למלאי' };
     var note = [V.c(r, 'הערה'), 'בוטל — היה של ' + (V.c(r, 'שם') || V.c(r, 'שויך לתלמיד')) +
                 (V.c(r, 'נצפה') ? ' (נצפה)' : '') + ' · הוחזר למלאי ' + new Date().toISOString()].filter(Boolean).join(' | ');
@@ -16643,10 +16658,13 @@ function chAct_(U, P, op) {
       var ZH = chGrpRow_(U, m['נבחרה']);
       if (!ZH.g) return { status: 'error', message: 'הקבוצה לא נמצאה' };
       /* 8.99.561: יש קוד — רק כשהשובר מסוג אחר (ארוחת ילדים), מחליפים בארוחה לארבעה. */
+      var QUIET = false;
       if (m['קוד שובר']) {
         var FX = chVchFix_(vchTbl_(true), 'ch:' + ZH.g['קבוצה']);
         if (FX.none) return { status: 'error', message: 'לשולחן הזה כבר יש שובר' };
         if (FX.err) return { status: 'error', message: FX.err };
+        /* החלפה בשקט (8.99.562, אחיאסף): בלי התראה נוספת; "הודעת שובר" נשארת כמו שהייתה. */
+        QUIET = true;
         m['קוד שובר'] = '';
         chPut_(X.T, m);
       }
@@ -16655,6 +16673,10 @@ function chAct_(U, P, op) {
       m['קוד שובר'] = HV2.v.c || '';
       chPut_(X.T, m);
       SpreadsheetApp.flush();
+      if (QUIET) return { status: 'ok', vch: 1, push: 'quiet', fixed: 1 };
+      /* כבר נשלחה הודעה על השובר הזה (אישור/השלמה קודמים) — לא שולחים שוב. */
+      var HP0 = rafPartGet_(m['הודעת שובר']);
+      if (HP0 && HP0.st === 'sent') return { status: 'ok', vch: 1, push: 'sent' };
       var HP2 = chHeadPush_(U, K, M, ZH.g, k, HV2, P);
       m['הודעת שובר'] = JSON.stringify(HP2);
       chPut_(X.T, m);
@@ -16721,14 +16743,18 @@ function chVchRow_(V, rid) {
 /* שובר מסוג אחר על השולחן (8.99.561 — ארוחת ילדים שיצאה לפני התיקון), שלא מומש:
    מבוטל (נשמר ב"שוברים שלא חולקו" — אפשר להחזיר למלאי), ו"קוד שובר" מתרוקן.
    רק כשיש "ארוחה לארבעה" זמינה — אחרת שום דבר לא זז. */
+var VCH_EXPOSED_ = '[נחשף]';
 function chVchFix_(V, rid) {
   var r = chVchRow_(V, rid);
   if (r < 0 || V.c(r, 'פרס') === CH_VCH_P_) return { none: 1 };
   if (V.c(r, 'סטטוס') === 'מומש') return { err: 'השובר הקודם כבר מומש — לא מחליפים' };
   if (!(vchStock_(V).a[CH_VCH_P_] > 0)) return { err: 'אין שובר "ארוחה לארבעה" זמין במלאי — מוסיפים בניהול ← ההגרלה ← שוברי זכייה' };
   var old = V.c(r, 'הערה');
+  /* היה משויך ומוצג לראש השולחן (הקוד בבית) — נחשף. vchBack_ לא מחזיר שובר כזה למלאי. */
+  var hist = 'הוחלף בארוחה לארבעה ' + new Date().toISOString() + ' · ' + VCH_EXPOSED_ +
+             ' (שויך ' + V.c(r, 'תאריך שיוך') + (V.c(r, 'נצפה') ? ', נצפה ' + V.c(r, 'נצפה') : '') + ', ' + rid + ')';
   vchPut_(V, r, 'סטטוס', 'בוטל');
-  vchPut_(V, r, 'הערה', (old ? old + ' · ' : '') + 'הוחלף בארוחה לארבעה ' + new Date().toISOString().slice(0, 10));
+  vchPut_(V, r, 'הערה', ((old ? old + ' | ' : '') + hist).slice(0, 1000));
   SpreadsheetApp.flush();
   return { ok: 1 };
 }

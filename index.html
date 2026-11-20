@@ -3184,7 +3184,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.561';
+var APP_VERSION = '8.99.562';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -17033,7 +17033,7 @@ function vchParse(rows) {
   return { rows: out, bad: bad, hasT: col.t !== undefined };
 }
 function vchGuess(t) {
-  var G = [['meal4', /לארבעה|ל-?4|four/i], ['burger', /בורגר|burger|ארוחת ילדים/i], ['maafe', /מאפה|נאמן|קפה/i], ['pretzel', /פרצל|pretzel/i],
+  var G = [['meal4', /קומבינ|לארבע|ל-?4|four/i], ['burger', /בורגר|burger|ארוחת ילדים/i], ['maafe', /מאפה|נאמן|קפה/i], ['pretzel', /פרצל|pretzel/i],
            ['pizza', /פיצה|pizza/i], ['book', /ספר|סטימצקי|steimatzky|book/i]];
   for (var i = 0; i < G.length; i++) if (G[i][1].test(t)) return G[i][0];
   return '';

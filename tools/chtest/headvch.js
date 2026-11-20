@@ -71,7 +71,7 @@ var MT = c.chTab_(c.CH_MS_, c.CH_MS_COLS_), MR2 = MT.rows.filter(function (r) { 
 MR2['קוד שובר'] = ''; c.chPut_(MT, MR2); T.exec();
 var ns = sent.length, rh = c.chAct_(U, { ms: String(ms.k), vt: vt, vb: vb }, 'hvch');
 var MR3 = c.chTab_(c.CH_MS_, c.CH_MS_COLS_).rows.filter(function (r) { return String(r['הגרלה']) === String(ms.k) && r['בדיקה'] !== 'כן'; })[0];
-ok(rh.status === 'ok' && MR3['קוד שובר'] === 'BG-7' && sent.length === ns + 1, 'hvch: same voucher, push sent', [rh, MR3['קוד שובר']]);
+ok(rh.status === 'ok' && MR3['קוד שובר'] === 'BG-7' && sent.length === ns, 'hvch: same voucher, push already sent → not again', [rh, MR3['קוד שובר']]);
 var nAss = 0, V9 = c.vchTbl_(false); for (var q9 = 1; q9 < V9.rows.length; q9++) if (V9.c(q9, 'שויך לתלמיד') === head) nAss++;
 ok(nAss === 1, 'no second voucher', nAss);
 var AD = c.chAdm_(c.chSync_(U), U), xa = AD.ms.filter(function (x) { return String(x.k) === String(ms.k); })[0];
@@ -96,7 +96,7 @@ ok(us.status === 'ok' && us.v.st === 'used', 'head marks used', us);
 // 4. אישור שוב — לא אפשרי, לא נשלח שוב, לא שובר שני
 T.exec();
 var r4 = c.chAct_(U, { ms: String(ms.k), vt: vt, vb: vb }, 'approve');
-ok(r4.status === 'error' && sent.length === 2, 'approve again → refused, nothing sent (1 approve + 1 hvch)', r4);
+ok(r4.status === 'error' && sent.length === 1, 'approve again → refused, nothing sent (1 approve only)', r4);
 // 5. מסירה בלי קוד — הקוד נשמר
 T.exec();
 var r5 = c.chAct_(U, { ms: String(ms.k) }, 'deliver');
@@ -113,15 +113,30 @@ ok(v7 && v7.c === 'BG-9', 'wrong-type voucher on table (setup)', v7);
 var f0 = c.chVchFix_(c.vchTbl_(true), 'ch:X7');
 var V7b = c.vchTbl_(true), r7 = c.chVchRow_(V7b, 'ch:X7');
 ok(f0.err && r7 > 0 && V7b.c(r7, 'קוד') === 'BG-9', 'no meal4 stock → nothing changes', f0);
-post({ action: 'vchadd', key: 'k', bid: 'h8', rows: [{ t: 'ארוחה לארבעה', p: 'meal4', c: 'M4-1', x: '2026-12-30' }] });
+// קומבינה שנטענה בלי מזהה פרס (ו"פרס" = burger בטעות) — מזוהה כארוחה לארבעה, בלי לכתוב לגיליון
+post({ action: 'vchadd', key: 'k', bid: 'h8', rows: [{ t: 'ארוחת קומבינה לארבעה', p: 'burger', c: 'M4-1', x: '2026-12-30' },
+  { t: 'ארוחת קומבינה לארבעה', p: 'burger', c: 'M4-2', x: '2026-12-30' }] });
 T.exec();
+var V8 = c.vchTbl_(true), m42 = -1;
+for (var q8 = 1; q8 < V8.rows.length; q8++) if (V8.c(q8, 'קוד') === 'M4-2') m42 = q8;
+V8.sh.getRange(m42 + 1, V8.ix['פרס'] + 1).setValue('');
+T.exec();
+var V9b = c.vchTbl_(true), kinds = {};
+for (var q9b = 1; q9b < V9b.rows.length; q9b++) kinds[V9b.c(q9b, 'קוד')] = V9b.c(q9b, 'פרס');
+ok(kinds['M4-1'] === 'meal4' && kinds['M4-2'] === 'meal4' && kinds['BG-9'] === 'burger' && kinds['PZ-9'] === 'pizza', 'combo recognized; kids meal / pizza untouched', kinds);
+ok(String(V9b.sh.getRange(m42 + 1, V9b.ix['פרס'] + 1).getValue()) === '', 'recognition does not write the sheet');
+var bgOnly = c.issueVoucher_('DX9', 'burger', { V: V9b, rid: 'w:X9', ws: ['DX9'], how: 'x' });
+ok(!bgOnly, 'kids meal winner never gets a combo (no burger left → null)', bgOnly);
 var V7c = c.vchTbl_(true), f1 = c.chVchFix_(V7c, 'ch:X7');
 var bg9 = -1; for (var q7 = 1; q7 < V7c.rows.length; q7++) if (V7c.c(q7, 'קוד') === 'BG-9') bg9 = q7;
 ok(f1.ok && V7c.c(bg9, 'סטטוס') === 'בוטל' && c.chVchRow_(V7c, 'ch:X7') < 0, 'old voucher cancelled', f1);
+ok(V7c.c(bg9, 'הערה').indexOf(c.VCH_EXPOSED_) >= 0 && V7c.c(bg9, 'הערה').indexOf('ch:X7') >= 0, 'history kept on old voucher', V7c.c(bg9, 'הערה'));
+var bk = c.vchBack_({ vid: V7c.c(bg9, 'מזהה') });
+ok(bk.status === 'error', 'exposed voucher not returned to stock', bk);
 var v8 = c.issueVoucher_('DX7', 'meal4', { V: V7c, rid: 'ch:X7', ws: ['DX7'], how: 'x' });
-ok(v8 && v8.c === 'M4-1', 'meal4 issued after fix', v8);
+ok(v8 && /^M4-/.test(v8.c) && v8.p === 'meal4', 'meal4 issued after fix', v8);
 ok(c.chVchFix_(c.vchTbl_(true), 'ch:X7').none, 'meal4 on table → nothing to fix');
 var SK = c.vchStock_(c.vchTbl_(true));
-ok(SK.by.meal4 && SK.by.meal4.s === 1, 'stock lists meal4', SK.by.meal4);
+ok(SK.by.meal4 && SK.by.meal4.s === 1 && SK.by.meal4.a === 1, 'stock lists meal4', SK.by.meal4);
 console.log('checks', n, 'fails', fails);
 process.exit(fails ? 1 : 0);
