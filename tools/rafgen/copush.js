@@ -41,5 +41,10 @@ raf({ raffle: 'cosent', key: 'k', rid: D.rid, code: key, k: 'wa' });
 var L = raf({ raffle: 'wadm', key: 'k' }), w0 = null;
 L.list.forEach(function (r) { r.w.forEach(function (x) { if (x.code === key) w0 = x; }); });
 ok(w0 && w0.cad === S.at && w0.cwa && w0.co && w0.ic, 'wadm carries marks + coordinator + inst code', w0);
+// לא מחובר להתראות (8.99.558)
+c.appendCols_('התראות', [['מזהה', 'S1'], ['מנוי', JSON.stringify({ endpoint: 'https://x.example/abcdefghijklmnop' })]]);
+var L2 = raf({ raffle: 'wadm', key: 'k' }), np = {};
+L2.list.forEach(function (r) { r.w.forEach(function (x) { np[x.first] = !!x.np; }); });
+ok(np['פS1'] === false && Object.keys(np).filter(function (k) { return k !== 'פS1'; }).every(function (k) { return np[k]; }), 'np only for winners without subscription', np);
 console.log(n - fails + '/' + n + ' passed');
 process.exit(fails ? 1 : 0);

@@ -257,7 +257,8 @@ function coAd(k) {
 }
 function coWa(x, rid) {
   var vc = coVch(x);
-  if (!vc && x.p) return '';
+  /* לא מחובר להתראות (8.99.558) — וואטסאפ לזוכה (ולהורה) גם כשבחר וממתין. */
+  if (!vc && x.p && !x.np) return '';
   var stage = vc ? 'v:' + vc.c : 'p', key = rid + '|' + x.code + '|' + stage;
   var vv = vc ? { 'פרס': przNm(vc.p || x.p), 'קוד': vc.c, 'קישור': vc.u || '', 'תוקף': vc.x ? dmy(vc.x) : '' } : {};
   if (x.na) {
@@ -273,7 +274,9 @@ function coWa(x, rid) {
   vv['שם'] = x.first || x.name || '';
   var t0 = '';
   if (!vc) { try { t0 = JSON.parse(ls('df:rafWaTx') || '""') || ''; } catch (e) {} }
-  return waBtn(x.ph, fillT(vc ? UI.rafWaVchTx : (t0 || UI.rafWaTx), vv), UI.rafWaKid, key, vc && vc.id, vc && vc.snt);
+  var wk = waBtn(x.ph, fillT(vc ? UI.rafWaVchTx : (t0 || UI.rafWaTx), vv), UI.rafWaKid, key, vc && vc.id, vc && vc.snt);
+  if (x.np && digits(x.dph).length >= 9 && digits(x.dph) !== digits(x.ph)) wk += waBtn(x.dph, fillT(UI.rafWaDadTx, vv), UI.rafWaDad, key + '|d', '', '');
+  return wk;
 }
 function coHtml(x, rid) {
   /* שובר שכבר נמסר ועוד לא קושר (`lk`, 8.99.486) — הפעולות שולחות את המזהה שלו. יותר מאחד — בלי פעולה. */
@@ -293,7 +296,8 @@ function coHtml(x, rid) {
   if (v && v.st !== 'used' && !lk.length) b += '<select onchange="coSwap(' + a + ',this)"><option value="">' + esc(UI.rafPrzSwap) + '</option>' +
     PRZK.filter(function (k) { return k !== (v.p || x.p); }).map(function (k) { return '<option value="' + k + '">' + esc(przNm(k)) + '</option>'; }).join('') + '</select>';
   /* ראה שזכה (8.99.551) — מי שלא ראה, בולט. בלי אפליקציה (na) — לא רלוונטי. */
-  var sw = x.na ? '' : x.ws ? '<span class="co">' + esc(tp(UI.zchSaw, { t: when(x.ws) })) + '</span>' :
+  var sw = x.np ? '<span class="co" style="color:#b3261e;font-weight:700">' + esc(UI.zchNoPush) + '</span>' : '';
+  sw += x.na ? '' : x.ws ? '<span class="co">' + esc(tp(UI.zchSaw, { t: when(x.ws) })) + '</span>' :
     '<span class="co" style="color:#b3261e;font-weight:700">' + esc(UI.zchNotSaw) + '</span>';
   return (pz ? '<span class="co">' + esc(pz) + '</span>' : '') + sw + '<span class="co">' + esc(vs) + '</span>' +
     (b ? '<span class="cob">' + b + '</span>' : '') + '<span class="cob">' + coCoHtml(x, rid) + '</span>';

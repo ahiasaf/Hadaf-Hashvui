@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 246;
+var SCRIPT_VERSION = 247;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -12564,7 +12564,7 @@ function rafWadm_(P) {
   }
   try { vchFill_(); } catch (ef) {}
   var T = rafRead_(), seen = {}, out = [], nm = rafInstNm_(), picks = rafPrzPicks_();
-  var t = joinTable_(), V = vchTbl_(false), co = null;
+  var t = joinTable_(), V = vchTbl_(false), co = null, subd = rafSubIds_();
   for (var r = T.rows.length - 1; r >= 1; r--) {
     var rid = T.c(r, 'מזהה הגרלה');
     if (!rid || seen[rid]) continue;
@@ -12596,6 +12596,12 @@ function rafWadm_(P) {
       /* הרכז לכל זוכה (8.99.556) — המודעה והוואטסאפ עם השובר; מתי נשלחו. */
       if (!o.co) { if (!co) co = rafCoords_(); o.co = co.err ? { err: 1 } : (co.m[x.code] || {}); }
       o.cad = T.c(ln, 'מודעה לרכז'); o.cwa = T.c(ln, 'וואטסאפ לרכז'); o.cpu = T.c(ln, 'הודעה לרכז');
+      /* לא מחובר להתראות (8.99.558): לאף מזהה שלו אין מנוי ב"התראות". קריאה שנכשלה — לא מסמנים. */
+      if (subd && !o.na) {
+        var all = row ? rowIds_(t, row) : ws;
+        if (!all.concat(ws).some(function (k) { return subd[k]; })) o.np = 1;
+      }
+      o.dph = row ? t.c(row, 'טלפון ההורה') : '';
       /* ראה שזכה (8.99.551) — מתי; או ראה את השובר. */
       o.ws = T.c(ln, 'ראה שזכה') || (o.v && o.v.sn) || '';
       /* ממתין לשובר (8.99.546): בחר, אין לו שובר, ההגרלה מהתקופה של השוברים. */
@@ -13025,6 +13031,19 @@ function rafCoPush_(T, d) {
     }
     rafSet_(T, { lines: [r] }, [['הודעה לרכז', st + ' · ' + new Date().toISOString()]]);
   });
+}
+/* המזהים שיש להם מנוי להתראות ("התראות", עמודות "מזהה"+"מנוי"). null — לא נקרא. */
+function rafSubIds_() {
+  try {
+    var sh = sheet_('התראות');
+    if (sh.getLastRow() < 2) return {};
+    var hd = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(function (x) { return String(x).trim(); });
+    var ci = hd.indexOf('מזהה'), cs = hd.indexOf('מנוי');
+    if (ci < 0 || cs < 0) return null;
+    var n = sh.getLastRow() - 1, a = sh.getRange(2, ci + 1, n, 1).getValues(), b = sh.getRange(2, cs + 1, n, 1).getValues(), m = {};
+    for (var i = 0; i < n; i++) { var id = String(a[i][0] || '').trim(); if (id && String(b[i][0] || '').length > 20) m[id] = 1; }
+    return m;
+  } catch (e) { return null; }
 }
 /* ?raffle=cosent&key=&rid=&code=&k=ad|wa — הבעלים שלח לרכז את המודעה / את הוואטסאפ עם השובר. פעם אחת. */
 function rafCoSent_(P) {

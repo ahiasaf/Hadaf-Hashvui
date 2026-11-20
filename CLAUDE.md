@@ -2033,3 +2033,6 @@ node scratchpad/smoke.js     # כל המסכים, שתי רזולוציות
   התראות במכשיר (`notePerm` + `noteDone`) — `ui.przNoT` ו"להפעלת התראות" (`przNoBtn`) → APPX.ask → appSubscribe(true).
   חסומות / לא נתמך — הקישור ל-hitraot (`hitLink`). אחרי ההפעלה — נעלם.
 * בדיקה: `node tools/chtest/headvch.js` (28).
+* **8.99.558 · SCRIPT_VERSION 247 — "לא מחובר להתראות" במסך הזוכים (אחיאסף: "שניהם"):** `np` ב-wadm (rafSubIds_ — לאף מזהה של
+  הזוכה אין "מנוי" ב"התראות"; קריאה שנכשלה — לא מסמנים; לא לזוכה בלי אפליקציה). ב-/zochim?r=1 — `zchNoPush` באדום, וואטסאפ
+  לזוכה גם כשבחר וממתין, ו"וואטסאפ להורה" (`rafWaDadTx`, `dph`) כשיש טלפון הורה שונה. בדיקה: `node tools/rafgen/copush.js` (10).
