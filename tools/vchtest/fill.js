@@ -29,11 +29,13 @@ var P1 = raf({ raffle: 'prize', id: 'DWINAAA1', fresh: '1' });
 ok(P1.list[0].p === 'pizza' && !P1.list[0].v && P1.von === 1, 'prize list: chosen, no voucher, vouchers on', P1);
 // 2. שבועיים: המועד ~14 יום מהפרסום
 var due = Date.parse(P1.list[0].due);
-ok(Math.abs(due - (Date.parse(now) + 14 * 864e5)) < 60e3, 'due = 14 days', P1.list[0].due);
+ok(due === Math.max(c.rafThu_(Date.parse(now)), c.RAF_THU_FLOOR_), 'due = Thursday 19:00 (8.99.551)', P1.list[0].due);
 // 3. עבר המועד (פורסם לפני 20 יום, "עד" ישן של יומיים) → נסגר, בלי בחירה אוטומטית
+var DN = Date.now; Date.now = function () { return c.RAF_THU_FLOOR_ + 60e3; };
 var PD = raf({ raffle: 'prize', id: 'DWINDDD4', fresh: '1' });
 ok(PD.list[0].ov === 1 && !PD.list[0].p && PD.list[0].st === 'pick', 'late: closed, nothing auto-picked', PD);
 ok(raf({ raffle: 'vpick', id: 'DWINDDD4', rid: 'R0', p: 'pizza' }).status === 'late', 'late: vpick refused');
+Date.now = DN;
 // 4. מלאי נטען → הממתין מקבל, הישן (לפני השוברים) לא; בלי נוסח — בלי התראה עדיין
 var A = post({ action: 'vchadd', key: 'k', rows: [
   { t: 'פיצה', p: 'pizza', c: 'PZ-1', u: 'https://x.example/1', x: '2026-12-31' },

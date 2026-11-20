@@ -3183,7 +3183,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.550';
+var APP_VERSION = '8.99.551';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -14677,7 +14677,11 @@ var VT = null;
 function vtLoad() {
   var key = (CFG.readKey || '').trim();
   if (!key) return;
-  scriptGet({ raffle: 'wadm', key: key, vt: UI.vchGotT || '', vb: UI.vchGotB || '' }).then(function (d) {
+  /* בחירה אוטומטית (8.99.551): "זכית {p}" — הנוסח ושמות הפרסים נשמרים בשרת להתראה. */
+  var pn = {};
+  RAF_PRZ.forEach(function (k) { pn[k] = UI['przN_' + k] || k; });
+  scriptGet({ raffle: 'wadm', key: key, vt: UI.vchGotT || '', vb: UI.vchGotB || '',
+              vat: UI.vchAutoT || '', vab: UI.vchAutoB || '', vpn: JSON.stringify(pn) }).then(function (d) {
     if (!d || d.status !== 'ok' || !d.list) return;
     var send = [], wait = [];
     d.list.forEach(function (r) {

@@ -86,9 +86,11 @@ ok(PZ.sum.comN === 3, 'budget: all 3 committed', PZ.sum);
 post({ action: 'vchadd', key: 'k', rows: [{ t: 'מאפה', p: 'maafe', c: 'MF-1', x: '2027-01-15' }] });
 c.appendCols_('הגרלות', [['מזהה הגרלה', 'R2'], ['שבוע', '6'], ['סטטוס', 'פורסם'], ['קוד ישיבה', 'givat'],
   ['זוכה', 'DWINAAA1'], ['מזהי הזוכה', 'DWINAAA1'], ['שם הזוכה', 'א ב'], ['פורסם', new Date(Date.now() - 20 * 864e5).toISOString()], ['פרס — עד', '2020-01-01T00:00:00Z']]);
+var DN2 = Date.now; Date.now = function () { return c.RAF_THU_FLOOR_ + 60e3; };
 var PA = raf({ raffle: 'prize', id: 'DWINAAA1', fresh: '1' });
+Date.now = DN2;
 var r2 = PA.list.filter(function (x) { return x.rid === 'R2'; })[0];
-ok(r2 && !r2.p && r2.ov === 1 && !r2.v, 'past due: closed, no auto-draw (8.99.546)', r2);
+ok(r2 && !r2.p && r2.ov === 1 && !r2.v, 'past due: closed, no draw on read (auto only hourly, 8.99.551)', r2);
 var P4 = raf({ raffle: 'prize', id: 'DWINBBB2', fresh: '1' });
 ok(P4.von === 1 && P4.list[0].v && P4.list[0].v.c === 'PZ-2', 'issued voucher still shown');
 console.log(n - fails + '/' + n + ' passed');

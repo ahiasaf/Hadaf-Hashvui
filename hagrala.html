@@ -465,10 +465,27 @@ function przDraw(z, live) {
   } else {
     h = '<h3>' + esc(kid ? tp(UI.przMineDad, { name: kid }) : UI.przMine) + '</h3>' +
         '<div class="pzs">' + przCard(z.p, false, true) + '</div>' +
-        (z.how === 'הוגרל' ? '<p class="note">' + esc(UI.przAuto) + '</p>' : '') +
         '<p class="soon">' + esc(z.st === 'arr' ? UI.przArr : PRZ_VON ? UI.vchWait : kid ? tp(UI.przSoonDad, { name: kid }) : UI.przSoon) + '</p>';
   }
   el.innerHTML = h + '<p class="note fine">' + esc(UI.przNote) + '</p>';
+}
+/* "ראה שזכה" (8.99.551) — הזוכה עצמו (לא ההורה) ראה את הזכייה על המסך. פעם אחת לזכייה; השרת מאמת. */
+function wSeen(L, api0, id) {
+  if (!api0 || !id || !window.fetch) return;
+  var rs = [];
+  (L || []).forEach(function (x) { if (x && x.rid && !x.ch && !x.kid && !x.ws && rs.indexOf(x.rid) < 0) rs.push(x.rid); });
+  if (!rs.length) return;
+  setTimeout(function () {
+    if (document.visibilityState && document.visibilityState !== 'visible') return;
+    fetch(api0 + (api0.indexOf('?') < 0 ? '?' : '&') + 'raffle=wseen&id=' + encodeURIComponent(id) +
+          '&rid=' + encodeURIComponent(rs.join(',')) + '&t=' + Date.now())
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || d.status !== 'ok' || !d.ws) return;
+        (L || []).forEach(function (x) { if (x && d.ws[x.rid]) x.ws = 1; });
+        try { localStorage.removeItem('df:przMe'); } catch (e) {}
+      })['catch'](function () {});
+  }, 600);
 }
 function przGet(fresh) {
   var u = api();
@@ -478,6 +495,7 @@ function przGet(fresh) {
     .then(function (d) {
       if (!d || d.status !== 'ok' || !d.list) return null;
       PRZ_VON = !!d.von; PRZ_VS = d.vs || {};
+      if (ME.role !== 'dad' && d.list.length) wSeen(d.list, u, ME.id);
       return d.list;
     });
 }

@@ -4401,6 +4401,24 @@ document.addEventListener('keydown', function (e) {
   if ((e.key === 'Escape' || e.key === 'Esc') && $('tkhow') && !$('tkhow').hidden) tkHowClose();
 });
 
+/* "ראה שזכה" (8.99.551) — הזוכה עצמו (לא ההורה) ראה את הזכייה על המסך. פעם אחת לזכייה; השרת מאמת. */
+function wSeen(L, api0, id) {
+  if (!api0 || !id || !window.fetch) return;
+  var rs = [];
+  (L || []).forEach(function (x) { if (x && x.rid && !x.ch && !x.kid && !x.ws && rs.indexOf(x.rid) < 0) rs.push(x.rid); });
+  if (!rs.length) return;
+  setTimeout(function () {
+    if (document.visibilityState && document.visibilityState !== 'visible') return;
+    fetch(api0 + (api0.indexOf('?') < 0 ? '?' : '&') + 'raffle=wseen&id=' + encodeURIComponent(id) +
+          '&rid=' + encodeURIComponent(rs.join(',')) + '&t=' + Date.now())
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || d.status !== 'ok' || !d.ws) return;
+        (L || []).forEach(function (x) { if (x && d.ws[x.rid]) x.ws = 1; });
+        try { localStorage.removeItem('df:przMe'); } catch (e) {}
+      })['catch'](function () {});
+  }, 600);
+}
 /* הזוכה בהגרלה — באנר עד שהפרס נמסר (?raffle=prize, rafPrize_ ב-apps-script.gs).
    ההורה רואה את זכיית הבן. המצב נשמר במכשיר (przMe) ומתרענן כל שתי דקות;
    קריאה שנכשלה משאירה את מה שהיה. */
@@ -4426,6 +4444,8 @@ function drawPrz() {
   }
   var L = (c && c.list) || [], z = null;
   drawVch(L);
+  /* הבאנר או "לצפייה בשובר" על המסך = ראה שזכה (8.99.551). */
+  if (me.role !== 'dad' && L.length) wSeen(L, API, me.id);
   /* קודם מי שעוד צריך לבחור, אחר כך "הגיע", ואז "יגיע בקרוב".
      זכייה שיש לה שובר — הפרס כבר אצלו; היא בכרטיס "השובר שלך", לא בבאנר. */
   ['pick', 'arr', 'soon'].forEach(function (st) {
