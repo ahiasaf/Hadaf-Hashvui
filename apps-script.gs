@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 248;
+var SCRIPT_VERSION = 249;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -11714,7 +11714,7 @@ function rafPrzRow_(T, r, picks) {
   }
   var due = rafDue_(T, r);
   return { p: p, how: how, due: due ? new Date(due).toISOString() : '',
-           st: T.c(r, 'מצב פרס') === 'הגיע' ? 'arr' : p ? 'soon' : 'pick', over: !p && due && Date.now() > due };
+           st: T.c(r, 'מצב פרס') === 'הגיע' ? 'arr' : T.c(r, 'מצב פרס') === RAF_DLV_ ? 'dlv' : p ? 'soon' : 'pick', over: !p && due && Date.now() > due };
 }
 /* מי שעבר את המועד בלי לבחור — הגרלה בין חמשת הפרסים, פעם אחת (נעילה). */
 function rafPrzAuto_(T, rows) {
@@ -11866,7 +11866,7 @@ function rafPrzAutoAll_() {
   for (var r = 1; r < T.rows.length; r++) {
     if (T.c(r, 'סטטוס') !== 'פורסם' || !T.c(r, 'זוכה') || rafPubMs_(T, r) < from) continue;
     var z = rafPrzRow_(T, r, picks);
-    if (z.over && z.st !== 'arr') rows.push(r);
+    if (z.over && z.st !== 'arr' && z.st !== 'dlv') rows.push(r);
   }
   if (rows.length) rafPrzAuto_(T, rows);
 }
@@ -12436,7 +12436,7 @@ function vchWaiting_(T, picks, V) {
     if (T.c(r, 'סטטוס') !== 'פורסם' || !T.c(r, 'זוכה')) continue;
     if (rafPubMs_(T, r) < from) continue;
     var z = rafPrzRow_(T, r, picks);
-    if (!z.p || z.st === 'arr') continue;
+    if (!z.p || z.st === 'arr' || z.st === 'dlv') continue;
     var ws = (T.c(r, 'מזהי הזוכה') || T.c(r, 'זוכה')).split(/\s+/);
     if (V && vchWin_(V, T.c(r, 'מזהה הגרלה'), ws) > 0) continue;
     out.push({ r: r, rid: T.c(r, 'מזהה הגרלה'), wid: T.c(r, 'זוכה'), ws: ws, p: z.p, name: T.c(r, 'שם הזוכה'), how: z.how });
@@ -12605,7 +12605,7 @@ function rafWadm_(P) {
       /* ראה שזכה (8.99.551) — מתי; או ראה את השובר. */
       o.ws = T.c(ln, 'ראה שזכה') || (o.v && o.v.sn) || '';
       /* ממתין לשובר (8.99.546): בחר, אין לו שובר, ההגרלה מהתקופה של השוברים. */
-      if (!o.v && !o.lk && z.p && z.st !== 'arr' && rafPubMs_(T, r) >= Date.parse(VCH_POP_FROM_)) o.vw = 1;
+      if (!o.v && !o.lk && z.p && z.st !== 'arr' && z.st !== 'dlv' && rafPubMs_(T, r) >= Date.parse(VCH_POP_FROM_)) o.vw = 1;
       w.push(o);
     });
     /* אותו שבוע — רשימה אחת, כמו בציבורי (rafAll_): הכללית מצטרפת למוסדית.
@@ -13044,6 +13044,31 @@ function rafSubIds_() {
     for (var i = 0; i < n; i++) { var id = String(a[i][0] || '').trim(); if (id && String(b[i][0] || '').length > 20) m[id] = 1; }
     return m;
   } catch (e) { return null; }
+}
+/* "נמסר ידנית" (8.99.559, אחיאסף 20.11): זכייה שהפרס שלה נמסר מחוץ למערכת. ?raffle=pdlv&key=&rid=&code=&p=
+   כותב פרס · איך=רכז · מתי · מצב פרס=נמסר — **בלי שובר ובלי מלאי**. זכייה עם שובר (מקושר/שמור) — נדחית.
+   אחר כך: בלי בחירה אוטומטית, בלי "ממתין לשובר", בלי באנר לתלמיד. */
+var RAF_DLV_ = 'נמסר';
+function rafPDlv_(P) {
+  var p = String(P.p || '');
+  if (RAF_PRIZES.indexOf(p) < 0) return { status: 'error', message: 'פרס לא מוכר' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { status: 'error', message: 'פעולה אחרת רצה כרגע — נסו שוב בעוד דקה' };
+  try {
+    var T = rafRead_(), d = rafById_(T, String(P.rid || ''));
+    if (!d || d.st !== 'פורסם') return { status: 'error', message: 'ההגרלה לא נמצאה או עוד לא פורסמה' };
+    var r = rafLn_(T, d, P.code);
+    if (r < 0 || !T.c(r, 'זוכה')) return { status: 'error', message: 'אין זוכה במוסד הזה' };
+    var V = vchTbl_(false), ws = (T.c(r, 'מזהי הזוכה') || T.c(r, 'זוכה')).split(/\s+/);
+    if (V && vchWin_(V, d.rid, ws) > 0) return { status: 'error', message: 'לזכייה הזו כבר יש שובר — לא מסמנים מסירה ידנית' };
+    rafSet_(T, { lines: [r] }, [['פרס', p], ['פרס — איך', 'רכז'], ['פרס — מתי', new Date().toISOString()], ['מצב פרס', RAF_DLV_]]);
+    SpreadsheetApp.flush();
+    var T2 = rafRead_();
+    if (T2.c(r, 'מצב פרס') !== RAF_DLV_ || T2.c(r, 'פרס') !== p) return { status: 'error', message: 'לא נשמר — נסו שוב' };
+    rafPrzBump_();
+    try { CacheService.getScriptCache().removeAll(['raf:pub', 'raf:all']); } catch (xc) {}
+    return { status: 'ok' };
+  } finally { lock.releaseLock(); }
 }
 /* ?raffle=cosent&key=&rid=&code=&k=ad|wa — הבעלים שלח לרכז את המודעה / את הוואטסאפ עם השובר. פעם אחת. */
 function rafCoSent_(P) {
@@ -14095,6 +14120,7 @@ function raffleRoute_(e) {
     if (op === 'vswap') return reply_(e, rafVSwap_(P));
     if (op === 'vback') return reply_(e, vchBack_(P));
     if (op === 'cosent') return reply_(e, rafCoSent_(P));
+    if (op === 'pdlv') return reply_(e, rafPDlv_(P));
     /* מצב ההגרלות האוטומטיות (8.99.554) — האם הנוסחים נשמרו (אורך בלבד, בלי התוכן) והמצב האחרון. */
     if (op === 'autost') {
       if (String(P.fill || '') === '1') { try { autoTxFill_(); } catch (fx) {} }

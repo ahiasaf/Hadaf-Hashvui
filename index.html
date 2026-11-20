@@ -3184,7 +3184,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.559';
+var APP_VERSION = '8.99.560';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -16850,7 +16850,7 @@ function rafWaHref(ph, x, k) {
 }
 function rafPrzLbl(z) {
   if (!z) return '';
-  if (z.st === 'arr') return UI.rafPrzArr;
+  if (z.st === 'arr' || z.st === 'dlv') return UI.rafPrzArr;
   if (!z.p) {
     var t = new Date(z.due), two = function (n) { return (n < 10 ? '0' : '') + n; };
     return fill(UI.rafPrzNone, { due: isNaN(t.getTime()) ? '' : t.getDate() + '.' + (t.getMonth() + 1) + ' ' + two(t.getHours()) + ':' + two(t.getMinutes()) });

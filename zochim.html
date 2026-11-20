@@ -282,6 +282,8 @@ function coHtml(x, rid) {
   /* שובר שכבר נמסר ועוד לא קושר (`lk`, 8.99.486) — הפעולות שולחות את המזהה שלו. יותר מאחד — בלי פעולה. */
   var lk = x.lk || [], one = lk.length === 1 ? lk[0].id : '';
   var a = "'" + esc(rid) + "','" + esc(x.code) + "','" + esc(one) + "'";
+  /* נמסר ידנית (8.99.559) — רק הפרס והמצב, בלי סימונים ובלי פעולות. */
+  if (x.st === 'dlv') return '<span class="co">' + esc(tp(UI.zchDlv, { p: przNm(x.p) })) + '</span>';
   var pz = x.st === 'arr' ? UI.rafPrzArr : x.p ?
     tp(UI[x.how === 'הוגרל' ? 'rafPrzByAuto' : x.how === 'רכז' ? 'rafPrzByAdm' : 'rafPrzByMe'], { p: przNm(x.p) }) : '';
   var v = x.v, vs = lk.length ? tp(UI.vchStHeld, { c: lk.map(function (q) { return q.c; }).join(' · ') }) : !v ? (x.vw ? UI.vchStWait : !x.p && x.st !== 'arr' ? (x.due ? tp(UI.zchNoPick, { t: when(x.due) }) : UI.zchNoPick0) : UI.vchStNone) : v.st === 'used' ? UI.vchStUsedZ : v.sn ? tp(UI.vchStSeen, { t: when(v.sn) }) :
@@ -292,6 +294,9 @@ function coHtml(x, rid) {
     PRZK.map(function (k) { return '<option value="' + k + '">' + esc(przNm(k)) + '</option>'; }).join('') + '</select>';
   else if (one) b += '<button type="button" onclick="coAtt(' + a + ')">' + esc(UI.vchLinkBtn) + '</button>';
   else if (!v && x.st !== 'arr' && VS[x.p] > 0) b += '<button type="button" onclick="coAtt(' + a + ')">' + esc(UI.vchAttach) + '</button>';
+  /* נמסר ידנית (8.99.559) — זכייה בלי שובר. */
+  if (!v && !lk.length && x.st !== 'arr') b += '<select onchange="coDlv(' + a + ',this)"><option value="">' + esc(UI.zchDlvSet) + '</option>' +
+    PRZK.map(function (k) { return '<option value="' + k + '">' + esc(przNm(k)) + '</option>'; }).join('') + '</select>';
   /* החלפת הפרס (8.99.549) — לשובר שלא מומש. */
   if (v && v.st !== 'used' && !lk.length) b += '<select onchange="coSwap(' + a + ',this)"><option value="">' + esc(UI.rafPrzSwap) + '</option>' +
     PRZK.filter(function (k) { return k !== (v.p || x.p); }).map(function (k) { return '<option value="' + k + '">' + esc(przNm(k)) + '</option>'; }).join('') + '</select>';
@@ -323,6 +328,11 @@ function coSwap(rid, code, vid, sel) {
   var p = sel.value;
   if (!p || !SureLater(coSwap, this, arguments, function () { sel.value = ''; })) return;
   coCall({ raffle: 'vswap', rid: rid, code: code, p: p }).then(coDone, function () { SayMsg(UI.zchErr); load(); });
+}
+function coDlv(rid, code, vid, sel) {
+  var p = sel.value;
+  if (!p || !SureLater(coDlv, this, arguments, function () { sel.value = ''; })) return;
+  coCall({ raffle: 'pdlv', rid: rid, code: code, p: p }).then(coDone, function () { SayMsg(UI.zchErr); load(); });
 }
 function coAtt(rid, code, vid) {
   var q = { raffle: 'vattach', rid: rid, code: code };

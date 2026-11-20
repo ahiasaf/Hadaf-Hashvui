@@ -4433,7 +4433,7 @@ var PRZNO_BUSY = false;
 function przNoDraw(L, me) {
   var el = $('przno');
   if (!el) return;
-  var open = me && me.role !== 'dad' && (L || []).some(function (x) { return x && !x.kid && x.st !== 'arr' && !(x.v && x.v.st === 'used'); });
+  var open = me && me.role !== 'dad' && (L || []).some(function (x) { return x && !x.kid && x.st !== 'arr' && x.st !== 'dlv' && !(x.v && x.v.st === 'used'); });
   var ok = canNote() && notePerm() === 'granted' && noteDone();
   if (!open || ok || !UI.przNoT) { el.hidden = true; el.innerHTML = ''; return; }
   var h = '<p>' + esc(UI.przNoT) + '</p>';
