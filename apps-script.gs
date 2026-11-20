@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 245;
+var SCRIPT_VERSION = 246;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -15364,7 +15364,9 @@ function chSync_(U) {
     return { k: +m['הגרלה'], th: +m['סף'], st: m['מצב'], open: chMs_(m['נפתח']), close: chMs_(m['נסגר']),
              frz: chMs_(m['הוקפא']), el: String(m['זכאים'] || '').split(/\s+/).filter(Boolean),
              man: m['אופן'] === 'ידני' ? 1 : 0, date: m['מועד הגרלה'], sel: m['נבחרה'], selAt: chMs_(m['נבחרה ב']), okAt: chMs_(m['אושר ב']),
-             dlvAt: chMs_(m['נמסר ב']), dq: dq, note: m['הערה'], noneAt: chMs_(m['נסגרה ללא זוכה']) };
+             dlvAt: chMs_(m['נמסר ב']), dq: dq, note: m['הערה'], noneAt: chMs_(m['נסגרה ללא זוכה']),
+             /* 8.99.557: יש שובר לראש השולחן (8.99.540) — רק כן/לא, לא הקוד. */
+             vc: m['קוד שובר'] ? 1 : 0 };
   });
   return out;
 }
@@ -15960,7 +15962,15 @@ function chTblView_(M, tid, me, ids) {
   var full = seats.length === 4 && seats.every(function (x) { return x.l; });
   if (last && (last.st === CH_M_.pend || last.st === CH_M_.ready)) o.st = 'wait';
   else if (last && (last.st === CH_M_.ok || last.st === CH_M_.dlv) && gt[last.sel] &&
-           !M.ms.some(function (m) { return m.k > last.k && m.st !== CH_M_.none; })) o.st = 'won';
+           !M.ms.some(function (m) { return m.k > last.k && m.st !== CH_M_.none; })) {
+    o.st = 'won';
+    /* השובר אצל ראש השולחן (8.99.540) — מי הוא, והאם זה אני (8.99.557). */
+    if (last.vc) M.grp.forEach(function (g) {
+      if (g.id !== last.sel) return;
+      o.hd = (M.ppl[g.by] || {}).f || '';
+      o.hm = g.by === me ? 1 : 0;
+    });
+  }
   else if (full) o.st = 'q';
   return o;
 }

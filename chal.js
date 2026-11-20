@@ -370,6 +370,8 @@
     if (d.ended) return U('chEnded');
     if (!v) return '';
     if (v.pend) return '';
+    /* זכה — השובר אצל ראש השולחן (8.99.557): אצלך / אצל {name}. בלי שובר — הנוסח הקודם. */
+    if (v.t.st === 'won' && v.t.hd != null) return v.t.hm ? U('chStWonMe') : tp(U('chStWonHd'), { name: v.t.hd });
     return { q: U('chStQ0'), wait: U('chStWait'), won: U('chStWon') }[v.t.st] || '';
   }
   function stOf(v) { return v && !v.pend ? v.t.st : ''; }

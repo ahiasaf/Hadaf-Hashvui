@@ -57,6 +57,14 @@ ok(m2.st === c.CH_M_.ok, 'draw approved');
 var MR = c.chTab_(c.CH_MS_, c.CH_MS_COLS_).rows.filter(function (r) { return String(r['הגרלה']) === String(ms.k) && r['בדיקה'] !== 'כן'; })[0];
 ok(MR['קוד שובר'] === 'BG-7' && JSON.parse(MR['הודעת שובר']).st === 'sent', 'code + push state saved on draw row', MR);
 
+// 2א. השולחן אחרי הזכייה (8.99.557): "השובר אצלך" לראש, "אצל {name}" לחבר
+var tb = (M2.grp.filter(function (g) { return g.id === ms.sel; })[0] || {}).tb;
+if (tb) {
+  var vh = c.chTblView_(M2, tb, head), vm = c.chTblView_(M2, tb, mem[0]);
+  ok(vh.st === 'won' && vh.hm === 1 && vh.hd === hf, 'head view: won, voucher with me', vh);
+  ok(vm.st === 'won' && vm.hm === 0 && vm.hd === hf, 'member view: voucher with head', vm);
+}
+
 // 3. הבית של ראש השולחן — "לצפייה בשובר"; של חבר — כלום
 var P1 = raf({ raffle: 'prize', id: head, fresh: '1' });
 var it = (P1.list || []).filter(function (x) { return x.ch; })[0];

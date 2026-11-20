@@ -811,6 +811,12 @@ body.prj #cards{display:grid;gap:10px;margin-top:14px}
 .myvch{display:flex;align-items:center;gap:12px;margin-top:12px;padding:13px 15px;border-radius:var(--r);
   background:var(--surface);box-shadow:var(--sh-1);border:2px solid #C9962E;color:var(--ink);text-decoration:none;text-align:right}
 .myvch[hidden]{display:none}
+/* זוכה בלי התראות (8.99.557) — שורה וכפתור מתחת לשובר. */
+.przno{margin-top:12px;padding:13px 15px;border-radius:var(--r);background:var(--surface);box-shadow:var(--sh-1);text-align:right}
+.przno[hidden]{display:none}
+.przno p{margin:0 0 10px;font-weight:700;color:var(--ink)}
+.przno button{display:block;width:100%;font:inherit;font-weight:800;padding:11px;border:0;border-radius:12px;background:var(--blue-d);color:#fff;cursor:pointer}
+.przno a{font-weight:700}
 .myvch .mv-tx{flex:1;min-width:0}
 .myvch b{display:block;font-size:1.02rem;font-weight:800;color:var(--blue-d)}
 .myvch small{display:block;margin-top:3px;font-size:.82rem;font-weight:700;color:var(--ink-2)}
@@ -1833,6 +1839,8 @@ body:not(.land) #gstx{display:none}
     <div id="chal"></div>
     <!-- "לצפייה בשובר" — כפתור קבוע מתחת לכרטיסי ההגרלה ולמבצע (drawVch, 8.99.485). -->
     <a id="myvch" class="myvch" href="hagrala.html?vch=1" hidden></a>
+    <!-- זוכה בלי התראות — "להפעלת התראות" (przNoDraw, 8.99.557). -->
+    <div id="przno" class="przno" hidden></div>
     <button id="mypts" class="mypts" type="button" onclick="ptsTog()" hidden></button>
     <!-- הגרלת הרביעיות — ריק כשכבויה. ראו quad.js. -->
     <div id="quad"></div>
@@ -4419,6 +4427,30 @@ function wSeen(L, api0, id) {
       })['catch'](function () {});
   }, 600);
 }
+/* זוכה (לא הורה) שאין לו התראות במכשיר — כפתור להפעלה (8.99.557), כדי שיקבל את העדכונים על הפרס והשובר.
+   רק כשיש זכייה פתוחה (לא "הגיע", שובר שלא מומש). חסומות — איך פותחים (hitraot); לא נתמך כאן — אותו קישור. */
+var PRZNO_BUSY = false;
+function przNoDraw(L, me) {
+  var el = $('przno');
+  if (!el) return;
+  var open = me && me.role !== 'dad' && (L || []).some(function (x) { return x && !x.kid && x.st !== 'arr' && !(x.v && x.v.st === 'used'); });
+  var ok = canNote() && notePerm() === 'granted' && noteDone();
+  if (!open || ok || !UI.przNoT) { el.hidden = true; el.innerHTML = ''; return; }
+  var h = '<p>' + esc(UI.przNoT) + '</p>';
+  if (!canNote() || notePerm() === 'denied') h += '<a href="hitraot.html">' + esc(UI.hitLink) + '</a>';
+  else h += '<button type="button" id="przno-go"' + (PRZNO_BUSY ? ' disabled' : '') + '>' + esc(UI.przNoBtn) + '</button>';
+  el.innerHTML = h;
+  el.hidden = false;
+  var b = $('przno-go');
+  if (b) b.onclick = function () {
+    PRZNO_BUSY = true; drawPrz();
+    APPX.ask(function (p) {
+      PRZNO_BUSY = false;
+      if (p === 'granted') { appSubscribe(true); setTimeout(drawPrz, 1500); }
+      drawPrz();
+    });
+  };
+}
 /* הזוכה בהגרלה — באנר עד שהפרס נמסר (?raffle=prize, rafPrize_ ב-apps-script.gs).
    ההורה רואה את זכיית הבן. המצב נשמר במכשיר (przMe) ומתרענן כל שתי דקות;
    קריאה שנכשלה משאירה את מה שהיה. */
@@ -4444,6 +4476,7 @@ function drawPrz() {
   }
   var L = (c && c.list) || [], z = null;
   drawVch(L);
+  przNoDraw(L, me);
   /* הבאנר או "לצפייה בשובר" על המסך = ראה שזכה (8.99.551). */
   if (me.role !== 'dad' && L.length) wSeen(L, API, me.id);
   /* קודם מי שעוד צריך לבחור, אחר כך "הגיע", ואז "יגיע בקרוב".
