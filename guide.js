@@ -771,48 +771,61 @@ var GUIDE_UI = (function () {
   function homeNew() { return ilHome() + ilMine(); }
   /* וילון בהיר מאחורי מה שנפתח — המסך הקודם נשאר רמז, לא בליל. */
   function scrim() { return '<rect x="16" y="14" width="168" height="312" rx="21" fill="#F7F4EC" opacity=".86"/>'; }
-  /* הסצנה: מה שעל המסך (`b`), האצבע שלוחצת על (x,y), ומה שנפתח (`a`). */
-  function scene(b, x, y, a) {
+  /* ============================================================
+     **רצף אחד, בלי הבהוב** (8.99.547, אחיאסף: "זה לא רציף — המסך מהבהב").
+     ============================================================
+     כל מסלול הוא שרשרת מסכים: S0 (המסך לפני הלחיצה הראשונה), S1 (מה שנפתח
+     אחריה) וכן הלאה. שלב i מתחיל **בדיוק** ב-S(i-1) ונגמר **בדיוק** ב-S(i),
+     ולכן המעבר לשלב הבא אינו נראה. כל מסך שלם ואטום (רקע משלו) — הוא מכסה
+     לגמרי את הקודם, בלי שאריות שקופות. הדבר שלוחצים עליו — טבעת זהב שנדלקת
+     בהדרגה, ואז האצבע לוחצת. ברצף — כל שלב רץ פעם אחת ונשאר על המסך החדש
+     (`gs1`); כשעוצרים על שלב — הוא חוזר על עצמו. */
+  function bg(c) { return '<rect x="16" y="14" width="168" height="312" rx="21" fill="' + (c || '#F7F4EC') + '"/>'; }
+  function scene(b, t, a) {
     return '<defs><filter id="gi-sh" x="-10%" y="-10%" width="120%" height="130%">' +
         '<feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0B2550" flood-opacity=".14"/></filter></defs>' +
-      '<g class="gi-b">' + b + '</g>' +
-      '<circle class="gi-r" cx="' + x + '" cy="' + y + '" r="16" fill="none" stroke="var(--gold)" stroke-width="3"/>' +
-      '<g transform="translate(' + x + ',' + y + ')"><g class="gi-f">' +
+      '<g>' + b + '</g>' +
+      '<circle class="gi-h" cx="' + t[0] + '" cy="' + t[1] + '" r="' + (t[2] || 16) + '" fill="none" stroke="var(--gold)" stroke-width="3"/>' +
+      '<circle class="gi-r" cx="' + t[0] + '" cy="' + t[1] + '" r="16" fill="none" stroke="var(--gold)" stroke-width="3"/>' +
+      '<g transform="translate(' + t[0] + ',' + t[1] + ')"><g class="gi-f">' +
         '<circle r="11" fill="rgba(11,37,80,.28)" stroke="#fff" stroke-width="2.5"/></g></g>' +
       '<g class="gi-a">' + a + '</g>';
   }
-  var GP = function () { return ghostPage(72); };
-  var ILL = {
-    /* אייפון */
-    n1:  function () { return scene(ghostPage(40) + ilBar(1), 32, 301, scrim() + ilMenu(0)); },
-    n2:  function () { return scene(ghostPage(40) + ilBar(0) + ilMenu(1), 160, 216, scrim() + ilSheetPart(0)); },
-    s2e: function () { return scene(ghostPage(40) + ilSheetPart(1), 48, 298, scrim() + ilSheet(0)); },
-    s3:  function () { return scene(ghostPage(40) + ilSheet(1), 160, 284, scrim() + ilConfirm(0)); },
-    s4:  function () { return scene(ghostPage(40) + ilConfirm(1), 50, 40, homeNew()); },
-    s5:  function () { return scene(homeNew(), 80, 120, ilOpen()); },
-    /* כרום */
-    a1:  function () { return scene(GP() + aBar(0, 1), 166, 36, scrim() + aMenu(qw('a2'), icInstall, 0)); },
-    a2:  function () { return scene(GP() + aBar(0, 0) + aMenu(qw('a2'), icInstall, 1), 158, 78, scrim() + aDlg(qw('a3'), 0)); },
-    a3:  function () { var t = dlgTap(); return scene(GP() + aDlg(qw('a3'), 1), t[0], t[1], homeNew()); },
-    /* פיירפוקס */
-    f1:  function () { return scene(GP() + aBar(1, 1), 34, 36, scrim() + aMenu(qw('f2'), icChev, 0)); },
-    f2:  function () { return scene(GP() + aBar(1, 0) + aMenu(qw('f2'), icChev, 1), 158, 78, scrim() + aMenu(qw('f3'), icAddHome, 0)); },
-    f3:  function () { return scene(GP() + aBar(1, 0) + aMenu(qw('f3'), icAddHome, 1), 158, 78, scrim() + aDlg(qw('f4'), 0)); },
-    f4:  function () { var t = dlgTap(); return scene(GP() + aDlg(qw('f4'), 1), t[0], t[1], homeNew()); },
-    /* סמסונג */
-    sm1: function () { return scene(ghostPage(40) + sBar(1), 37, 309, scrim() + sMenu(qw('sm2'), icPlusC, 0)); },
-    sm2: function () { return scene(ghostPage(40) + sBar(0) + sMenu(qw('sm2'), icPlusC, 1), 158, 218, scrim() + sMenu(qw('sm3'), icHome, 0)); },
-    sm3: function () { return scene(ghostPage(40) + sBar(0) + sMenu(qw('sm3'), icHome, 1), 158, 218, scrim() + aDlg(qw('sm4'), 0)); },
-    sm4: function () { var t = dlgTap(); return scene(ghostPage(40) + aDlg(qw('sm4'), 1), t[0], t[1], homeNew()); },
-    sm5: function () { return scene(homeNew(), 80, 120, ilOpen()); },
-    /* אופרה */
-    op1: function () { return scene(GP() + aBar(1, 1), 34, 36, scrim() + aMenu(qw('op2'), icPlusC, 0)); },
-    op2: function () { return scene(GP() + aBar(1, 0) + aMenu(qw('op2'), icPlusC, 1), 158, 78, scrim() + aMenu(qw('op3'), icHome, 0)); },
-    op3: function () { return scene(GP() + aBar(1, 0) + aMenu(qw('op3'), icHome, 1), 158, 78, scrim() + aDlg(qw('op4'), 0)); },
-    op4: function () { var t = dlgTap(); return scene(GP() + aDlg(qw('op4'), 1), t[0], t[1], scrim() + aDlg(qw('op5'), 0, 186)); },
-    op5: function () { var t = dlgTap(186); return scene(GP() + aDlg(qw('op5'), 1, 186), t[0], t[1], homeNew()); },
-    op6: function () { return scene(homeNew(), 80, 120, ilOpen()); }
-  };
+  /* שרשרת: מסכים S0..Sn ונקודות לחיצה T1..Tn → פונקציה לכל שלב. */
+  function chain(keys, S, T) {
+    keys.forEach(function (k, i) { ILL[k] = function () { var s = S(); return scene(s[i], T[i], s[i + 1]); }; });
+  }
+  var ILL = {};
+  function dlgT(y) { var t = dlgTap(y); return [t[0], t[1], 34]; }
+  /* אייפון */
+  chain(['n1', 'n2', 's2e', 's3', 's4', 's5'], function () {
+    var z = bg() + ghostPage(40) + ilBar(0);
+    return [z, z + scrim() + ilMenu(0), z + scrim() + ilSheetPart(0), z + scrim() + ilSheet(0), z + scrim() + ilConfirm(0),
+            homeNew(), ilOpen()];
+  }, [[32, 301, 17], [160, 216, 14], [48, 298, 17], [160, 284, 14], [50, 40, 30], [80, 120, 20]]);
+  /* כרום */
+  chain(['a1', 'a2', 'a3'], function () {
+    var z = bg() + ghostPage(72) + aBar(0, 0);
+    return [z, z + scrim() + aMenu(qw('a2'), icInstall, 0), z + scrim() + aDlg(qw('a3'), 0), homeNew()];
+  }, [[166, 36, 17], [158, 78, 14], dlgT()]);
+  /* פיירפוקס */
+  chain(['f1', 'f2', 'f3', 'f4'], function () {
+    var z = bg() + ghostPage(72) + aBar(1, 0);
+    return [z, z + scrim() + aMenu(qw('f2'), icChev, 0), z + scrim() + aMenu(qw('f3'), icAddHome, 0),
+            z + scrim() + aDlg(qw('f4'), 0), homeNew()];
+  }, [[34, 36, 17], [158, 78, 14], [158, 78, 14], dlgT()]);
+  /* סמסונג */
+  chain(['sm1', 'sm2', 'sm3', 'sm4', 'sm5'], function () {
+    var z = bg() + ghostPage(40) + sBar(0);
+    return [z, z + scrim() + sMenu(qw('sm2'), icPlusC, 0), z + scrim() + sMenu(qw('sm3'), icHome, 0),
+            z + scrim() + aDlg(qw('sm4'), 0), homeNew(), ilOpen()];
+  }, [[37, 309, 17], [158, 218, 14], [158, 218, 14], dlgT(), [80, 120, 20]]);
+  /* אופרה */
+  chain(['op1', 'op2', 'op3', 'op4', 'op5', 'op6'], function () {
+    var z = bg() + ghostPage(72) + aBar(1, 0);
+    return [z, z + scrim() + aMenu(qw('op2'), icPlusC, 0), z + scrim() + aMenu(qw('op3'), icHome, 0),
+            z + scrim() + aDlg(qw('op4'), 0), z + scrim() + aDlg(qw('op5'), 0, 186), homeNew(), ilOpen()];
+  }, [[34, 36, 17], [158, 78, 14], [158, 78, 14], dlgT(), dlgT(186), [80, 120, 20]]);
   function illAll(L) { return L.every(function (s) { return !!ILL[s[0]]; }); }
 
   /* ---------- הנגן ---------- */
@@ -823,7 +836,13 @@ var GUIDE_UI = (function () {
     var L = SQ.L, st = seqEl('gs-st');
     if (!L || !st) return;
     SQ.i = at = Math.max(0, Math.min(i, L.length - 1));
-    st.innerHTML = '<div class="gi">' + phone(ILL[L[SQ.i][0]]()) + '</div>';
+    /* השלב החדש נכנס **מעל** הקודם, והקודם יורד רק אחרי שהחדש צויר — בלי רגע ריק. */
+    var nw = document.createElement('div');
+    nw.className = 'gi' + (SQ.run ? ' gs1' : '');
+    nw.innerHTML = phone(ILL[L[SQ.i][0]]());
+    st.appendChild(nw);
+    var olds = [].slice.call(st.children, 0, -1);
+    setTimeout(function () { olds.forEach(function (o) { if (o.parentNode) o.parentNode.removeChild(o); }); }, 120);
     seqEl('gs-n').textContent = String(SQ.i + 1);
     seqEl('gs-t').textContent = tx(L[SQ.i][0]);
     var ds = HOST.querySelectorAll('.gs-d');
@@ -836,7 +855,8 @@ var GUIDE_UI = (function () {
     SQ.t = setTimeout(function () {
       SQ.t = null;
       if (!SQ.run || !seqEl('gs-st')) return;
-      if (SQ.i >= SQ.L.length - 1) { SQ.run = false; seqShow(SQ.i); return; }
+      /* הסוף: נשארים על המסך האחרון (בלי לצייר מחדש), ו"הצג שוב" מודגש. */
+      if (SQ.i >= SQ.L.length - 1) { SQ.run = false; var ag = seqEl('gs-ag'); if (ag) ag.className = 'gs-b gs-ag on'; return; }
       seqShow(SQ.i + 1); seqNext();
     }, SEQ_MS);
   }
@@ -1396,16 +1416,22 @@ var GUIDE_UI = (function () {
       '.gi-f{transform-box:fill-box;transform-origin:center;animation:gi-f 4.2s ease-in-out infinite}',
       '.gi-r{transform-box:fill-box;transform-origin:center;opacity:0;animation:gi-r 4.2s ease-out infinite}',
       '.gi-a{opacity:0;animation:gi-a 4.2s ease-out infinite}',
-      '.gi-b{animation:gi-b 4.2s ease-out infinite}',
+      '.gi-h{opacity:0;animation:gi-h 4.2s ease-out infinite}',
+      /* ברצף (gs1): כל שלב פעם אחת, ונשאר על המסך שנפתח. */
+      '.gs1 .gi-f,.gs1 .gi-r,.gs1 .gi-h{animation-iteration-count:1;animation-fill-mode:forwards}',
+      '.gs1 .gi-a{animation:gi-a1 4.2s ease-out 1 forwards}',
+      '.gs-st{position:relative}',
+      '.gs-st .gi + .gi{position:absolute;inset:0}',
       '@keyframes gi-f{0%{transform:translate(34px,46px);opacity:0}12%{opacity:1}36%{transform:translate(0,0) scale(1)}',
       '  42%{transform:translate(0,0) scale(.78)}48%{transform:translate(0,0) scale(1);opacity:1}58%{opacity:0}100%{opacity:0}}',
       '@keyframes gi-r{0%,40%{opacity:0;transform:scale(.6)}44%{opacity:1}60%{opacity:0;transform:scale(1.9)}100%{opacity:0}}',
       '@keyframes gi-a{0%,48%{opacity:0;transform:translateY(18px)}60%{opacity:1;transform:translateY(0)}92%{opacity:1}100%{opacity:0}}',
-      '@keyframes gi-b{0%,100%{opacity:1}}',
+      '@keyframes gi-h{0%{opacity:0}14%,46%{opacity:1}56%,100%{opacity:0}}',
+      '@keyframes gi-a1{0%,48%{opacity:0;transform:translateY(18px)}60%,100%{opacity:1;transform:translateY(0)}}',
       /* מי שמעדיף בלי תנועה — מקבל בלי תנועה. */
       '@media (prefers-reduced-motion:reduce){',
       '  .gu-ring,.gu-ring2,.gu-scroll{animation:none}',
-      '  .gi-f,.gi-a,.gi-b{animation:none}.gi-a{opacity:0}.gi-r{animation:none;opacity:1}',
+      '  .gi-f,.gi-a,.gi-r,.gi-h,.gs1 .gi-a{animation:none}.gi-a,.gi-f,.gi-r{opacity:0}.gi-h{opacity:1}',
       '  .gu-slide,.gu-slide.on,.gu-end{transition:none;transform:none}}'
     ].join('\n');
     document.head.appendChild(st);
