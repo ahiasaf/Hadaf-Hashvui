@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 237;
+var SCRIPT_VERSION = 238;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -11664,7 +11664,7 @@ function rafPrzPicks_() {
     if (V) for (var q = 1; q < V.rows.length; q++) {
       var vr = V.c(q, 'הגרלה'), vp = V.c(q, 'פרס'), vw = V.c(q, 'שויך לתלמיד');
       if (!vr && vchRes_(V, q)) vr = VCH_HELD_MAP_[V.c(q, 'מזהה')];   /* שובר שמור לזכייה (8.99.487) */
-      if (vr && vw && RAF_PRIZES.indexOf(vp) >= 0 && V.c(q, 'סטטוס') !== 'זמין') (out[vr] = out[vr] || []).unshift([vw, vp]);
+      if (vr && vw && RAF_PRIZES.indexOf(vp) >= 0 && V.c(q, 'סטטוס') !== 'זמין' && V.c(q, 'סטטוס') !== 'בוטל') (out[vr] = out[vr] || []).unshift([vw, vp]);
     }
   } catch (e2) {}
   return out;
@@ -12062,7 +12062,9 @@ function vchPub_(V, r, adm) {
 /* השורה של השובר שמשויך לזוכה בהגרלה, או -1. */
 function vchOf_(V, rid, ids) {
   for (var r = 1; r < V.rows.length; r++) {
-    if (V.c(r, 'הגרלה') === rid && ids.indexOf(V.c(r, 'שויך לתלמיד')) >= 0 && V.c(r, 'סטטוס') !== 'זמין') return r;
+    var st = V.c(r, 'סטטוס');
+    /* "בוטל" (8.99.549) — שובר שהוחלף בפרס אחר; כבר אינו של הזכייה. */
+    if (V.c(r, 'הגרלה') === rid && ids.indexOf(V.c(r, 'שויך לתלמיד')) >= 0 && st !== 'זמין' && st !== 'בוטל') return r;
   }
   return -1;
 }
@@ -12310,6 +12312,37 @@ function vchPushDue_() {
     vchPut_(V2, r, 'התראה', res.status === 'ok' ? new Date().toISOString() : 'נכשל: ' + String(res.message || '').slice(0, 120));
   });
   SpreadsheetApp.flush();
+}
+/* ?raffle=vswap&key=&rid=&code=&p= — החלפת הפרס של זוכה (8.99.549, אחיאסף: זוכה שרצה פרס שלא היה במלאי).
+   השובר הקודם (אם לא מומש) → "בוטל" ואינו חוזר למלאי; הפרס בשורת הזכייה מתעדכן (רכז); שובר חדש מהמלאי,
+   ובלעדיו — ממתין, וחלוקה מהמלאי תיתן לו. שובר שמומש / שנמסר ולא קושר — לא מחליפים. */
+function rafVSwap_(P) {
+  var p = String(P.p || '');
+  if (RAF_PRIZES.indexOf(p) < 0) return { status: 'error', message: 'פרס לא מוכר' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { status: 'error', message: 'פעולה אחרת רצה כרגע — נסו שוב בעוד דקה' };
+  try {
+    var T = rafRead_(), d = rafById_(T, String(P.rid || ''));
+    if (!d || d.st !== 'פורסם') return { status: 'error', message: 'ההגרלה לא נמצאה או עוד לא פורסמה' };
+    var r = rafLn_(T, d, P.code);
+    if (r < 0 || !T.c(r, 'זוכה')) return { status: 'error', message: 'אין זוכה במוסד הזה' };
+    var ws = (T.c(r, 'מזהי הזוכה') || T.c(r, 'זוכה')).split(/\s+/), V = vchTbl_(true);
+    if (vchHeld_(V, d.rid, ws).length) return { status: 'error', message: VCH_HELD_MSG_ };
+    var vr = vchOf_(V, d.rid, ws);
+    if (vr > 0) {
+      if (V.c(vr, 'סטטוס') === 'מומש') return { status: 'error', message: 'השובר כבר מומש — לא שונה דבר' };
+      if (V.c(vr, 'פרס') === p) return { status: 'error', message: 'זה כבר הפרס שלו' };
+      vchPut_(V, vr, 'סטטוס', 'בוטל');
+    }
+    rafSet_(T, { lines: [r] }, [['פרס', p], ['פרס — איך', 'רכז'], ['פרס — מתי', new Date().toISOString()]]);
+    SpreadsheetApp.flush();
+    var v = issueVoucher_(T.c(r, 'זוכה'), p, { V: V, rid: d.rid, ws: ws, name: T.c(r, 'שם הזוכה'), how: 'רכז' });
+    if (v) for (var q = 1; q < V.rows.length; q++) if (V.c(q, 'מזהה') === v.id) { vchPut_(V, q, 'מזהי הזוכה', ws.join(' ')); break; }
+    SpreadsheetApp.flush();
+    rafPrzBump_();
+    try { CacheService.getScriptCache().removeAll(['raf:pub', 'raf:all']); } catch (xc) {}
+    return { status: 'ok', v: v, wait: v ? 0 : 1 };
+  } finally { lock.releaseLock(); }
 }
 /* ?raffle=vsent&key=&vid= — הרכז שלח בוואטסאפ או העתיק את ההודעה (8.99.546). פעם אחת. */
 function rafVSent_(P) {
@@ -13749,6 +13782,7 @@ function raffleRoute_(e) {
     if (op === 'vattach') return reply_(e, rafVAttach_(P));
     if (op === 'wadm') return reply_(e, rafWadm_(P));
     if (op === 'vsent') return reply_(e, rafVSent_(P));
+    if (op === 'vswap') return reply_(e, rafVSwap_(P));
     if (op === 'von') {
       PropertiesService.getScriptProperties().setProperty('VCH_ON', String(P.v) === '1' ? '1' : '0');
       rafPrzBump_();

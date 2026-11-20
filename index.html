@@ -3183,7 +3183,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.548';
+var APP_VERSION = '8.99.549';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -13444,6 +13444,8 @@ function admPane() {
   el.innerHTML = top + '<div id="adm-body"></div>';
   var body = document.getElementById('adm-body');
 
+  /* שוברים לשליחה + חלוקה מהמלאי וההתראות (8.99.549) — בכל כניסה לניהול, פעם בשתי דקות. */
+  if ((CFG.readKey || '').trim() && Date.now() - (admAutoAt.vt || 0) > 120000) { admAutoAt.vt = Date.now(); setTimeout(vtLoad, 0); }
   /* "דורש טיפול" נטען בפתיחת "התלמידים שלי" — פעם בשתי דקות. */
   if (admTab === 'setup' && (CFG.readKey || '').trim() && Date.now() - (admAutoAt.needs || 0) > 120000) {
     admAutoAt.needs = Date.now();

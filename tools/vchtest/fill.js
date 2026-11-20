@@ -73,5 +73,18 @@ ok(xa3.v.snt === S.snt, 'wadm shows snt');
 // 9. ממתין בלי מלאי מופיע כ-vw
 var K3 = raf({ raffle: 'vpick', id: 'DWINBBB2', rid: 'R1', p: 'maafe' });
 ok(K3.p === 'pizza', 'second pick ignored (already chosen)');
+// 10. החלפת פרס (8.99.549): השובר הקודם → בוטל, פרס חדש + שובר מהמלאי
+post({ action: 'vchadd', key: 'k', rows: [{ t: 'ספר', p: 'book', c: 'BK-9', x: '2026-12-31' }] });
+var before = vrows().filter(function (v) { return v.w === 'DWINAAA1'; })[0];
+ok(raf({ raffle: 'vswap', rid: 'R1', code: 'givat', p: 'book' }).status === 'denied', 'swap w/o key denied');
+var SW = raf({ raffle: 'vswap', key: 'k', rid: 'R1', code: 'givat', p: 'book' });
+ok(SW.status === 'ok' && SW.v && SW.v.p === 'book', 'swap → new voucher', SW);
+var after = vrows().filter(function (v) { return v.w === 'DWINAAA1'; });
+ok(after.filter(function (v) { return v.id === before.id; })[0].st === 'בוטל', 'old voucher cancelled');
+var PS = raf({ raffle: 'prize', id: 'DWINAAA1', fresh: '1' });
+ok(PS.list[0].p === 'book' && PS.list[0].v && PS.list[0].v.p === 'book', 'student sees new prize + voucher', PS.list[0]);
+ok(raf({ raffle: 'vswap', key: 'k', rid: 'R1', code: 'givat', p: 'book' }).status === 'error', 'swap to same prize refused');
+c.vchFill_();
+ok(vrows().filter(function (v) { return v.w === 'DWINAAA1' && v.st !== 'בוטל'; }).length === 1, 'still one live voucher after fill');
 console.log(n - fails + '/' + n + ' passed');
 process.exit(fails ? 1 : 0);

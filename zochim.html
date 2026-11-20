@@ -247,6 +247,9 @@ function coHtml(x, rid) {
     PRZK.map(function (k) { return '<option value="' + k + '">' + esc(przNm(k)) + '</option>'; }).join('') + '</select>';
   else if (one) b += '<button type="button" onclick="coAtt(' + a + ')">' + esc(UI.vchLinkBtn) + '</button>';
   else if (!v && x.st !== 'arr' && VS[x.p] > 0) b += '<button type="button" onclick="coAtt(' + a + ')">' + esc(UI.vchAttach) + '</button>';
+  /* החלפת הפרס (8.99.549) — לשובר שלא מומש. */
+  if (v && v.st !== 'used' && !lk.length) b += '<select onchange="coSwap(' + a + ',this)"><option value="">' + esc(UI.rafPrzSwap) + '</option>' +
+    PRZK.filter(function (k) { return k !== (v.p || x.p); }).map(function (k) { return '<option value="' + k + '">' + esc(przNm(k)) + '</option>'; }).join('') + '</select>';
   return (pz ? '<span class="co">' + esc(pz) + '</span>' : '') + '<span class="co">' + esc(vs) + '</span>' +
     (b ? '<span class="cob">' + b + '</span>' : '');
 }
@@ -266,6 +269,11 @@ function coPrz(rid, code, vid, sel) {
   if (!p || !SureLater(coPrz, this, arguments, function () { sel.value = ''; })) return;
   if (vid) q.vid = vid;
   coCall(q).then(coDone, function () { SayMsg(UI.zchErr); load(); });
+}
+function coSwap(rid, code, vid, sel) {
+  var p = sel.value;
+  if (!p || !SureLater(coSwap, this, arguments, function () { sel.value = ''; })) return;
+  coCall({ raffle: 'vswap', rid: rid, code: code, p: p }).then(coDone, function () { SayMsg(UI.zchErr); load(); });
 }
 function coAtt(rid, code, vid) {
   var q = { raffle: 'vattach', rid: rid, code: code };

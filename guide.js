@@ -829,7 +829,7 @@ var GUIDE_UI = (function () {
   function illAll(L) { return L.every(function (s) { return !!ILL[s[0]]; }); }
 
   /* ---------- הנגן ---------- */
-  var SEQ_MS = 4200, SQ = { i: 0, t: null, run: false, L: null, io: null };
+  var SEQ_MS = 2800, SQ = { i: 0, t: null, run: false, L: null, io: null };
   function seqStop() { if (SQ.t) { clearTimeout(SQ.t); SQ.t = null; } SQ.run = false; }
   function seqEl(id) { return HOST ? HOST.querySelector('#' + id) : null; }
   function seqShow(i) {
@@ -1419,8 +1419,16 @@ var GUIDE_UI = (function () {
       '.gi-a{opacity:0;animation:gi-a 4.2s ease-out infinite}',
       '.gi-h{opacity:0;animation:gi-h 4.2s ease-out infinite}',
       /* ברצף (gs1): כל שלב פעם אחת, ונשאר על המסך שנפתח. */
-      '.gs1 .gi-f,.gs1 .gi-r,.gs1 .gi-h{animation-iteration-count:1;animation-fill-mode:forwards}',
-      '.gs1 .gi-a{animation:gi-a1 4.2s ease-out 1 forwards}',
+      /* ברצף — 2.8 שנ' לשלב (8.99.549, אחיאסף: "אחרי הלחיצה לוקח זמן עד השלב הבא"): האצבע מגיעה ולוחצת
+         באותו קצב, ומה שנפתח נשאר רק רגע לפני השלב הבא — שממשיך מאותו מסך. */
+      '.gs1 .gi-f{animation:gi-f1 2.8s ease-in-out 1 forwards}',
+      '.gs1 .gi-r{animation:gi-r1 2.8s ease-out 1 forwards}',
+      '.gs1 .gi-h{animation:gi-h1 2.8s ease-out 1 forwards}',
+      '.gs1 .gi-a{animation:gi-a1 2.8s ease-out 1 forwards}',
+      '@keyframes gi-f1{0%{transform:translate(34px,46px);opacity:0}10%{opacity:1}42%{transform:translate(0,0) scale(1)}',
+      '  50%{transform:translate(0,0) scale(.78)}58%{transform:translate(0,0) scale(1);opacity:1}70%,100%{opacity:0}}',
+      '@keyframes gi-r1{0%,48%{opacity:0;transform:scale(.6)}52%{opacity:1}72%,100%{opacity:0;transform:scale(1.9)}}',
+      '@keyframes gi-h1{0%{opacity:0}12%,52%{opacity:1}64%,100%{opacity:0}}',
       '.gs-st{position:relative}',
       '.gs-st .gi + .gi{position:absolute;inset:0}',
       '@keyframes gi-f{0%{transform:translate(34px,46px);opacity:0}12%{opacity:1}36%{transform:translate(0,0) scale(1)}',
@@ -1428,7 +1436,7 @@ var GUIDE_UI = (function () {
       '@keyframes gi-r{0%,40%{opacity:0;transform:scale(.6)}44%{opacity:1}60%{opacity:0;transform:scale(1.9)}100%{opacity:0}}',
       '@keyframes gi-a{0%,48%{opacity:0;transform:translateY(18px)}60%{opacity:1;transform:translateY(0)}92%{opacity:1}100%{opacity:0}}',
       '@keyframes gi-h{0%{opacity:0}14%,46%{opacity:1}56%,100%{opacity:0}}',
-      '@keyframes gi-a1{0%,48%{opacity:0;transform:translateY(18px)}60%,100%{opacity:1;transform:translateY(0)}}',
+      '@keyframes gi-a1{0%,55%{opacity:0;transform:translateY(18px)}70%,100%{opacity:1;transform:translateY(0)}}',
       /* מי שמעדיף בלי תנועה — מקבל בלי תנועה. */
       '@media (prefers-reduced-motion:reduce){',
       '  .gu-ring,.gu-ring2,.gu-scroll{animation:none}',
