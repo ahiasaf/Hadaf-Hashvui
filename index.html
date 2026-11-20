@@ -3183,7 +3183,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.545';
+var APP_VERSION = '8.99.546';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -11102,6 +11102,7 @@ function admRefreshAll() {
   if (key) {
     pullRegs(); conflictLoad(); funLoad(); trLoad(); needsLoad(); accLoad(); stuckLoad(); pushLoad();
     chDueLoad();
+    vtLoad();
     admRosterLoad();
     try { pullCalls().then(function () { if (admTab === 'inst') admPane(); })['catch'](function () {}); } catch (e) {}
     /* גם סקירת הישיבות — ספירה וסנכרון עכשיו, בלי ההמתנה. */
@@ -13450,7 +13451,10 @@ function admPane() {
   }
 
   if (admTab === 'more' && !sub) { body.innerHTML = admMoreMenu(); return; }
-  if (admTab === 'hot') { body.innerHTML = '<div id="hot-body"></div>'; pplLast['hot-body'] = ''; admLive(); return; }
+  if (admTab === 'hot') {
+    if (Date.now() - (admAutoAt.vt || 0) > 120000) { admAutoAt.vt = Date.now(); setTimeout(vtLoad, 0); }
+    body.innerHTML = '<div id="hot-body"></div>'; pplLast['hot-body'] = ''; admLive(); return;
+  }
   /* "הדף": הדף והמצגת · פתיחת דפים, והסטודיו בקישור. */
   if (admTab === 'daf') {
     body.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">' +
@@ -14657,7 +14661,108 @@ function accGo() {
    אין פס. כל הישיבות, תמיד: דחוף אינו מסונן לפי ישיבה. */
 function admHotList() {
   var all = (stuckRows || []).filter(function (p) { return !p.done && !stuckFull(p); });
-  return { fail: needsFail || [], help: all, acc: accWait(null), calls: callsDue(), ch: chDueItem() };
+  return { fail: needsFail || [], help: all, acc: accWait(null), calls: callsDue(), ch: chDueItem(), vt: vtItems() };
+}
+/* ============================================================
+   **שוברים לשליחה** (8.99.546, אחיאסף 20.11).
+   ============================================================
+   מ-?raffle=wadm (אותה רשימה של /zochim?r=1; השרת גם מחלק מהמלאי לממתינים ושומר
+   את נוסח ההתראה "השובר הגיע"). פריט לכל זוכה שיש לו שובר שעוד לא נצפה באפליקציה
+   ועוד לא נשלח: וואטסאפ עם ההודעה (לזוכה, או לרכז כשאין לו אפליקציה), העתקת הטלפון,
+   העתקת ההודעה. וואטסאפ / העתקת ההודעה — "נשלח" בשרת (?raffle=vsent), והפריט יורד.
+   ועוד שורה: מי בחר פרס ואין במלאי — ממתין לשובר. */
+var VT = null;
+function vtLoad() {
+  var key = (CFG.readKey || '').trim();
+  if (!key) return;
+  scriptGet({ raffle: 'wadm', key: key, vt: UI.vchGotT || '', vb: UI.vchGotB || '' }).then(function (d) {
+    if (!d || d.status !== 'ok' || !d.list) return;
+    var send = [], wait = [];
+    d.list.forEach(function (r) {
+      (r.w || []).forEach(function (x) {
+        if (x.vw) wait.push(x);
+        var v = x.v;
+        if (v && v.st === 'in' && v.c && !v.sn && !v.snt) send.push(x);
+      });
+    });
+    VT = { send: send, wait: wait };
+    admBell();
+    if (admTab === 'hot') pplSet('hot-body', admHotHtml());
+  }, function () {});
+}
+function vtItems() { return VT && (VT.send.length || VT.wait.length) ? VT : null; }
+function vtDmy(iso) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  return m ? (+m[3]) + '.' + (+m[2]) + '.' + m[1] : '';
+}
+function vtFill(t, v) {
+  var o = String(t || '');
+  for (var k in v) o = o.split('{' + k + '}').join(v[k] || '');
+  return o.split('\n').filter(function (l) { return l.replace(/[\s:·,]/g, '') !== '' && !/^בתוקף עד\s*$/.test(l.trim()); }).join('\n');
+}
+/* למי, באיזה טלפון ואיזו הודעה — אותם נוסחים של /zochim?r=1. null — אין למי לשלוח. */
+function vtMsg(x) {
+  var v = x.v, vv = { 'פרס': UI['przN_' + (v.p || x.p)] || v.p, 'קוד': v.c, 'קישור': v.u || '', 'תוקף': vtDmy(v.x) };
+  if (x.na) {
+    var c = x.co || {};
+    if (!c.n || digits(c.ph).length < 9) return { err: c.err ? UI.rafWaCoErr : !c.n ? UI.rafWaCoNone : fill(UI.rafWaCoNoPh, { name: c.n }) };
+    vv['רכז'] = c.n; vv['שם'] = (x.name || '') + (x.gc ? ' (' + x.gc + ')' : ''); vv['ישיבה'] = x.inst || '';
+    return { ph: c.ph, tx: vtFill(UI.rafWaCoVchTx, vv), lbl: fill(UI.rafWaCo, { name: c.n }) };
+  }
+  if (digits(x.ph).length < 9) return { err: UI.vchNoPh };
+  vv['שם'] = x.first || x.name || '';
+  return { ph: x.ph, tx: vtFill(UI.rafWaVchTx, vv), lbl: UI.rafWaKid };
+}
+function vtFind(vid) {
+  var hit = null;
+  ((VT && VT.send) || []).forEach(function (x) { if (x.v && x.v.id === vid) hit = x; });
+  return hit;
+}
+function vtCopy(txt, ok) {
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(ok, function () { legacyCopy(txt, ok); });
+  else legacyCopy(txt, ok);
+}
+/* נשלח — בשרת, והפריט יורד (גם במסך הזוכים). */
+function vtSent(vid) {
+  var key = (CFG.readKey || '').trim();
+  if (!key || !VT) return;
+  VT.send = VT.send.filter(function (x) { return !(x.v && x.v.id === vid); });
+  admBell();
+  scriptGet({ raffle: 'vsent', key: key, vid: vid }).then(function () {}, function () {});
+  setTimeout(function () { if (admTab === 'hot') pplSet('hot-body', admHotHtml()); }, 400);
+}
+function vtWa(vid) { vtSent(vid); return true; }
+function vtCpPh(vid) {
+  var x = vtFind(vid), m = x && vtMsg(x);
+  if (m && m.ph) vtCopy(m.ph, function () { SayMsg(UI.vchCopied); });
+}
+function vtCpTx(vid) {
+  var x = vtFind(vid), m = x && vtMsg(x);
+  if (m && m.tx) vtCopy(m.tx, function () { SayMsg(UI.vchCopied); vtSent(vid); });
+}
+function vtHtml(L) {
+  var h = '';
+  if (L.send.length) {
+    h += '<div class="adm-card hot-sec" id="hot-vt" style="margin-bottom:11px"><h4>' + esc(fill(UI.hotVch, { n: L.send.length })) + '</h4>' +
+      L.send.map(function (x) {
+        var m = vtMsg(x), id = esc(x.v.id);
+        return '<div class="need"><div class="need-m"><b>' + esc(x.name) + '</b>' + (x.inst ? ' · ' + esc(x.inst) : '') +
+          ' · ' + esc(UI['przN_' + (x.v.p || x.p)] || x.v.p) + '</div>' +
+          (m.err ? '<div class="need-w">' + esc(m.err) + '</div>' :
+          '<div class="yr-ch" style="margin-top:8px"><a class="yr-c on" target="_blank" rel="noopener" onclick="return vtWa(\'' + id + '\')" href="' +
+            esc('https://wa.me/' + waNum(m.ph) + '?text=' + encodeURIComponent(m.tx)) + '">💬 ' + esc(m.lbl) + '</a>' +
+          '<button class="yr-c" type="button" onclick="vtCpPh(\'' + id + '\')">' + esc(UI.vchCpPh) + '</button>' +
+          '<button class="yr-c" type="button" onclick="vtCpTx(\'' + id + '\')">' + esc(UI.vchCpTx) + '</button></div>') + '</div>';
+      }).join('') + '</div>';
+  }
+  if (L.wait.length) {
+    h += '<div class="adm-card hot-sec" id="hot-vtw" style="margin-bottom:11px"><h4>' + esc(fill(UI.hotVchWait, { n: L.wait.length })) + '</h4>' +
+      L.wait.map(function (x) {
+        return '<div class="need"><div class="need-m"><b>' + esc(x.name) + '</b>' + (x.inst ? ' · ' + esc(x.inst) : '') +
+          ' · ' + esc(UI['przN_' + x.p] || x.p) + '</div></div>';
+      }).join('') + '</div>';
+  }
+  return h;
 }
 /* **יום ראשון — תזכורת להגרלת חבר מביא חבר** (8.99.443, אחיאסף): בתוך האפליקציה בלבד, בלי התראה
    יוצאת ובלי יומן. ההגרלה עצמה — ידנית לגמרי. `CHDUE` — מ-?challenge=due (קריאה בלבד). */
@@ -14689,7 +14794,8 @@ function chDueLine(x) {
 }
 /* המספר האדום על הפעמון — כמה דברים מחכים ב"דחוף". */
 function admBell() {
-  var L = admHotList(), n = L.fail.length + L.help.length + L.acc.length + L.calls.length + (L.ch ? 1 : 0);
+  var L = admHotList(), n = L.fail.length + L.help.length + L.acc.length + L.calls.length + (L.ch ? 1 : 0) +
+    (L.vt ? L.vt.send.length + (L.vt.wait.length ? 1 : 0) : 0);
   var e = document.getElementById('adm-bell-n');
   if (!e) return;
   var t = n ? String(n) : '';
@@ -14702,6 +14808,7 @@ function admHotHtml() {
     h += '<div class="adm-card hot-sec" id="hot-ch" style="margin-bottom:11px"><h4>' + esc(UI.hotCh) + '</h4>' +
       '<p>' + esc(chDueLine(L.ch)) + '</p><button class="btn p" type="button" onclick="admSubGo(\'chal\')">' + esc(UI.hotChGo) + '</button></div>';
   }
+  if (L.vt) h += vtHtml(L.vt);
   if (L.acc.length) {
     h += '<div class="adm-card hot-sec" id="hot-acc" style="margin-bottom:11px"><h4>' + esc(UI.hotAcc) + '</h4>' +
       accHtml('', 1) + '</div>';
@@ -14733,7 +14840,7 @@ function admHotHtml() {
       }).join('') + (needsMsg ? '<div class="cond" style="margin-top:8px">' + esc(needsMsg) + '</div>' : '') + '</div>';
   }
   /* "ההיסטוריה" נשמרת: כאן נשאר הפריט עד שמטופל, וכשאין כלום — אומרים. */
-  if (!L.acc.length && !L.help.length && !L.fail.length && !L.calls.length && !L.ch) h += '<p class="st-ok">✓ ' + esc(UI.hotNone) + '</p>';
+  if (!L.acc.length && !L.help.length && !L.fail.length && !L.calls.length && !L.ch && !L.vt) h += '<p class="st-ok">✓ ' + esc(UI.hotNone) + '</p>';
   var subbed = Store.get('rmSub', 0) && window.APPX && APPX.perm() === 'granted';
   if (!subbed) h += '<button class="adm-chip" onclick="rmSubOn()">' + esc(UI.hotSub) + '</button>';
   return h;
@@ -17025,11 +17132,6 @@ function vchLoad() {
   VCH.busy = true; admPane();
   vchCall({ raffle: 'vadm' }).then(vchGot, function () { VCH.busy = false; VCH.msg = UI.vchFail; admPane(); });
 }
-function vchOn(v) {
-  if (VCH.busy || !SureLater(vchOn, this, arguments)) return;
-  VCH.busy = true; admPane();
-  vchCall({ raffle: 'von', v: v ? '1' : '0' }).then(vchGot, function () { VCH.busy = false; VCH.msg = UI.vchFail; admPane(); });
-}
 function vchPz(k) { return UI['przN_' + k] || k; }
 function vchDmy(iso) {
   var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
@@ -17207,9 +17309,6 @@ function vchCard() {
   var msg = VCH.msg ? '<div class="cond" style="margin-top:10px">' + esc(VCH.msg) + '</div>' : '';
   var h = '<div class="adm-card"><h4>' + esc(UI.vchAdmH) + '</h4>';
   if (!d) return h + '<button class="btn g"' + dis + ' onclick="vchLoad()">' + esc(VCH.busy ? UI.vchBusy : UI.vchLoad) + '</button>' + msg + '</div>';
-  h += '<p class="h">' + esc(d.on ? UI.vchAdmOn : UI.vchAdmOff) + '</p>' +
-    '<button class="btn ' + (d.on ? 'g' : 'p') + '" type="button"' + dis + ' onclick="vchOn(' + (d.on ? 0 : 1) + ')">' +
-    esc(d.on ? UI.vchOffBtn : UI.vchOnBtn) + '</button>';
   if (d.low && d.low.length) h += '<div class="cond" style="margin-top:10px">' +
     esc(fill(UI.vchLow, { n: d.lowN, list: d.low.map(vchPz).join(' · ') })) + '</div>';
   var ks = RAF_PRZ.filter(function (k) { return d.by[k] && d.by[k].n; });

@@ -6,15 +6,15 @@ c.Utilities.getUuid = function () { return require('crypto').randomUUID(); };
 function ok(cond, label, x) { n++; if (!cond) { fails++; console.log('FAIL', label, x === undefined ? '' : JSON.stringify(x)); } }
 function raf(p) { return JSON.parse(c.raffleRoute_({ parameter: p }).t); }
 function post(d) { return JSON.parse(c.doPost({ postData: { contents: JSON.stringify(d) } }).t); }
-var pub = new Date().toISOString();
+var pub = new Date().toISOString(), pub0 = '2026-11-01T00:00:00Z';   // R0 — לפני השוברים (VCH_POP_FROM_)
 c.appendCols_('לומדים', [['מזהה', 'DWINAAA1'], ['שם', 'א'], ['משפחה', 'ב'], ['קוד ישיבה', 'givat'], ['תפקיד', 'תלמיד'], ['טלפון', '05' + '00000001']]);
 c.appendCols_('לומדים', [['מזהה', 'DWINBBB2'], ['שם', 'ג'], ['משפחה', 'ד'], ['קוד ישיבה', 'rishon'], ['תפקיד', 'תלמיד']]);
 c.appendCols_('לומדים', [['מזהה', 'DWINCCC3'], ['שם', 'ה'], ['משפחה', 'ו'], ['קוד ישיבה', 'nertamid'], ['תפקיד', 'תלמיד']]);
 // הגרלה ישנה (R0) — לפני השוברים: לזוכה פרס בלי שובר, לשני אין פרס.
 c.appendCols_('הגרלות', [['מזהה הגרלה', 'R0'], ['שבוע', '4'], ['סטטוס', 'פורסם'], ['קוד ישיבה', 'rishon'],
-  ['זוכה', 'DWINBBB2'], ['מזהי הזוכה', 'DWINBBB2'], ['שם הזוכה', 'ג ד'], ['פורסם', pub], ['פרס', 'pizza'], ['פרס — איך', 'בחר']]);
+  ['זוכה', 'DWINBBB2'], ['מזהי הזוכה', 'DWINBBB2'], ['שם הזוכה', 'ג ד'], ['פורסם', pub0], ['פרס', 'pizza'], ['פרס — איך', 'בחר']]);
 c.appendCols_('הגרלות', [['מזהה הגרלה', 'R0'], ['שבוע', '4'], ['סטטוס', 'פורסם'], ['קוד ישיבה', 'nertamid'],
-  ['זוכה', 'DWINCCC3'], ['מזהי הזוכה', 'DWINCCC3'], ['שם הזוכה', 'ה ו'], ['פורסם', pub], ['פרס — עד', '2020-01-01T00:00:00Z']]);
+  ['זוכה', 'DWINCCC3'], ['מזהי הזוכה', 'DWINCCC3'], ['שם הזוכה', 'ה ו'], ['פורסם', pub0], ['פרס — עד', '2020-01-01T00:00:00Z']]);
 c.appendCols_('הגרלות', [['מזהה הגרלה', 'R1'], ['שבוע', '5'], ['סטטוס', 'פורסם'], ['קוד ישיבה', 'givat'],
   ['זוכה', 'DWINAAA1'], ['מזהי הזוכה', 'DWINAAA1'], ['שם הזוכה', 'א ב'], ['פורסם', pub]]);
 // הרשימה הציבורית לפני הכול

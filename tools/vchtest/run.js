@@ -15,10 +15,9 @@ c.appendCols_('לומדים', [['מזהה', 'DWINCCC3'], ['שם', 'ה'], ['מש�
   c.appendCols_('הגרלות', [['מזהה הגרלה', 'R1'], ['שבוע', '5'], ['סטטוס', 'פורסם'], ['קוד ישיבה', a[0]],
     ['זוכה', a[1]], ['מזהי הזוכה', a[1]], ['שם הזוכה', a[2]], ['פורסם', pub]]);
 });
-// כבוי: כמו קודם — אין von, vpick מסרב.
+// 8.99.546: השוברים תמיד דלוקים.
 var P0 = raf({ raffle: 'prize', id: 'DWINAAA1', fresh: '1' });
-ok(P0.list.length === 1 && P0.list[0].st === 'pick' && !P0.von, 'off: prize list as before', P0);
-ok(raf({ raffle: 'vpick', id: 'DWINAAA1', rid: 'R1', p: 'pizza' }).status === 'off', 'off: vpick refused');
+ok(P0.list.length === 1 && P0.list[0].st === 'pick' && P0.von === 1, 'always on: prize list', P0);
 // הזנה: בלי סיסמה — נדחית.
 ok(post({ action: 'vchadd', key: 'bad', rows: [{ c: 'X', p: 'pizza', x: '2026-12-31' }] }).status === 'denied', 'add w/o key denied');
 var A1 = post({ action: 'vchadd', key: 'k', bid: 'b1', rows: [
@@ -57,9 +56,13 @@ ok(P2.list[0].p === 'pizza' && P2.list[0].how === 'בחר' && P2.list[0].v && P2
 var K3 = raf({ raffle: 'vpick', id: 'DWINBBB2', rid: 'R1', p: 'pizza' });
 ok(K3.v && K3.v.c === 'PZ-2', 'second winner gets the other');
 var K4 = raf({ raffle: 'vpick', id: 'DWINCCC3', rid: 'R1', p: 'pizza' });
-ok(K4.status === 'out' && K4.vs.pizza === 0 && K4.vs.burger === 1, 'out of stock → out + stock', K4);
+ok(K4.status === 'ok' && K4.wait === 1 && !K4.v && K4.p === 'pizza', 'out of stock → pick saved, wait (8.99.546)', K4);
 var P3 = raf({ raffle: 'prize', id: 'DWINCCC3', fresh: '1' });
-ok(P3.list[0].st === 'pick' && !P3.list[0].p, 'out: nothing taken, still pick');
+ok(P3.list[0].p === 'pizza' && !P3.list[0].v, 'out: chosen, waiting for stock');
+// מלאי פיצה חדש → הממתין מקבל מעצמו
+post({ action: 'vchadd', key: 'k', rows: [{ t: 'פיצה', p: 'pizza', c: 'PZ-9', x: '2026-12-31' }] });
+var P5 = raf({ raffle: 'prize', id: 'DWINCCC3', fresh: '1' });
+ok(P5.list[0].v && P5.list[0].v.c === 'PZ-9', 'new stock → waiting winner gets it', P5.list[0]);
 // אף שובר לא חולק פעמיים
 var codes = {}; var dupl = false;
 V.d.slice(1).forEach(function (r) { var st = r[V.d[0].indexOf('סטטוס')], cd = r[V.d[0].indexOf('קוד')]; if (st === 'שויך') { if (codes[cd]) dupl = true; codes[cd] = 1; } });
@@ -70,10 +73,10 @@ var U = raf({ raffle: 'vused', id: 'DWINAAA1', vid: K1.v.id });
 ok(U.status === 'ok' && U.v.st === 'used' && !U.v.c, 'used → מומש, code hidden', U);
 // הרכז (זוכה בלי אפליקציה): prizeset משייך שובר
 var S = raf({ raffle: 'prizeset', key: 'k', rid: 'R1', code: 'nertamid', p: 'burger' });
-ok(S.status === 'ok' && S.v && S.v.c === 'BG-1', 'coordinator path assigns voucher', S);
+ok(S.status === 'error', 'coordinator: winner already has a voucher', S);
 var TT = c.rafRead_(), DD = c.rafById_(TT, 'R1'); c.rafPrzAdm_(TT, DD);
 var nt = (DD.rows || []).filter(function (x) { return x.code === 'nertamid'; })[0];
-ok(nt && nt.v && nt.v.c === 'BG-1' && nt.v.how === 'רכז', 'admin state shows voucher', nt);
+ok(nt && nt.v && nt.v.c === 'PZ-9' && nt.v.how === 'מהמלאי', 'admin state shows voucher from stock', nt);
 // פרסים ותקציב — השובר רשום, העלות מהקובץ
 var PZ = JSON.parse(c.przRoute_({ parameter: { prz: 'state', key: 'k' } }).t);
 var g = PZ.list.filter(function (x) { return x.code === 'givat'; })[0];
@@ -82,14 +85,12 @@ ok(PZ.sum.comN === 3, 'budget: all 3 committed', PZ.sum);
 // הגרלה אוטומטית אחרי המועד: רק בין הפרסים שיש להם שובר, והשובר משויך.
 post({ action: 'vchadd', key: 'k', rows: [{ t: 'מאפה', p: 'maafe', c: 'MF-1', x: '2027-01-15' }] });
 c.appendCols_('הגרלות', [['מזהה הגרלה', 'R2'], ['שבוע', '6'], ['סטטוס', 'פורסם'], ['קוד ישיבה', 'givat'],
-  ['זוכה', 'DWINAAA1'], ['מזהי הזוכה', 'DWINAAA1'], ['שם הזוכה', 'א ב'], ['פורסם', pub], ['פרס — עד', '2020-01-01T00:00:00Z']]);
+  ['זוכה', 'DWINAAA1'], ['מזהי הזוכה', 'DWINAAA1'], ['שם הזוכה', 'א ב'], ['פורסם', new Date(Date.now() - 20 * 864e5).toISOString()], ['פרס — עד', '2020-01-01T00:00:00Z']]);
 var PA = raf({ raffle: 'prize', id: 'DWINAAA1', fresh: '1' });
 var r2 = PA.list.filter(function (x) { return x.rid === 'R2'; })[0];
-ok(r2 && r2.p === 'maafe' && r2.how === 'הוגרל' && r2.v && r2.v.c === 'MF-1', 'auto-draw picks stocked prize + voucher', r2);
-// כבוי שוב — השוברים שכבר שויכו נשארים אצל התלמיד
-raf({ raffle: 'von', key: 'k', v: '0' });
+ok(r2 && !r2.p && r2.ov === 1 && !r2.v, 'past due: closed, no auto-draw (8.99.546)', r2);
 var P4 = raf({ raffle: 'prize', id: 'DWINBBB2', fresh: '1' });
-ok(!P4.von && P4.list[0].v && P4.list[0].v.c === 'PZ-2', 'off again: issued voucher still shown');
+ok(P4.von === 1 && P4.list[0].v && P4.list[0].v.c === 'PZ-2', 'issued voucher still shown');
 console.log(n - fails + '/' + n + ' passed');
 if (Object.keys(M.missing).length) console.log('missing mocks:', Object.keys(M.missing).join(', '));
 process.exit(fails ? 1 : 0);

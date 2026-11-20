@@ -176,17 +176,43 @@ function coVch(x) {
   var lk = x.lk || [];
   return lk.length === 1 && lk[0].c ? { c: lk[0].c, p: lk[0].p } : null;
 }
-function waBtn(num, tx, lbl, key) {
-  var done = !!WAS[key];
-  return '<a class="wa' + (done ? ' sent' : '') + '" target="_blank" rel="noopener" data-b="' + esc(lbl) + '" onclick="coSent(this,\'' + esc(key) + '\')" href="' +
+/* `vid` — שובר (8.99.546): "נשלח" נרשם גם בשרת (?raffle=vsent), כך שהניהול והמכשירים האחרים יודעים;
+   ליד הכפתור — העתקת הטלפון והעתקת ההודעה (למי שאין לו וואטסאפ). */
+var CPT = {};
+function waBtn(num, tx, lbl, key, vid, snt) {
+  var done = !!WAS[key] || !!snt;
+  CPT[key] = { ph: num, tx: tx, vid: vid || '' };
+  var k = esc(key).replace(/'/g, '');
+  return '<a class="wa' + (done ? ' sent' : '') + '" target="_blank" rel="noopener" data-b="' + esc(lbl) + '" onclick="coSent(this,\'' + k + '\')" href="' +
     esc('https://wa.me/' + waNum(num) + '?text=' + encodeURIComponent(tx)) + '">' +
-    esc(done ? tp(UI.zchWaSent, { b: lbl }) : lbl) + '</a>';
+    esc(done ? tp(UI.zchWaSent, { b: lbl }) : lbl) + '</a>' +
+    (vid ? '<button type="button" onclick="coCp(\'' + k + '\',0)">' + esc(UI.vchCpPh) + '</button>' +
+           '<button type="button" onclick="coCp(\'' + k + '\',1)">' + esc(UI.vchCpTx) + '</button>' : '');
 }
-function coSent(el, key) {
+function coMark(key) {
   WAS[key] = Date.now();
   try { localStorage.setItem('df:zchWa', JSON.stringify(WAS)); } catch (e) {}
+  var c = CPT[key];
+  if (c && c.vid) coCall({ raffle: 'vsent', vid: c.vid }).then(function () {}, function () {});
+}
+function coSent(el, key) {
+  coMark(key);
   el.className = 'wa sent';
   el.textContent = tp(UI.zchWaSent, { b: el.getAttribute('data-b') || '' });
+}
+function coCp(key, msg) {
+  var c = CPT[key];
+  if (!c) return;
+  var t = msg ? c.tx : c.ph, ok = function () { SayMsg(UI.vchCopied); if (msg) coMark(key); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(ok, function () { coCpOld(t, ok); });
+  else coCpOld(t, ok);
+}
+function coCpOld(t, ok) {
+  var a = document.createElement('textarea');
+  a.value = t; a.setAttribute('readonly', ''); a.style.cssText = 'position:fixed;top:-999px;opacity:0';
+  document.body.appendChild(a); a.select();
+  try { document.execCommand('copy'); ok(); } catch (e) {}
+  document.body.removeChild(a);
 }
 function coWa(x, rid) {
   var vc = coVch(x);
@@ -199,13 +225,13 @@ function coWa(x, rid) {
     if (!c.n) return '<span class="co">' + esc(UI.rafWaCoNone) + '</span>';
     if (digits(c.ph).length < 9) return '<span class="co">' + esc(tp(UI.rafWaCoNoPh, { name: c.n })) + '</span>';
     vv['רכז'] = c.n; vv['שם'] = (x.name || '') + (x.gc ? ' (' + x.gc + ')' : ''); vv['ישיבה'] = x.inst || '';
-    return waBtn(c.ph, fillT(vc ? UI.rafWaCoVchTx : UI.rafWaCoTx, vv), tp(UI.rafWaCo, { name: c.n }), key);
+    return waBtn(c.ph, fillT(vc ? UI.rafWaCoVchTx : UI.rafWaCoTx, vv), tp(UI.rafWaCo, { name: c.n }), key, vc && vc.id, vc && vc.snt);
   }
   if (digits(x.ph).length < 9) return '';
   vv['שם'] = x.first || x.name || '';
   var t0 = '';
   if (!vc) { try { t0 = JSON.parse(ls('df:rafWaTx') || '""') || ''; } catch (e) {} }
-  return waBtn(x.ph, fillT(vc ? UI.rafWaVchTx : (t0 || UI.rafWaTx), vv), UI.rafWaKid, key);
+  return waBtn(x.ph, fillT(vc ? UI.rafWaVchTx : (t0 || UI.rafWaTx), vv), UI.rafWaKid, key, vc && vc.id, vc && vc.snt);
 }
 function coHtml(x, rid) {
   /* שובר שכבר נמסר ועוד לא קושר (`lk`, 8.99.486) — הפעולות שולחות את המזהה שלו. יותר מאחד — בלי פעולה. */
@@ -213,7 +239,8 @@ function coHtml(x, rid) {
   var a = "'" + esc(rid) + "','" + esc(x.code) + "','" + esc(one) + "'";
   var pz = x.st === 'arr' ? UI.rafPrzArr : x.p ?
     tp(UI[x.how === 'הוגרל' ? 'rafPrzByAuto' : x.how === 'רכז' ? 'rafPrzByAdm' : 'rafPrzByMe'], { p: przNm(x.p) }) : '';
-  var v = x.v, vs = lk.length ? tp(UI.vchStHeld, { c: lk.map(function (q) { return q.c; }).join(' · ') }) : !v ? UI.vchStNone : v.st === 'used' ? UI.vchStUsedZ : v.sn ? tp(UI.vchStSeen, { t: when(v.sn) }) : UI.vchStSet;
+  var v = x.v, vs = lk.length ? tp(UI.vchStHeld, { c: lk.map(function (q) { return q.c; }).join(' · ') }) : !v ? (x.vw ? UI.vchStWait : UI.vchStNone) : v.st === 'used' ? UI.vchStUsedZ : v.sn ? tp(UI.vchStSeen, { t: when(v.sn) }) :
+    v.snt ? tp(UI.vchStSent, { t: when(v.snt) }) : UI.vchStSet;
   var b = coWa(x, rid);
   if (lk.length > 1) b += '';
   else if (!x.p) b += '<select onchange="coPrz(' + a + ',this)"><option value="">' + esc(UI.rafPrzSet) + '</option>' +

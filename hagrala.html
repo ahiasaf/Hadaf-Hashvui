@@ -308,7 +308,8 @@ function przCard(k, on, sel, out) {
    חוזרים לבחירה. אין תשובה — שואלים את השרת שוב (לחיצה שנקלטה מחזירה
    את אותו שובר), ואם עדיין אין — חוזרים לבחירה עם הודעה. */
 var PRZ_VON = false, PRZ_VS = {}, VCH_K = '', VCH_BUSY = false;
-function vchOut(k) { return PRZ_VON && !(PRZ_VS[k] > 0); }
+/* 8.99.546 (אחיאסף): אין "אזל זמנית" — בוחרים כל פרס; אין במלאי — "ההזמנה תטופל בקרוב" (vchWait). */
+function vchOut(k) { return false; }
 function vchDaysLeft(x) {
   var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(x || ''));
   if (!m) return null;
@@ -384,8 +385,8 @@ function vchGo() {
         });
         return;
       }
-      if (d && d.status === 'out') {
-        fin(function () { PRZ_VS = d.vs || PRZ_VS; PRZ_VS[k] = 0; przDraw(z, true); SayMsg(UI.vchOut); });
+      if (d && d.status === 'late') {
+        fin(function () { z.ov = 1; przDraw(z, false); });
         return;
       }
       lost();
@@ -457,7 +458,7 @@ function przDraw(z, live) {
     var w = z && z.due ? przWhen(z.due) : '';
     h = '<h3>' + esc(kid ? tp(UI.przHDad, { name: kid }) : UI.przH) + '</h3>' +
         (w ? '<p class="due">' + esc(tp(kid ? UI.przDueDad : UI.przDue, { due: w })) + '</p>' : '') +
-        '<div class="pzs">' + PRZ.map(function (k) { return przCard(k, live, false, vchOut(k)); }).join('') + '</div>';
+        '<div class="pzs">' + PRZ.map(function (k) { return przCard(k, live && !(z && z.ov), false, vchOut(k)); }).join('') + '</div>';
   } else if (z.v) {
     h = vchHtml(z.v, z.p, kid, true);
     setTimeout(function () { vchSeen([z]); }, 0);
@@ -465,7 +466,7 @@ function przDraw(z, live) {
     h = '<h3>' + esc(kid ? tp(UI.przMineDad, { name: kid }) : UI.przMine) + '</h3>' +
         '<div class="pzs">' + przCard(z.p, false, true) + '</div>' +
         (z.how === 'הוגרל' ? '<p class="note">' + esc(UI.przAuto) + '</p>' : '') +
-        '<p class="soon">' + esc(z.st === 'arr' ? UI.przArr : kid ? tp(UI.przSoonDad, { name: kid }) : UI.przSoon) + '</p>';
+        '<p class="soon">' + esc(z.st === 'arr' ? UI.przArr : PRZ_VON ? UI.vchWait : kid ? tp(UI.przSoonDad, { name: kid }) : UI.przSoon) + '</p>';
   }
   el.innerHTML = h + '<p class="note fine">' + esc(UI.przNote) + '</p>';
 }
@@ -506,7 +507,7 @@ function przAlone() {
 }
 function przPick(k) {
   var z = PRZ_Z, u = api();
-  if (PRZ_VON) { if (z && !z.p && u && !vchOut(k)) vchAsk(k); return; }
+  if (PRZ_VON) { if (z && !z.p && !z.ov && u) vchAsk(k); return; }
   if (!z || z.p || !u || !SureLater(przPick, this, arguments)) return;
   var item = { action: 'row', tab: 'בחירת פרס', cols: JSON.stringify([
     ['מזהה', z.wid], ['הגרלה', z.rid], ['פרס', k], ['מאת', ME.id]]) };
