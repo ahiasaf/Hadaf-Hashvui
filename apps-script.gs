@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 238;
+var SCRIPT_VERSION = 239;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -11984,7 +11984,9 @@ var VCH_COLS_ = ['מזהה', 'סוג פרס', 'פרס', 'קוד', 'קישור מ
                  /* חבר מביא חבר (8.99.540): כל המזהים של ראש השולחן — chVchWins_ */
                  'מזהי הזוכה',
                  /* 8.99.546: "נשלח" — הרכז שלח בוואטסאפ/העתיק (vsent); "התראה" — ההתראה על שובר שהגיע מהמלאי */
-                 'נשלח', 'התראה'];
+                 'נשלח', 'התראה',
+                 /* 8.99.550: מה קרה לשובר שלא חולק (בוטל/פג) והחזרה למלאי — היסטוריה, לא נמחקת */
+                 'הערה'];
 var VCH_LOW_ = 3;
 /* **השוברים תמיד דלוקים** (8.99.546, אחיאסף 20.11): הזוכה בוחר כל פרס; יש במלאי — השובר מיד, אין —
    "ההזמנה תטופל בקרוב", והשובר מגיע מהמלאי כשנטען (vchFill_) עם התראה. המאפיין VCH_ON כבר לא נקרא. */
@@ -12440,11 +12442,59 @@ function vchAdm_(P) {
   }
   list.sort(function (a, b) { return a.at < b.at ? 1 : a.at > b.at ? -1 : 0; });
   var low = RAF_PRIZES.filter(function (k) { return S.by[k].n > 0 && S.by[k].a <= VCH_LOW_; });
-  var out = { status: 'ok', on: vchOn_() ? 1 : 0, by: S.by, low: low, lowN: VCH_LOW_, list: list.slice(0, 60), n: list.length };
+  var out = { status: 'ok', on: vchOn_() ? 1 : 0, by: S.by, low: low, lowN: VCH_LOW_, list: list.slice(0, 60), n: list.length,
+              back: vchBackList_(V) };
   if (P.bid) {
     try { var b = CacheService.getScriptCache().get('vch:bid:' + String(P.bid)); if (b) out.bres = JSON.parse(b); } catch (eb) {}
   }
   return out;
+}
+/* שוברים שלא חולקו (8.99.550, אחיאסף 20.11) — לשמור מסודר, להחזיר לספק או למלאי.
+   בוטל (הוחלף בפרס אחר) · פג תוקף (גם "זמין" שעבר זמנו). st: void · exp. */
+function vchBackList_(V) {
+  var out = [];
+  if (!V) return out;
+  for (var r = 1; r < V.rows.length; r++) {
+    var st = V.c(r, 'סטטוס');
+    if (!V.c(r, 'קוד')) continue;
+    var ex = vchExp_(V, r);
+    if (!(st === 'בוטל' || st === 'פג תוקף' || (st === 'זמין' && ex))) continue;
+    out.push({ id: V.c(r, 'מזהה'), p: V.c(r, 'פרס'), c: V.c(r, 'קוד'), x: V.c(r, 'תפוגה'),
+               st: st === 'בוטל' && !ex ? 'void' : 'exp', name: st === 'בוטל' ? V.c(r, 'שם') : '',
+               sn: st === 'בוטל' ? V.c(r, 'נצפה') : '', at: V.c(r, 'תאריך שיוך') });
+  }
+  out.sort(function (a, b) { return a.x < b.x ? -1 : a.x > b.x ? 1 : 0; });
+  return out;
+}
+/* ?raffle=vback&key=&vid= — שובר שבוטל חוזר למלאי ("זמין"), בהחלטת הרכז בלבד.
+   השיוך הקודם נמחק מהשורה ונרשם ב"הערה". פג תוקף — לא חוזר (במלאי לא היה שמיש). */
+function vchBack_(P) {
+  var vid = String(P.vid || '').trim();
+  if (!/^[\w\-]{1,60}$/.test(vid)) return { status: 'error', message: 'מזהה שובר' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return { status: 'error', message: 'פעולה אחרת רצה כרגע — נסו שוב בעוד דקה' };
+  try {
+    var V = vchTbl_(true), r = -1;
+    for (var q = 1; q < V.rows.length; q++) if (V.c(q, 'מזהה') === vid) { r = q; break; }
+    if (r < 0) return { status: 'error', message: 'השובר לא נמצא' };
+    if (V.c(r, 'סטטוס') !== 'בוטל') return { status: 'error', message: 'רק שובר שבוטל חוזר למלאי' };
+    if (vchExp_(V, r)) return { status: 'error', message: 'פג תוקפו — לא חוזר למלאי' };
+    var note = [V.c(r, 'הערה'), 'בוטל — היה של ' + (V.c(r, 'שם') || V.c(r, 'שויך לתלמיד')) +
+                (V.c(r, 'נצפה') ? ' (נצפה)' : '') + ' · הוחזר למלאי ' + new Date().toISOString()].filter(Boolean).join(' | ');
+    vchPut_(V, r, 'הערה', note.slice(0, 1000));
+    ['שויך לתלמיד', 'תאריך שיוך', 'הגרלה', 'שם', 'אופן', 'נצפה', 'נשלח', 'התראה', 'מזהי הזוכה'].forEach(function (k) {
+      if (V.ix[k] !== undefined) vchPut_(V, r, k, '');
+    });
+    vchPut_(V, r, 'סטטוס', 'זמין');
+    SpreadsheetApp.flush();
+    var back = V.sh.getRange(r + 1, 1, 1, V.sh.getLastColumn()).getValues()[0];
+    if (String(back[V.ix['סטטוס']]).trim() !== 'זמין' || String(back[V.ix['שויך לתלמיד']]).trim()) return { status: 'error', message: 'לא נשמר — נסו שוב' };
+    rafPrzBump_();
+    try { CacheService.getScriptCache().removeAll(['raf:pub', 'raf:all']); } catch (xc) {}
+  } finally { lock.releaseLock(); }
+  /* ממתינים לאותו פרס מקבלים מיד (תחת נעילה משלה). */
+  try { vchFill_(); } catch (ef) {}
+  return vchAdm_({});
 }
 /* POST {action:'vchadd', key, bid, rows:[{t, p, c, u, x, cost}]} — הזנת מלאי.
    קוד שכבר בלשונית — לא נוסף שוב. שורה בלי קוד, פרס או תפוגה — נדחית.
@@ -13783,6 +13833,7 @@ function raffleRoute_(e) {
     if (op === 'wadm') return reply_(e, rafWadm_(P));
     if (op === 'vsent') return reply_(e, rafVSent_(P));
     if (op === 'vswap') return reply_(e, rafVSwap_(P));
+    if (op === 'vback') return reply_(e, vchBack_(P));
     if (op === 'von') {
       PropertiesService.getScriptProperties().setProperty('VCH_ON', String(P.v) === '1' ? '1' : '0');
       rafPrzBump_();

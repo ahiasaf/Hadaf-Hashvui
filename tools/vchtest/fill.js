@@ -86,5 +86,19 @@ ok(PS.list[0].p === 'book' && PS.list[0].v && PS.list[0].v.p === 'book', 'studen
 ok(raf({ raffle: 'vswap', key: 'k', rid: 'R1', code: 'givat', p: 'book' }).status === 'error', 'swap to same prize refused');
 c.vchFill_();
 ok(vrows().filter(function (v) { return v.w === 'DWINAAA1' && v.st !== 'בוטל'; }).length === 1, 'still one live voucher after fill');
+// 11. שוברים שלא חולקו (8.99.550): בוטל ברשימה, חזרה למלאי רק בסיסמה ורק מבוטל
+var AD = raf({ raffle: 'vadm', key: 'k' }), bk = (AD.back || []).filter(function (o) { return o.id === before.id; })[0];
+ok(bk && bk.st === 'void' && bk.c, 'vadm back lists cancelled voucher', AD.back);
+ok(raf({ raffle: 'vback', vid: before.id }).status === 'denied', 'vback w/o key denied');
+var live = vrows().filter(function (v) { return v.w === 'DWINAAA1' && v.st === 'שויך'; })[0];
+ok(raf({ raffle: 'vback', key: 'k', vid: live.id }).status === 'error', 'vback of assigned voucher refused');
+var B = raf({ raffle: 'vback', key: 'k', vid: before.id });
+ok(B.status === 'ok' && !(B.back || []).some(function (o) { return o.id === before.id; }), 'vback ok, gone from list', B);
+var bb = vrows().filter(function (v) { return v.id === before.id; })[0];
+ok(bb.st === 'זמין' && !bb.w && !bb.rid || bb.st === 'שויך' && bb.w !== 'DWINAAA1', 'returned: free stock or given to a waiting winner', bb);
+var V9 = c.vchTbl_(false), nt = '';
+for (var r9 = 1; r9 < V9.rows.length; r9++) if (V9.c(r9, 'מזהה') === before.id) nt = V9.c(r9, 'הערה');
+ok(/הוחזר למלאי/.test(nt), 'history note kept', nt);
+ok(raf({ raffle: 'vback', key: 'k', vid: before.id }).status === 'error', 'vback twice refused');
 console.log(n - fails + '/' + n + ' passed');
 process.exit(fails ? 1 : 0);

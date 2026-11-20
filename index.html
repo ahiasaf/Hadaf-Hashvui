@@ -3183,7 +3183,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.549';
+var APP_VERSION = '8.99.550';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -17348,7 +17348,28 @@ function vchCard() {
           '<span dir="ltr" style="text-align:right">' + esc(o.c || '') + '</span></div></div>';
       }).join('') + '</div></details>';
   }
+  /* שוברים שלא חולקו (8.99.550): בוטלו או פג תוקפם — לספק, או חזרה למלאי בלחיצה. */
+  if (d.back && d.back.length) {
+    h += '<details class="hx" style="margin-top:12px"><summary>' + esc(fill(UI.vchBackH, { n: d.back.length })) + '</summary><div class="plist">' +
+      d.back.map(function (o) {
+        var why = o.st === 'void' ? fill(UI.vchBackVoid, { name: o.name || '' }) + (o.sn ? ' · ' + UI.vchBackSeen : '') : UI.vchStExp;
+        return '<div class="prow2 warn"><span class="pm">🎟</span><div style="flex:1"><b>' + esc(vchPz(o.p)) + '</b>' +
+          '<span>' + esc(why + ' · ' + (o.st === 'void' ? fill(UI.vchBackExp, { x: vchDmy(o.x) }) : vchDmy(o.x))) + '</span>' +
+          '<span dir="ltr" style="text-align:right">' + esc(o.c || '') + '</span>' +
+          (o.st === 'void' ? '<button class="btn g" type="button" style="width:auto;padding:6px 12px;margin:6px 0 0"' + dis +
+            ' onclick="vchBackGo(\'' + esc(o.id) + '\')">' + esc(UI.vchBackBtn) + '</button>' : '') +
+          '</div></div>';
+      }).join('') + '</div></details>';
+  }
   return h + msg + '</div>';
+}
+function vchBackGo(vid) {
+  if (VCH.busy || !SureLater(vchBackGo, this, arguments)) return;
+  VCH.busy = true; admPane();
+  vchCall({ raffle: 'vback', vid: vid }).then(function (d) {
+    vchGot(d);
+    if (d && d.status === 'ok') SayMsg(UI.vchBackOk);
+  }, function () { VCH.busy = false; VCH.msg = UI.vchFail; admPane(); });
 }
 /* בפנייה לזוכים: השובר של הזוכה, והעתקה לשליחה בוואטסאפ (בעיקר למי שאין לו אפליקציה). */
 function vchWaLine(x) {
