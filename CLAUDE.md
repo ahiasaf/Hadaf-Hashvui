@@ -2006,3 +2006,5 @@ node scratchpad/smoke.js     # כל המסכים, שתי רזולוציות
 * בדיקה: `node tools/rafgen/auto.js` (10).
 * **8.99.553 · SCRIPT_VERSION 242 (אחיאסף אישר):** במסך הזוכים לרכז, זוכה שעוד לא בחר — "עוד לא בחר · עד {מועד}"
   (`zchNoPick`, `due` ב-wadm) במקום "אין שובר".
+* **8.99.554 · SCRIPT_VERSION 243:** `?raffle=autost&key=` — האם נוסחי ההגרלות האוטומטיות וההתראות נשמרו (אורכים בלבד)
+  ו-`RAF_AUTO_ST`. הבדיקה החיה ב-apps-script.yml מדפיסה אותו עם READ_KEY.

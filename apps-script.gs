@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 242;
+var SCRIPT_VERSION = 243;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -13971,6 +13971,17 @@ function raffleRoute_(e) {
     if (op === 'vsent') return reply_(e, rafVSent_(P));
     if (op === 'vswap') return reply_(e, rafVSwap_(P));
     if (op === 'vback') return reply_(e, vchBack_(P));
+    /* מצב ההגרלות האוטומטיות (8.99.554) — האם הנוסחים נשמרו (אורך בלבד, בלי התוכן) והמצב האחרון. */
+    if (op === 'autost') {
+      var pa = PropertiesService.getScriptProperties(), ln = function (k, f) {
+        try { var o = JSON.parse(pa.getProperty(k) || 'null'); return o ? String(o[f] || '').length : 0; } catch (x) { return -1; } };
+      var pn0 = {}; try { pn0 = JSON.parse(pa.getProperty('VCH_PRZ_N') || '{}') || {}; } catch (x1) {}
+      return reply_(e, { status: 'ok', raf: { wt: ln('RAF_AUTO_TX', 'wt'), wb: ln('RAF_AUTO_TX', 'wb'), dt: ln('RAF_AUTO_TX', 'dt'), db: ln('RAF_AUTO_TX', 'db') },
+        ch: { vt: ln('CH_AUTO_TX', 'vt'), vb: ln('CH_AUTO_TX', 'vb') },
+        vch: { got: String(pa.getProperty('VCH_PUSH_B') || '').length, autoT: String(pa.getProperty('VCH_PUSH_AT') || '').length,
+               autoB: String(pa.getProperty('VCH_PUSH_AB') || '').length, names: Object.keys(pn0).length },
+        st: pa.getProperty('RAF_AUTO_ST') || '' });
+    }
     if (op === 'von') {
       PropertiesService.getScriptProperties().setProperty('VCH_ON', String(P.v) === '1' ? '1' : '0');
       rafPrzBump_();
