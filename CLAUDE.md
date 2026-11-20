@@ -2008,3 +2008,6 @@ node scratchpad/smoke.js     # כל המסכים, שתי רזולוציות
   (`zchNoPick`, `due` ב-wadm) במקום "אין שובר".
 * **8.99.554 · SCRIPT_VERSION 243:** `?raffle=autost&key=` — האם נוסחי ההגרלות האוטומטיות וההתראות נשמרו (אורכים בלבד)
   ו-`RAF_AUTO_ST`. הבדיקה החיה ב-apps-script.yml מדפיסה אותו עם READ_KEY.
+* **8.99.555 · SCRIPT_VERSION 244 (אחיאסף אישר):** הנוסחים לא תלויים בכניסה לניהול — `autoTxFill_` (בכל שעה, וב-`autost&fill=1`)
+  ממלא מאפיין חסר: "טקסטים" (`ui.<מפתח>`, לפי שמות העמודות) גובר, אחרת ברירת המחדל מ-data.js באתר (`AUTO_TX_SITE_`).
+  כניסה לניהול (wadm) עדיין דורסת. בדיקה: `node tools/rafgen/autotx.js` (7).

@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 243;
+var SCRIPT_VERSION = 244;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -7827,6 +7827,8 @@ function autoRecount() {
   try { amdaSyncLocked_(); } catch (ae) {}
   /* ההורה והבן למדו שניהם — כרטיס אבא אוטומטי (8.99.512). */
   try { pairAuto_(); } catch (pe) {}
+  /* הנוסחים שחסרים — מהגיליון/מהאתר (8.99.555). */
+  try { autoTxFill_(); } catch (fe) {}
   /* ההגרלות של יום ראשון 16:00 (8.99.552) — השבועית והשולחנות. */
   try { rafAutoSun_(); } catch (se) {}
   /* בחירה אוטומטית אחרי חמישי 19:00 (8.99.551), ואז שוברים מהמלאי לממתינים וההתראות (8.99.546). */
@@ -11757,6 +11759,53 @@ function rafPrzAuto_(T, rows) {
    ומנסים בשעה הבאה. המצב — מאפיין RAF_AUTO_ST ({ day, raf, ch, ... }); שלב שהושלם לא חוזר.
    ההגרלה לפי מוסדות והגרלות באמצע השבוע — ידניות, ללא שינוי. */
 var RAF_AUTO_N_ = 10, RAF_AUTO_H_ = 16;
+/* הנוסחים בלי תלות בכניסה לניהול (8.99.555, אחיאסף אישר): מה שנערך בניהול (לשונית "טקסטים"),
+   ובלעדיו — ברירת המחדל מ-data.js שבאתר. ממלא רק מאפיין חסר; כניסה לניהול (wadm) עדיין דורסת. */
+var AUTO_TX_SITE_ = 'https://hadaf-hashvui.vercel.app/data.js';
+function autoTxMap_(keys) {
+  var out = {}, rc = CacheService.getScriptCache(), src = null;
+  try {
+    var sh = sheet_('טקסטים'), v = sh.getLastRow() > 1 ? sh.getDataRange().getValues() : [], ov = {};
+    var ck = v.length ? v[0].map(String).indexOf('מפתח') : -1, cv = v.length ? v[0].map(String).indexOf('נוסח') : -1;
+    for (var i = 1; ck >= 0 && cv >= 0 && i < v.length; i++) { var k0 = String(v[i][ck] || '').trim(), x0 = String(v[i][cv] || '').trim(); if (k0 && x0) ov[k0] = x0; }
+    keys.forEach(function (k) { if (ov['ui.' + k]) out[k] = ov['ui.' + k]; });
+  } catch (e0) {}
+  keys.forEach(function (k) {
+    if (out[k]) return;
+    if (src === null) {
+      src = '';
+      if (!src) {
+        try {
+          var r = UrlFetchApp.fetch(AUTO_TX_SITE_ + '?t=' + Date.now(), { muteHttpExceptions: true });
+          if (r.getResponseCode() === 200) src = r.getContentText();
+        } catch (e2) {}
+      }
+    }
+    var m = new RegExp('[\\s,{]' + k + ':\\s*\'((?:\\\\.|[^\'\\\\])*)\'').exec(src);
+    if (m) out[k] = m[1].replace(/\\n/g, '\n').replace(/\\(['"\\])/g, '$1');
+  });
+  return out;
+}
+function autoTxFill_() {
+  var pr = PropertiesService.getScriptProperties(), has = function (k, f) {
+    try { var o = JSON.parse(pr.getProperty(k) || 'null'); return !!(o && o[f]); } catch (x) { return false; } };
+  var need = [];
+  if (!has('RAF_AUTO_TX', 'wb')) need = need.concat(['rafWinT', 'rafWinB', 'rafDadT', 'rafDadB']);
+  if (!has('CH_AUTO_TX', 'vb')) need = need.concat(['chHeadVchT', 'chHeadVchB']);
+  if (!pr.getProperty('VCH_PUSH_AB')) need = need.concat(['vchAutoT', 'vchAutoB']);
+  if (!pr.getProperty('VCH_PUSH_B')) need = need.concat(['vchGotT', 'vchGotB']);
+  if (!pr.getProperty('VCH_PRZ_N')) need = need.concat(RAF_PRIZES.map(function (k) { return 'przN_' + k; }));
+  if (!need.length) return 0;
+  var T = autoTxMap_(need), n = 0;
+  if (T.rafWinB) { pr.setProperty('RAF_AUTO_TX', JSON.stringify({ wt: T.rafWinT || '', wb: T.rafWinB, dt: T.rafDadT || '', db: T.rafDadB || '' })); n++; }
+  if (T.chHeadVchB) { pr.setProperty('CH_AUTO_TX', JSON.stringify({ vt: T.chHeadVchT || '', vb: T.chHeadVchB })); n++; }
+  if (T.vchAutoB) { pr.setProperty('VCH_PUSH_AT', T.vchAutoT || ''); pr.setProperty('VCH_PUSH_AB', T.vchAutoB); n++; }
+  if (T.vchGotB) { pr.setProperty('VCH_PUSH_T', T.vchGotT || ''); pr.setProperty('VCH_PUSH_B', T.vchGotB); n++; }
+  var pn = {};
+  RAF_PRIZES.forEach(function (k) { if (T['przN_' + k]) pn[k] = T['przN_' + k]; });
+  if (Object.keys(pn).length === RAF_PRIZES.length) { pr.setProperty('VCH_PRZ_N', JSON.stringify(pn)); n++; }
+  return n;
+}
 function rafBusy_(o) { return !o || o.status === 'busy' || /רצה כרגע/.test(String(o.message || '')); }
 function rafAutoSun_(force) {
   var now = new Date();
@@ -13973,6 +14022,7 @@ function raffleRoute_(e) {
     if (op === 'vback') return reply_(e, vchBack_(P));
     /* מצב ההגרלות האוטומטיות (8.99.554) — האם הנוסחים נשמרו (אורך בלבד, בלי התוכן) והמצב האחרון. */
     if (op === 'autost') {
+      if (String(P.fill || '') === '1') { try { autoTxFill_(); } catch (fx) {} }
       var pa = PropertiesService.getScriptProperties(), ln = function (k, f) {
         try { var o = JSON.parse(pa.getProperty(k) || 'null'); return o ? String(o[f] || '').length : 0; } catch (x) { return -1; } };
       var pn0 = {}; try { pn0 = JSON.parse(pa.getProperty('VCH_PRZ_N') || '{}') || {}; } catch (x1) {}
