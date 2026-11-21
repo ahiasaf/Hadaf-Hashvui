@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 252;
+var SCRIPT_VERSION = 253;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -12244,7 +12244,7 @@ function vchPub_(V, r, adm) {
   var st = V.c(r, 'סטטוס');
   var o = { id: V.c(r, 'מזהה'), p: V.c(r, 'פרס'), t: V.c(r, 'סוג פרס'), x: V.c(r, 'תפוגה'),
             at: V.c(r, 'תאריך שיוך'), sn: V.c(r, 'נצפה'),
-            st: st === 'מומש' ? 'used' : vchExp_(V, r) ? 'exp' : 'in' };
+            st: st === 'מומש' ? 'used' : st === 'בוטל' ? 'void' : vchExp_(V, r) ? 'exp' : 'in' };
   /* קוד וקישור — רק לשובר שאפשר לממש (או לרכז). */
   if (o.st === 'in' || adm) { o.c = V.c(r, 'קוד'); o.u = V.c(r, 'קישור מימוש'); }
   if (adm) { o.how = V.c(r, 'אופן'); o.used = V.c(r, 'מומש'); o.snt = V.c(r, 'נשלח'); }
@@ -16815,7 +16815,8 @@ function chVchWins_(P, V) {
   if (!V) return [];
   var out = [], m2 = {};
   for (var r = 1; r < V.rows.length; r++) {
-    if (V.c(r, 'אופן') !== CH_VCH_HOW_ || V.c(r, 'סטטוס') === 'זמין') continue;
+    /* "בוטל" (8.99.564) — שובר שהוחלף; נשאר רק בהיסטוריית הניהול, לא בבית/במסך השוברים/בצפייה ובמימוש. */
+    if (V.c(r, 'אופן') !== CH_VCH_HOW_ || V.c(r, 'סטטוס') === 'זמין' || V.c(r, 'סטטוס') === 'בוטל') continue;
     var ws = (V.c(r, 'מזהי הזוכה') || V.c(r, 'שויך לתלמיד')).split(/\s+/).filter(Boolean);
     ws.forEach(function (x) { m2[x] = 1; });
     if (mine.some(function (x) { return ws.indexOf(x) >= 0; })) out.push({ r: r, rid: V.c(r, 'הגרלה'), ids: ws, wid: V.c(r, 'שויך לתלמיד') });

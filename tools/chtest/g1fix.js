@@ -35,6 +35,7 @@ T.exec();
 var AD = c.chAdm_(c.chSync_(U), U), xa = AD.ms.filter(function (x) { return String(x.k) === String(ms.k); })[0];
 ok(xa.vk === 1, 'admin sees replace offer (vk)', xa.vk);
 // קומבינות בלי מזהה פרס
+c.CLOCK.t += 7000; // מזהי שובר שונים מהטעינה הקודמת (השעון המדומה)
 post({ action: 'vchadd', key: 'k', bid: 'b', rows: [{ t: 'ארוחת קומבינה לארבעה', p: 'burger', c: 'CMB-1', x: '2026-12-30' },
   { t: 'ארוחת קומבינה לארבעה', p: 'burger', c: 'CMB-2', x: '2026-12-30' }] });
 var V = c.vchTbl_(true);
@@ -59,6 +60,14 @@ var P1 = raf({ raffle: 'prize', id: head, fresh: '1' });
 var it = (P1.list || []).filter(function (x) { return x.ch; })[0];
 ok(it && it.v && /^CMB-/.test(it.v.c) && it.v.st === 'in' && it.p === 'meal4', 'head sees combo at home', it);
 ok(it && it.pp === 0, 'no in-app popup for the quiet replacement', it && it.pp);
+var chs = (P1.list || []).filter(function (x) { return x.ch; });
+ok(chs.length === 1, 'only the active combo is listed (cancelled one hidden)', chs.map(function (x) { return [x.p, x.v && x.v.st, x.pp]; }));
+var oldVid = V.c(kid, 'מזהה');
+ok(raf({ raffle: 'vused', id: head, vid: oldVid }).status === 'denied', 'student cannot mark cancelled voucher used');
+ok(raf({ raffle: 'vseen', id: head, vid: oldVid }).status === 'denied', 'student cannot mark cancelled voucher seen');
+var Vz = c.vchTbl_(false), kz = -1; for (var qz = 1; qz < Vz.rows.length; qz++) if (Vz.c(qz, 'מזהה') === oldVid) kz = qz;
+ok(Vz.c(kz, 'סטטוס') === 'בוטל' && !Vz.c(kz, 'מומש'), 'cancelled voucher unchanged');
+ok(c.vchPub_(Vz, kz).st === 'void' && !c.vchPub_(Vz, kz).c, 'cancelled → void, no code outside admin');
 // ניסיון חוזר — לא מקצה ולא שולח
 T.exec();
 var h2 = c.chAct_(U, { ms: String(ms.k), vt: vt, vb: vb }, 'hvch');
