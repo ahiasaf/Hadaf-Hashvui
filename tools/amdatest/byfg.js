@@ -17,7 +17,7 @@ function cols(id, nm, by) {
 function tab() { return c.amdaTable_('עמדת לימוד'); }
 function byOf(id) { var t = tab(), r = t.rows.filter(function (x) { return t.c(x, 'מזהה') === id; })[0]; return r ? t.c(r, 'מי סימן') : null; }
 // שורה ישנה (לפני השינוי) — נכתבת ישירות, בלי העמודה
-c.appendCols_('עמדת לימוד', [['מזהה', 'old1'], ['שם', 'ישן']]);
+c.appendCols_('עמדת לימוד', [['מזהה', 'old1'], ['שם', 'X']]);
 post({ action: 'amdarows', tab: 'עמדת לימוד', dev: 'DEV1', inst: 'givat', rows: JSON.stringify([cols('s1', 'א', 's|'), cols('s2', 'ב', 'u|'), cols('s3', 'ג', 's|שקר כלשהו')]) });
 console.log('   s1 →', byOf('s1')); console.log('   s2 →', byOf('s2'));
 ok(byOf('s1') === 'ישראל ישראלי · רכז · 22.11.2026 14:32', 'staff device: name+role+Israel time', byOf('s1'));

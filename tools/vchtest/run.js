@@ -90,7 +90,7 @@ var DN2 = Date.now; Date.now = function () { return c.RAF_THU_FLOOR_ + 60e3; };
 var PA = raf({ raffle: 'prize', id: 'DWINAAA1', fresh: '1' });
 Date.now = DN2;
 var r2 = PA.list.filter(function (x) { return x.rid === 'R2'; })[0];
-ok(r2 && !r2.p && r2.ov === 1 && !r2.v, 'past due: closed, no draw on read (auto only hourly, 8.99.551)', r2);
+ok(r2 && !r2.p && !r2.ov && !r2.v, 'past due: still open, no draw (8.99.568)', r2);
 var P4 = raf({ raffle: 'prize', id: 'DWINBBB2', fresh: '1' });
 ok(P4.von === 1 && P4.list[0].v && P4.list[0].v.c === 'PZ-2', 'issued voucher still shown');
 console.log(n - fails + '/' + n + ' passed');

@@ -455,7 +455,7 @@ function przDraw(z, live) {
   if (!el) return;
   var h;
   if (!z || !z.p) {
-    var w = z && z.due ? przWhen(z.due) : '';
+    var w = '';   /* אין מועד לבחירה (8.99.568) */
     h = '<h3>' + esc(kid ? tp(UI.przHDad, { name: kid }) : UI.przH) + '</h3>' +
         (w ? '<p class="due">' + esc(tp(kid ? UI.przDueDad : UI.przDue, { due: w })) + '</p>' : '') +
         '<div class="pzs">' + PRZ.map(function (k) { return przCard(k, live && !(z && z.ov), false, vchOut(k)); }).join('') + '</div>';

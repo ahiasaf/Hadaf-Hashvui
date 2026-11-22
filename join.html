@@ -4485,6 +4485,7 @@ function drawPrz() {
     L.forEach(function (x) { if (!z && x.st === st && !x.v) z = x; });
   });
   if (!z) { el.hidden = true; return; }
+  if (z.st === 'pick' && !z.kid) przPop();
   var kid = z.kid;
   var t = z.st === 'pick' ? (kid ? tpl(UI.przBanDad, { name: kid }) : UI.przBanWin)
         : z.st === 'arr' ? UI.przBanArr
@@ -4529,6 +4530,25 @@ function vchPop(V) {
   el.setAttribute('aria-labelledby', 'vch-pop-h');
   el.innerHTML = '<div class="ch-promo-in"><h2 class="ch-hh sm" id="vch-pop-h">' + esc(UI.vchPopH) + '</h2>' +
     '<a class="ch-btn big" id="vch-pop-y" href="hagrala.html?vch=1">' + esc(UI.vchSee) + '</a></div>';
+  document.body.appendChild(el);
+  try { $('vch-pop-y').focus(); } catch (e2) {}
+}
+
+/* זוכה שעוד לא בחר פרס (8.99.568) — חלון בכניסה, כמו של השובר: פעם אחת לפתיחה, כל עוד לא בחר.
+   אין מועד לבחירה. רק לתלמיד עצמו; לא כשחלון השובר כבר פתוח. */
+function przPop() {
+  var me = get('me', null);
+  if (!UI.przPopH || $('vch-pop') || !me || me.role === 'dad' || demoOn() || (window.TM && TM.on())) return;
+  if (typeof InterOn === 'function' && InterOn()) return;
+  try { if (sessionStorage.getItem('df:przPop')) return; sessionStorage.setItem('df:przPop', '1'); } catch (e) {}
+  var el = document.createElement('div');
+  el.className = 'ch-promo';
+  el.id = 'vch-pop';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.setAttribute('aria-labelledby', 'vch-pop-h');
+  el.innerHTML = '<div class="ch-promo-in"><h2 class="ch-hh sm" id="vch-pop-h">' + esc(UI.przPopH) + '</h2>' +
+    '<a class="ch-btn big" id="vch-pop-y" href="hagrala.html?prz=1">' + esc(UI.przPopBtn || UI.przBanWin) + '</a></div>';
   document.body.appendChild(el);
   try { $('vch-pop-y').focus(); } catch (e2) {}
 }

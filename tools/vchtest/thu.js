@@ -1,4 +1,4 @@
-// עד חמישי 19:00 · בחירה אוטומטית בלי הודעת "לא בחרת" · התראה "זכית {p}" · "ראה שזכה" (8.99.551).
+// עד חמישי 19:00 · בחירה אוטומטית (8.99.568 — רק לזוכה בלי אפליקציה) בלי הודעת "לא בחרת" · התראה "זכית {p}" · "ראה שזכה" (8.99.551).
 // node tools/vchtest/thu.js → קוד 1 אם בדיקה נכשלה. מזהים וקודים מומצאים.
 var M = require('../snaptest/mock.js');
 var W = M.makeWorld(), c = W.ctx, n = 0, fails = 0;
@@ -16,43 +16,47 @@ ok(iso(c.rafThu_(Date.parse('2026-12-03T16:59:00Z'))) === '2026-12-03T17:00:00.0
 ok(iso(c.rafThu_(Date.parse('2026-12-03T17:30:00Z'))) === '2026-12-10T17:00:00.000Z', 'Thursday after 19:00 → next week');
 ok(iso(c.rafThu_(Date.parse('2027-05-02T08:00:00Z'))) === '2027-05-06T16:00:00.000Z', 'summer +3');
 // 2. זוכים
-['DWINAAA1', 'DWINBBB2', 'DWINCCC3'].forEach(function (id, i) {
-  c.appendCols_('לומדים', [['מזהה', id], ['שם', 'ש' + i], ['משפחה', 'מ'], ['קוד ישיבה', ['givat', 'rishon', 'lapid'][i]], ['תפקיד', 'תלמיד']]);
+['AmWINAAA1', 'AmWINBBB2', 'DWINCCC3', 'DWINEEE5'].forEach(function (id, i) {
+  c.appendCols_('לומדים', [['מזהה', id], ['שם', 'ש' + i], ['משפחה', 'מ'], ['קוד ישיבה', ['givat', 'rishon', 'lapid', 'givat'][i]], ['תפקיד', 'תלמיד']]);
 });
 var old = new Date(Date.now() - 40 * 864e5).toISOString(), pub0 = '2026-11-15T08:00:00Z';
 function win(rid, code, id, pub) {
   c.appendCols_('הגרלות', [['מזהה הגרלה', rid], ['שבוע', '7'], ['סטטוס', 'פורסם'], ['קוד ישיבה', code],
     ['זוכה', id], ['מזהי הזוכה', id], ['שם הזוכה', 'ש מ'], ['פורסם', pub]]);
 }
-win('R1', 'givat', 'DWINAAA1', pub0);       // פורסם 15.11 → רצפה 26.11
-win('R1', 'rishon', 'DWINBBB2', pub0);
-win('R0', 'lapid', 'DWINCCC3', old);        // לפני השוברים — לא נוגעים
-var P1 = raf({ raffle: 'prize', id: 'DWINAAA1', fresh: '1' });
+win('R1', 'givat', 'AmWINAAA1', pub0);       // פורסם 15.11 → רצפה 26.11
+win('R1', 'rishon', 'AmWINBBB2', pub0);
+win('R0', 'lapid', 'DWINCCC3', old);
+win('R1', 'givat', 'DWINEEE5', pub0);       // עם אפליקציה — אין מועד, לא נבחר בשבילו        // לפני השוברים — לא נוגעים
+var P1 = raf({ raffle: 'prize', id: 'AmWINAAA1', fresh: '1' });
 ok(P1.list[0].due === '2026-11-26T17:00:00.000Z', 'existing raffle: floor Thu 26.11 19:00', P1.list[0].due);
 // 3. ראה שזכה
-ok(raf({ raffle: 'wseen', id: 'DWINBBB2', rid: 'R1', role: 'dad' }).status === 'denied', 'wseen: parent denied');
+ok(raf({ raffle: 'wseen', id: 'AmWINBBB2', rid: 'R1', role: 'dad' }).status === 'denied', 'wseen: parent denied');
 ok(raf({ raffle: 'wseen', id: 'DWINCCC3', rid: 'R1' }).status === 'denied', 'wseen: not the winner denied');
-var S = raf({ raffle: 'wseen', id: 'DWINAAA1', rid: 'R1' });
+var S = raf({ raffle: 'wseen', id: 'AmWINAAA1', rid: 'R1' });
 ok(S.status === 'ok' && S.ws.R1, 'wseen ok', S);
-var S2 = raf({ raffle: 'wseen', id: 'DWINAAA1', rid: 'R1' });
+var S2 = raf({ raffle: 'wseen', id: 'AmWINAAA1', rid: 'R1' });
 ok(S2.ws.R1 === S.ws.R1, 'wseen once (time kept)');
-ok(raf({ raffle: 'prize', id: 'DWINAAA1', fresh: '1' }).list[0].ws === 1, 'prize list carries ws');
+ok(raf({ raffle: 'prize', id: 'AmWINAAA1', fresh: '1' }).list[0].ws === 1, 'prize list carries ws');
 var L = raf({ raffle: 'wadm', key: 'k', vat: 'זכית {p}! 🎉', vab: '{name}, השובר שלך מחכה באפליקציה', vt: 'השובר הגיע', vb: '{name} הגיע',
               vpn: JSON.stringify({ pizza: 'פיצה', book: 'ספר', burger: 'בורגר', maafe: 'מאפה', pretzel: 'בייגלה' }) }), xa = null, xb = null;
 L.list.forEach(function (r) { r.w.forEach(function (x) { if (x.first === 'ש0') xa = x; if (x.first === 'ש1') xb = x; }); });
 ok(xa.ws === S.ws.R1 && !xb.ws, 'wadm: seen / not seen', [xa.ws, xb.ws]);
 // 4. לפני המועד — אין בחירה אוטומטית
 c.rafPrzAutoAll_();
-ok(!raf({ raffle: 'prize', id: 'DWINAAA1', fresh: '1' }).list[0].p, 'before deadline: nothing picked');
+ok(!raf({ raffle: 'prize', id: 'AmWINAAA1', fresh: '1' }).list[0].p, 'before deadline: nothing picked');
 // 5. אחרי המועד: מלאי פיצה אחד → אחד מקבל פיצה עם שובר, השני — פרס בלי שובר, ממתין
 post({ action: 'vchadd', key: 'k', rows: [{ t: 'פיצה', p: 'pizza', c: 'PZ-1', x: '2027-12-31' }] });
 var realNow = Date.now;
 Date.now = function () { return Date.parse('2026-11-26T17:30:00Z'); };
 c.autoRecount();
-var A = raf({ raffle: 'prize', id: 'DWINAAA1', fresh: '1' }).list[0], B = raf({ raffle: 'prize', id: 'DWINBBB2', fresh: '1' }).list[0];
+var A = raf({ raffle: 'prize', id: 'AmWINAAA1', fresh: '1' }).list[0], B = raf({ raffle: 'prize', id: 'AmWINBBB2', fresh: '1' }).list[0];
 ok(A.p && B.p && A.how === 'הוגרל' && B.how === 'הוגרל', 'after deadline: both picked automatically', [A, B]);
 ok((A.v ? 1 : 0) + (B.v ? 1 : 0) === 1 && (A.v || B.v).p === 'pizza', 'one got the pizza voucher', [A.v, B.v]);
 ok(!raf({ raffle: 'prize', id: 'DWINCCC3', fresh: '1' }).list[0].p, 'pre-voucher raffle untouched');
+var E = raf({ raffle: 'prize', id: 'DWINEEE5', fresh: '1' }).list[0];
+ok(!E.p && !E.ov && E.st === 'pick', 'app winner: no auto pick, still open', E);
+ok(raf({ raffle: 'vpick', id: 'DWINEEE5', rid: 'R1', p: 'book' }).status !== 'late', 'app winner can pick after Thursday');
 ok(PUSH.length === 1 && /^זכית פיצה!/.test(PUSH[0].t) && /^ש, השובר שלך/.test(PUSH[0].b), 'push "זכית פיצה"', PUSH);
 c.autoRecount();
 ok(PUSH.length === 1, 'push once');
@@ -60,7 +64,7 @@ ok(PUSH.length === 1, 'push once');
 var wp = (A.v ? B : A).p, cd = { pizza: 'PZ-2', book: 'BK-1', burger: 'BG-1', maafe: 'MF-1', pretzel: 'PR-1' }[wp];
 post({ action: 'vchadd', key: 'k', rows: [{ t: 'x', p: wp, c: cd, x: '2027-12-31' }] });
 c.autoRecount();
-var A2 = raf({ raffle: 'prize', id: 'DWINAAA1', fresh: '1' }).list[0], B2 = raf({ raffle: 'prize', id: 'DWINBBB2', fresh: '1' }).list[0];
+var A2 = raf({ raffle: 'prize', id: 'AmWINAAA1', fresh: '1' }).list[0], B2 = raf({ raffle: 'prize', id: 'AmWINBBB2', fresh: '1' }).list[0];
 ok(A2.v && B2.v, 'waiting one got voucher from stock', [A2, B2]);
 ok(PUSH.length === 2 && /^זכית /.test(PUSH[1].t), 'second push also "זכית"', PUSH[1]);
 Date.now = realNow;

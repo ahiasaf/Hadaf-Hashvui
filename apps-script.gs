@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 256;
+var SCRIPT_VERSION = 257;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -7873,6 +7873,8 @@ function autoRecount() {
   /* ההגרלות של יום ראשון 16:00 (8.99.552) — השבועית והשולחנות. */
   try { rafAutoSun_(); } catch (se) {}
   /* בחירה אוטומטית אחרי חמישי 19:00 (8.99.551), ואז שוברים מהמלאי לממתינים וההתראות (8.99.546). */
+  /* בלי מועד לבחירה (8.99.568, אחיאסף 22.11): התלמיד בוחר מתי שהוא רוצה. הבחירה האוטומטית —
+     רק לזוכה בלי אפליקציה (אין לו איך לבחור), אחרי חמישי 19:00. */
   try { rafPrzAutoAll_(); } catch (ze) {}
   try { vchFill_(); } catch (ve) {}
   try { tmFlush_(); } catch (te) {}
@@ -11779,7 +11781,10 @@ function rafPrzRow_(T, r, picks) {
   }
   var due = rafDue_(T, r);
   return { p: p, how: how, due: due ? new Date(due).toISOString() : '',
-           st: T.c(r, 'מצב פרס') === 'הגיע' ? 'arr' : T.c(r, 'מצב פרס') === RAF_DLV_ ? 'dlv' : p ? 'soon' : 'pick', over: !p && due && Date.now() > due };
+           st: T.c(r, 'מצב פרס') === 'הגיע' ? 'arr' : T.c(r, 'מצב פרס') === RAF_DLV_ ? 'dlv' : p ? 'soon' : 'pick',
+           /* אין מועד לבחירה (8.99.568, אחיאסף 22.11) — הבחירה לא נסגרת (over תמיד false).
+              `late` — עבר חמישי: רק לבחירה האוטומטית של זוכה בלי אפליקציה (rafPrzAutoAll_). */
+           over: false, late: !p && due && Date.now() > due };
 }
 /* מי שעבר את המועד בלי לבחור — הגרלה בין חמשת הפרסים, פעם אחת (נעילה). */
 function rafPrzAuto_(T, rows) {
@@ -11791,7 +11796,7 @@ function rafPrzAuto_(T, rows) {
     rows.forEach(function (r) {
       if (T2.c(r, 'מזהה הגרלה') !== T.c(r, 'מזהה הגרלה')) return;
       var z = rafPrzRow_(T2, r, picks);
-      if (!z.over) return;
+      if (!z.late) return;
       var p = RAF_PRIZES[rafPick_(RAF_PRIZES.length)];
       /* שוברים דלוקים (8.99.471): ההגרלה רק בין הפרסים שיש להם שובר, והשובר
          משויך באותה נעילה. אין מלאי בכלל — כמו קודם (פרס, ומסירה ידנית). */
@@ -11983,11 +11988,17 @@ function chAutoSun_(pr, st) {
 function rafPrzAutoAll_() {
   var T = rafRead_();
   if (!T.rows.length) return;
-  var picks = rafPrzPicks_(), from = Date.parse(VCH_POP_FROM_), rows = [];
+  var picks = rafPrzPicks_(), from = Date.parse(VCH_POP_FROM_), rows = [], t = null;
   for (var r = 1; r < T.rows.length; r++) {
     if (T.c(r, 'סטטוס') !== 'פורסם' || !T.c(r, 'זוכה') || rafPubMs_(T, r) < from) continue;
     var z = rafPrzRow_(T, r, picks);
-    if (z.over && z.st !== 'arr' && z.st !== 'dlv') rows.push(r);
+    if (!z.late || z.st === 'arr' || z.st === 'dlv') continue;
+    /* רק זוכה בלי אפליקציה (8.99.568) — כמו `na` במסך הזוכים: המזהה הראשי Am… ואין מזהה מכשיר. */
+    if (!t) t = joinTable_();
+    var kr = rowOfId_(t, T.c(r, 'זוכה')), row = kr >= 1 ? t.rows[kr] : null;
+    var main = row ? t.c(row, 'מזהה') : T.c(r, 'זוכה');
+    var dev = row ? rowIds_(t, row).filter(function (k) { return !/^Am/.test(k); }) : [];
+    if (/^Am/.test(main) && !dev.length) rows.push(r);
   }
   if (rows.length) rafPrzAuto_(T, rows);
 }
