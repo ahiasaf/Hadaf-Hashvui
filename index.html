@@ -16750,6 +16750,14 @@ function rafModeGo(m) {
   rafMode = m; rafD = null; rafA = null; rafPs = null; rafTx = null; rafP = null; rafMsg = '';
   rafLoad();
 }
+var RAFAU = null;
+function rafAutoGo() {
+  if (!SureLater(rafAutoGo, this, arguments)) return;
+  rafCall({ raffle: 'autogo' }, function (d) {
+    RAFAU = d;
+    if (rafLoaded) { rafD = null; rafA = null; rafPs = null; rafTx = null; rafP = null; setTimeout(rafLoad, 0); }
+  });
+}
 /* הגרלה כללית: `n` זוכים מכל הזכאים (rafGenDraw_ בשרת). */
 function rafGenDraw() {
   var n = parseInt(rafGenN, 10);
@@ -17563,6 +17571,12 @@ function admRaffle() {
        '<p class="h">' + esc(UI.rafZchNote) + '</p>' +
        /* תצוגת הרכז (8.99.485) — אותו עמוד, עם פרס, מצב שובר ווואטסאפ לכל זוכה. */
        '<a class="btn g" style="margin-top:6px" href="' + esc(zu + (zu.indexOf('?') < 0 ? '?' : '&') + 'r=1') + '">' + esc(UI.zchCoBtn) + '</a>';
+  /* הגרלות השבוע בלחיצה (8.99.565): הכללית + השולחנות, ובלי האוטומטית של יום ראשון הקרוב. */
+  h += '<div class="pp-h">' + esc(UI.rafAutoH) + '</div><p class="h">' + esc(fill(UI.rafAutoP, { n: 10 })) + '</p>' +
+    (RAFAU ? '<p class="h"><b>' + esc(fill(UI.rafAutoRaf, { s: RAFAU.raf || fill(UI.rafAutoNo, { s: RAFAU.rafWhy || '—' }) })) + '</b><br><b>' +
+      esc(fill(UI.rafAutoCh, { s: RAFAU.ch || fill(UI.rafAutoNo, { s: RAFAU.chErr || '—' }) })) + '</b></p>' : '') +
+    (RAFAU && RAFAU.raf && RAFAU.ch ? '' : '<button class="btn p" style="margin-top:6px"' + dis + ' onclick="rafAutoGo()">' +
+      esc(rafBusy ? UI.rafBusy : UI.rafAutoBtn) + '</button>');
   if (!rafLoaded) {
     return h + '<button class="btn g"' + dis + ' onclick="rafLoad()">' +
       esc(rafBusy ? UI.rafBusy : UI.rafLoad) + '</button>' + msg + '</div>';

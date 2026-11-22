@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 253;
+var SCRIPT_VERSION = 254;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -11812,20 +11812,62 @@ function autoTxFill_() {
   return n;
 }
 function rafBusy_(o) { return !o || o.status === 'busy' || /רצה כרגע/.test(String(o.message || '')); }
+/* יום ראשון הקרוב (שעון ישראל) — היום עצמו אם הוא ראשון. */
+function rafSunNext_(now) {
+  var u = parseInt(Utilities.formatDate(now, 'Asia/Jerusalem', 'u'), 10);
+  return Utilities.formatDate(new Date(now.getTime() + ((7 - u) % 7) * 864e5), 'Asia/Jerusalem', 'yyyy-MM-dd');
+}
+/* force — הפעלה ידנית מהניהול (8.99.565, אחיאסף): אותן שתי הגרלות עכשיו, וההגרלה האוטומטית של יום
+   ראשון הקרוב מדלגת על מה שכבר בוצע ידנית (RAF_MANUAL — { sun, raf, ch }). שלב שלא הושלם ידנית —
+   ביום ראשון רץ כרגיל. */
 function rafAutoSun_(force) {
   var now = new Date();
+  var pr = PropertiesService.getScriptProperties(), day = Utilities.formatDate(now, 'Asia/Jerusalem', 'yyyy-MM-dd'), st = {};
   if (!force) {
     if (Utilities.formatDate(now, 'Asia/Jerusalem', 'u') !== '7') return null;
     if (parseInt(Utilities.formatDate(now, 'Asia/Jerusalem', 'HH'), 10) < RAF_AUTO_H_) return null;
   }
-  var pr = PropertiesService.getScriptProperties(), day = Utilities.formatDate(now, 'Asia/Jerusalem', 'yyyy-MM-dd'), st = {};
   try { st = JSON.parse(pr.getProperty('RAF_AUTO_ST') || '{}') || {}; } catch (e0) { st = {}; }
-  if (st.day !== day) st = { day: day };
-  if (st.raf && st.ch) return st;
+  if (st.day !== day) {
+    st = { day: day };
+    if (!force) {
+      var man = null;
+      try { man = JSON.parse(pr.getProperty('RAF_MANUAL') || 'null'); } catch (em) {}
+      if (man && man.sun === day) {
+        if (man.raf) st.raf = 'ידני · ' + man.raf;
+        if (man.ch) st.ch = 'ידני · ' + man.ch;
+      }
+    }
+  }
+  if (st.raf && st.ch) { if (!force) pr.setProperty('RAF_AUTO_ST', JSON.stringify(st)); return st; }
   if (!st.raf) { try { st.raf = rafAutoRaf_(pr, st); } catch (e1) { st.rafErr = String(e1).slice(0, 200); } }
   if (!st.ch) { try { st.ch = chAutoSun_(pr, st); } catch (e2) { st.chErr = String(e2).slice(0, 200); } }
   pr.setProperty('RAF_AUTO_ST', JSON.stringify(st));
+  if (force) {
+    var m0 = null, sun = rafSunNext_(now);
+    try { m0 = JSON.parse(pr.getProperty('RAF_MANUAL') || 'null'); } catch (em2) {}
+    if (!m0 || m0.sun !== sun) m0 = { sun: sun };
+    if (st.raf) m0.raf = m0.raf || st.raf;
+    if (st.ch) m0.ch = m0.ch || st.ch;
+    m0.at = now.toISOString();
+    pr.setProperty('RAF_MANUAL', JSON.stringify(m0));
+  }
   return st;
+}
+/* ?raffle=autogo&key= — הכפתור בניהול. אחת בכל פעם (מטמון), התשובה — מה בוצע. */
+function rafAutoGo_() {
+  var rc = CacheService.getScriptCache();
+  if (rc.get('rafAutoGo')) return { status: 'busy', message: 'ההגרלות כבר רצות — רגע' };
+  rc.put('rafAutoGo', '1', 300);
+  try {
+    /* כבר הופעלו ידנית לשבוע הזה — לא מגרילים שוב. */
+    var m1 = null, sn = rafSunNext_(new Date());
+    try { m1 = JSON.parse(PropertiesService.getScriptProperties().getProperty('RAF_MANUAL') || 'null'); } catch (em) {}
+    if (m1 && m1.sun === sn && m1.raf && m1.ch) return { status: 'ok', raf: m1.raf, ch: m1.ch, done: 1, sun: sn };
+    var st = rafAutoSun_(true) || {};
+    return { status: 'ok', raf: st.raf || '', ch: st.ch || '', rafWhy: st.rafWhy || st.rafErr || '', chErr: st.chErr || '',
+             sun: rafSunNext_(new Date()) };
+  } finally { rc.remove('rafAutoGo'); }
 }
 /* '' — לנסות שוב בשעה הבאה; אחרת — התוצאה הסופית ליום הזה. */
 function rafAutoRaf_(pr, st) {
@@ -14139,6 +14181,7 @@ function raffleRoute_(e) {
     if (op === 'vback') return reply_(e, vchBack_(P));
     if (op === 'cosent') return reply_(e, rafCoSent_(P));
     if (op === 'pdlv') return reply_(e, rafPDlv_(P));
+    if (op === 'autogo') return reply_(e, rafAutoGo_());
     /* מצב ההגרלות האוטומטיות (8.99.554) — האם הנוסחים נשמרו (אורך בלבד, בלי התוכן) והמצב האחרון. */
     if (op === 'autost') {
       if (String(P.fill || '') === '1') { try { autoTxFill_(); } catch (fx) {} }
