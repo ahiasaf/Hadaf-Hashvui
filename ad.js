@@ -162,7 +162,9 @@ function adDraw(o, im) {
   run(true);
   return cv;
 }
-function adMake(o, file, done) {
+/* wa (8.99.571) — { n, ph }: הרכז. כפתור ראשי שמעתיק את המודעה ופותח את הצ'אט שלו בוואטסאפ;
+   שם רק מדביקים. וואטסאפ אינו מקבל תמונה לנמען מסוים מדפדפן — ולכן ההעתקה. */
+function adMake(o, file, done, wa) {
   var c0 = o.ppl[0].code || '';
   var load = [adImg(LOGO_MARK), adImg('weekpics/phone.webp'),
               o.pk ? adImg('promo/prz-' + o.pk + '.jpg') : Promise.resolve(null),
@@ -172,7 +174,7 @@ function adMake(o, file, done) {
     if (r[3]) im.logo[c0] = r[3];
     var cv = adDraw(o, im);
     var url = cv.toDataURL('image/png');
-    AD_CUR = { url: url, name: file + '.png', blob: null, done: done || null };
+    AD_CUR = { url: url, name: file + '.png', blob: null, done: done || null, wa: wa || null };
     if (cv.toBlob) cv.toBlob(function (b) { if (AD_CUR && AD_CUR.url === url) AD_CUR.blob = b; }, 'image/png');
     adShow();
   }).catch(function () { SayMsg(UI.adFail); });
@@ -180,9 +182,13 @@ function adMake(o, file, done) {
 function adShow() {
   var el = document.getElementById('adv');
   if (!el) { el = document.createElement('div'); el.id = 'adv'; document.body.appendChild(el); }
+  var w = AD_CUR.wa, cp = w && window.ClipboardItem && navigator.clipboard && navigator.clipboard.write;
   el.innerHTML = '<div class="adv-in"><button class="adv-x" type="button" onclick="adClose()" aria-label="' + esc(UI.adClose) + '">✕</button>' +
     '<img alt="" src="' + AD_CUR.url + '">' +
-    '<button class="btn p" type="button" onclick="adSend()">' + esc(UI.adSend) + '</button>' +
+    (cp ? '<a class="btn p" style="display:block;text-align:center;text-decoration:none;background:#1FA637;border-color:#1FA637" target="_blank" rel="noopener" onclick="adWa()" href="' +
+      esc('https://wa.me/' + String(w.ph).replace(/[^0-9]/g, '').replace(/^0/, '972')) + '">' + esc(String(UI.adWaCo || '').replace('{name}', w.n)) + '</a>' +
+      '<p style="margin:6px 0 10px;font-size:.85rem;color:#5A6780;text-align:center">' + esc(UI.adWaHint || '') + '</p>' : '') +
+    '<button class="btn ' + (cp ? 'g' : 'p') + '" type="button" onclick="adSend()">' + esc(UI.adSend) + '</button>' +
     '<button class="btn g" type="button" style="margin-top:8px" onclick="adSave()">' + esc(UI.adSave) + '</button></div>';
   el.style.display = 'flex';
 }
@@ -194,6 +200,15 @@ function adSave() {
   a.download = AD_CUR.name;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   if (AD_CUR.done) AD_CUR.done();
+}
+/* העתקת המודעה + הצ'אט של הרכז (הקישור עצמו נפתח מהלחיצה). "נשלח" — בלחיצה; אין דרך לדעת שהודבק. */
+function adWa() {
+  if (!AD_CUR || !AD_CUR.blob) { SayMsg(UI.adWaFail); return; }
+  var dn = AD_CUR.done;
+  try {
+    navigator.clipboard.write([new ClipboardItem({ 'image/png': AD_CUR.blob })]).then(function () { if (dn) dn(); },
+      function () { SayMsg(UI.adWaFail); });
+  } catch (e) { SayMsg(UI.adWaFail); }
 }
 /* שליחה — חלון השיתוף של הטלפון (וואטסאפ וכו'); בלי תמיכה — שמירה. */
 function adSend() {

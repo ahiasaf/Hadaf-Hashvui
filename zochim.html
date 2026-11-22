@@ -385,7 +385,7 @@ function coAdG(k) {
   var ic = R[0].ic || R[0].code;
   adMake({ ppl: R.map(function (x) { return { name: x.name || '', code: x.ic || x.code, inst: x.inst || '', app: !x.na }; }),
            won: R.length > 1 ? UI.adWonN : UI.adWon1, prize: p, pk: PRZK.indexOf(p1) >= 0 ? p1 : '' },
-         'zocheh-' + ic, function () { coGMark(g, 'ad'); });
+         'zocheh-' + ic, function () { coGMark(g, 'ad'); }, g.ok ? { n: g.co.n, ph: g.co.ph } : null);
 }
 function coDraw() {
   var G = coGroups(), open = G.filter(function (g) { return g.open; }), done = G.filter(function (g) { return !g.open && g.wi === 0; });
