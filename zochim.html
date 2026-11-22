@@ -290,9 +290,11 @@ function coGroups() {
   G.forEach(function (g) {
     var R = g.W.filter(coLive), ok = coOk(g.co);
     g.ok = ok;
-    g.ad = ok && R.some(function (x) { return !x.cad; });
-    g.wa = ok && R.some(function (x) { return !x.cwa; });
-    g.kid = !ok ? R.filter(function (x) { return !x.na && phOk(x.ph) && !WAS[coKidKey(x)]; }) : [];
+    /* 8.99.570 (אחיאסף): לרכז נשלחת רק המודעה. כל השאר — באחריות התלמיד, באפליקציה; רק לזוכה בלי
+       אפליקציה (או בלי טלפון) — גם השובר לרכז. בלי וואטסאפ "זכה" לרכז ובלי וואטסאפ לזוכה. */
+    g.ad = R.some(function (x) { return !x.cad; });
+    g.wa = false;
+    g.kid = [];
     /* בהגרלות קודמות — רק שובר ששויך מאז שהמעקב קיים (20.11), לא שוברים ישנים שנשלחו ביד. */
     var vd = R.filter(function (x) { return coVchDue(x) && (g.wi === 0 || (x.v && Date.parse(x.v.at) >= Date.parse('2026-11-20'))); });
     g.vch = ok ? vd : [];
@@ -311,7 +313,7 @@ function coGHtml(g) {
     if (g.wa) b += '<a class="wa" target="_blank" rel="noopener" onclick="coWaG(\'' + kq + '\')" href="' +
       esc('https://wa.me/' + waNum(c.ph) + '?text=' + encodeURIComponent(coGTx(g))) + '">' + esc(tp(UI.rafWaCo, { name: c.n })) + '</a>';
   }
-  var sub = g.ok ? tp(UI.zchCoOf, { name: c.n }) : c.err ? UI.rafWaCoErr : !c.n ? UI.rafWaCoNone : tp(UI.rafWaCoNoPh, { name: c.n });
+  var sub = c.n ? tp(UI.zchCoOf, { name: c.n }) : c.err ? UI.rafWaCoErr : UI.rafWaCoNone;
   return '<div class="cg' + (g.open ? '' : ' done') + '"><div class="cgh"><b>' + esc(g.inst) + '</b>' +
     (g.open ? '' : '<i aria-hidden="true">✓</i>') + '</div>' +
     '<div class="cgs">' + esc(sub) + '</div>' +
