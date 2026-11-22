@@ -3184,7 +3184,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.566';
+var APP_VERSION = '8.99.567';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -22579,7 +22579,9 @@ function amdaRowCols(m) {
           ['קוד ישיבה', m.inst || ''], ['מקום', m.seat || ''],
           ['רמה', daf ? (m.qz ? AMDA_LV[0] : (m.lv || '')) : ''],
           ['אישור חידון', daf && m.qz ? 'כן' : ''],
-          ['שכבה', m.g], ['כיתה', m.c], ['שם', m.n], ['מתי', m.at]]
+          ['שכבה', m.g], ['כיתה', m.c], ['שם', m.n], ['מתי', m.at],
+          /* מי סימן (8.99.567) — האופן והשם שבמכשיר; השרת קובע את הערך. */
+          ['מי סימן', (m.by || '') + '|' + (m.bn || '')]]
          .concat(m.kind === 'o' && m.ttl ? [['כותרת', m.ttl]] : []);
 }
 function amdaFlush(fast, stf0, noChk) {
@@ -23456,7 +23458,9 @@ function amdaMarkRec(g, c, n) {
            track: track, daf: LDafName(track, wk) || '', inst: amdaInst(), seat: '', lv: amdaLv(),
            qz: false, oid: s.oid || '', dev: AMDA_STAFF ? AMDA_STAFF.dev : '',
            vk: AMDA_STAFF && AMDA_STAFF.view ? 1 : 0,
-           g: g, c: c, n: n, at: new Date().toISOString(), ttl: s.kind === 'o' ? s.ttl || '' : '' });
+           g: g, c: c, n: n, at: new Date().toISOString(), ttl: s.kind === 'o' ? s.ttl || '' : '',
+           /* `by` — 's' איש הצוות סימן ("אני מסמן"), 'u' התלמיד סימן בעמדה. */
+           by: amdaSt.all ? 's' : 'u', bn: headMe() ? headWho(headMe()) : '' });
   Store.set('amdaQ', q);
   s.n = (+s.n || 0) + 1; Store.set('amdaSess', s);
   return true;
@@ -23855,7 +23859,8 @@ function amdaHereBy(les, sk) {
   q.push({ id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
            w: wk + 1, day: amdaDay(), slot: amdaSt.bSlot, kind: kind === 'd' ? 'd' : 'o',
            track: track, daf: LDafName(track, wk) || '', inst: amdaInst(), seat: '',
-           g: les.g, c: les.c, n: amdaNm(sk), at: new Date().toISOString() });
+           g: les.g, c: les.c, n: amdaNm(sk), at: new Date().toISOString(),
+           by: 's', bn: headMe() ? headWho(headMe()) : '' });
   Store.set('amdaQ', q);
   amdaFlush();
 }

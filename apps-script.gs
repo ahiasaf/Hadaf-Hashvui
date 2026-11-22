@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 255;
+var SCRIPT_VERSION = 256;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -624,7 +624,8 @@ function doPostMain_(e) {
         return p && aOk.indexOf(String(p[0] || '')) >= 0;
       });
       aCols.push(['קוד ישיבה', aInst]);
-      return amdaAppend_(aCols);
+      (parse_(d.cols) || []).forEach(function (p) { if (p && p[0] === AMDA_BY_COL_) aCols.push(p); });
+      return amdaAppend_(amdaBy_(aCols, String(d.dev), false));
     }
     /* הסרת סימון מאיש צוות — רק שורות של הישיבה שהמכשיר אושר אליה. */
     if (!wAdm && d.action === 'amdadel' && d.dev && d.inst) {
@@ -657,7 +658,7 @@ function doPostMain_(e) {
         });
         if (rBad) return json_({ status: 'denied', message: LIM_DENY_ });
       }
-      return json_(amdaRows_(AMDA_TAB_, arRows, String(d.inst)));
+      return json_(amdaRows_(AMDA_TAB_, arRows, String(d.inst), String(d.dev)));
     }
     if (d.action === 'row' || d.action === 'table') {
       if (!wAdm) {
@@ -778,7 +779,7 @@ function doPostMain_(e) {
       /* כבר נבדק למעלה — הלשוניות האלה אינן ב-PUB_ROW. */
       backupDaily_();
     }
-    if (d.action === 'row' && d.tab === AMDA_TAB_ && !d.ss) return amdaAppend_(parse_(d.cols) || []);
+    if (d.action === 'row' && d.tab === AMDA_TAB_ && !d.ss) return amdaAppend_(amdaBy_(parse_(d.cols) || [], '', true));
     /* זמן יומי — רק בישיבה שהודלקה, ויום בטווח סביר (dtAppend_). */
     if (d.action === 'row' && d.tab === DT_TAB_ && !d.ss) return json_(dtAppend_(parse_(d.cols) || []));
     /* הענקה מבית ההורה — בלי שורה שנייה לאותו בן ושבוע (pairHome_). */
@@ -4466,10 +4467,47 @@ function amdaAppend_(cols) {
    נכפית להיות זו שהמכשיר אושר אליה.
    amdaOk_ — אילו מהמזהים כבר בגיליון. קורא רק את עמודת המזהה (ואצל
    איש צוות גם את הישיבה), ולא מריץ את השיוך. */
+/* ============================================================
+   מי סימן (8.99.567 · SCRIPT_VERSION 256, בקשת אחיאסף 22.11).
+   ============================================================
+   הורה פנה על סימון שהבן לא עשה, ולא היה אפשר לברר מי רשם. מעכשיו כל
+   רישום חדש בעמדה נושא עמודה `מי סימן`: השם (והתפקיד) של מי שהמכשיר
+   מחובר אליו, התאריך והשעה (שעון ישראל), ואם התלמיד סימן בעצמו בטלפון
+   של איש הצוות ("התלמידים מסמנים").
+   · **השם נקבע בשרת**: מכשיר צוות — מ"גישה" לפי מזהה המכשיר (accRow_).
+     בסיסמת הסקריפט (הבעלים) — השם שהמכשיר שלח (`bn`, מ-df:head), ובלעדיו
+     "ניהול התוכנית". אין שם — "לא ידוע".
+   · המכשיר שולח רק `['מי סימן', 's'|'u'|'' + '|' + השם שלו]`; כל ערך אחר
+     מוחלף. שורות קיימות — לא נוגעים. */
+var AMDA_BY_COL_ = 'מי סימן';
+function amdaBy_(cols, dev, isKey, memo) {
+  var raw = '', at = '';
+  cols = (cols || []).filter(function (p) {
+    if (!p) return false;
+    if (p[0] === AMDA_BY_COL_) { raw = String(p[1] == null ? '' : p[1]); return false; }
+    if (p[0] === 'מתי') at = String(p[1] || '');
+    return true;
+  });
+  var bar = raw.indexOf('|'), mode = bar >= 0 ? raw.slice(0, bar) : raw,
+      bn = (bar >= 0 ? raw.slice(bar + 1) : '').replace(/[\r\n|]/g, ' ').trim().slice(0, 60), who = '';
+  if (dev) {
+    memo = memo || {};
+    if (!memo.hasOwnProperty(dev)) { var r = null; try { r = accRow_(dev); } catch (e) {} memo[dev] = r; }
+    var a = memo[dev];
+    if (a && a.name) who = a.name + (a.role ? ' · ' + a.role : '');
+  }
+  if (!who && isKey) who = bn ? bn + ' · ניהול' : 'ניהול התוכנית';
+  if (!who) who = bn || 'לא ידוע';
+  var t = Date.parse(at), d = t > 0 ? new Date(t) : new Date(), tx = '';
+  try { tx = Utilities.formatDate(d, 'Asia/Jerusalem', 'dd.MM.yyyy HH:mm'); } catch (e2) {}
+  var v = who + (tx ? ' · ' + tx : '') + (mode === 'u' ? ' · התלמיד סימן בעצמו' : '');
+  cols.push([AMDA_BY_COL_, v]);
+  return cols;
+}
 var AMDA_ROW_COLS_ = ['מזהה', 'שבוע', 'יום', 'עמדה', 'קוד עמדה', 'סוג', 'מסלול', 'דף', 'מקום',
                       'רמה', 'אישור חידון', 'שכבה', 'כיתה', 'שם', 'מתי', 'כותרת'];
 var AMDA_OK_MAX_ = 400;
-function amdaRows_(tab, list, inst) {
+function amdaRows_(tab, list, inst, dev) {
   if (!list || !list.length) return { status: 'success', tab: tab, n: 0 };
   var sh = sheet_(tab), head = headers_(sh), ix = idx_(sh, head, 'מזהה'), n = sh.getLastRow() - 1, have = {};
   if (n > 0) {
@@ -4478,14 +4516,17 @@ function amdaRows_(tab, list, inst) {
       if (s) have[s] = 1;
     });
   }
-  var rows = [], now = new Date(), dup = 0;
+  var rows = [], now = new Date(), dup = 0, memo = {};
   list.slice(0, AMDA_OK_MAX_).forEach(function (cols) {
     if (!cols || !cols.length) return;
     var id = '';
     if (inst) {
-      cols = cols.filter(function (p) { return p && AMDA_ROW_COLS_.indexOf(String(p[0] || '')) >= 0; });
+      cols = cols.filter(function (p) {
+        return p && (AMDA_ROW_COLS_.indexOf(String(p[0] || '')) >= 0 || p[0] === AMDA_BY_COL_);
+      });
       cols.push(['קוד ישיבה', inst]);
     }
+    if (tab === AMDA_TAB_) cols = amdaBy_(cols, inst ? dev : '', !inst, memo);
     cols.forEach(function (c) { if (c && c[0] === 'מזהה') id = String(c[1] == null ? '' : c[1]).trim(); });
     if (id && have[id]) { dup++; return; }
     if (id) have[id] = 1;
@@ -10157,6 +10198,9 @@ function rafCalc_(hsAdd) {
        השבועי — שלושת הכרטיסים במסלול. הענקה של אבא על אותו מסלול אינה
        מוסיפה רביעי (התקרה 3 למסלול). */
     tk(pr[0], at).f = 1;
+    /* `fa` — הכרטיס הזה ניתן בזכות הנוכחות. בלי הענקה אמיתית (`fd`) הוא
+       מוצג "לימוד בחבורה" ולא "אבא" (8.99.567). תווית בלבד — הספירה לא זזה. */
+    tk(pr[0], at).fa = 1;
   });
   /* חידון — לכל מי שיש לו ציון על הדף, גם בלי סיום שנרשם. */
   Object.keys(Q.best).forEach(function (ky) {
@@ -10179,7 +10223,7 @@ function rafCalc_(hsAdd) {
          שבוע אחד — כרטיס אחד, גם כששני הורים נתנו עליו. */
       if (G[id][g] === 'f') { lateF.push([id, t0, g.split('|')[2]]); return; }
       var o = tk(id, t0);
-      o.l = 1; o.q = 1; o.f = 1;
+      o.l = 1; o.q = 1; o.f = 1; o.fd = 1;
     });
   });
   /* כרטיס הלימוד: שני העמודים, ועשר דקות כשהזמן ידוע — או חריג מוצ"ש:
@@ -10210,6 +10254,7 @@ function rafCalc_(hsAdd) {
     if (lateW[wk] || !((cur && cur.l) || lack[x[0] + '|' + x[1]])) return;
     lateW[wk] = 1;
     tk(x[0], x[1]).f++;
+    tk(x[0], x[1]).fd = 1;
   });
   Object.keys(done).forEach(function (id) {
     var o = done[id];
@@ -13584,7 +13629,8 @@ function rafMeBuild_(w) {
             '|' + (tk ? [tk.l, tk.q, tk.f].join(',') : '0,0,0') +
             '|' + (tk ? Object.keys(tk.tr).map(function (tr) {
               var x = tk.tr[tr];
-              return tr + ':' + [x.l, x.q, x.f].join(',');
+              /* רביעי `1` — כרטיס אבא מנוכחות בלבד (rafCalc_ `fa` בלי `fd`). */
+              return tr + ':' + [x.l, x.q, x.f].join(',') + (x.f && x.fa && !x.fd ? ',1' : '');
             }).join(';') : '');
     if (lk.length) v += '|m:' + lk.join(';');
     if (snap) v += '|d:' + (snap[to] || 0);
@@ -13755,11 +13801,11 @@ function rafSnap_(dw) {
    דקות ובלי `lack`. הזכאות הפנימית (rafCalc_ `done`, ההגרלה, לוח הצוות) לא
    זזה — בלי `stu` הכול כמו שהיה. ההגרלה כבר בוצעה — `drawn` נשאר כמו שהוא. */
 function rafTk_(v, w, stu) {
-  var pr = String(v || '').split('|'), tr = {}, lack = {}, drawn = null;
+  var pr = String(v || '').split('|'), tr = {}, lack = {}, drawn = null, fg = 0;
   var f = String(pr[2] || '0,0,0').split(',').map(function (x) { return +x || 0; });
   String(pr[3] || '').split(';').forEach(function (s) {
-    var m = s.match(/^((?:taanit|megila)(?:-hashlama|-nertamid)?):(\d+),(\d+),(\d+)$/);
-    if (m) tr[m[1]] = [+m[2], +m[3], +m[4]];
+    var m = s.match(/^((?:taanit|megila)(?:-hashlama|-nertamid)?):(\d+),(\d+),(\d+)(?:,(\d))?$/);
+    if (m) { tr[m[1]] = [+m[2], +m[3], +m[4]]; if (+m[5] && +m[4]) fg += +m[4]; }
   });
   pr.slice(4).forEach(function (s) {
     if (s.indexOf('m:') === 0) s.slice(2).split(';').forEach(function (x) {
@@ -13773,6 +13819,9 @@ function rafTk_(v, w, stu) {
   /* ההגרלה על הדף הזה כבר בוצעה — המספר שהיה בה (`drawn`), והחישוב של
      היום לא מוצג כאילו הוא הספירה שהייתה בהגרלה. */
   if (drawn != null) o.drawn = drawn;
+  /* `fg` — כמה מכרטיסי האבא ניתנו בזכות נוכחות בלבד, בלי הענקה של הורה
+     (8.99.567). המסכים מציגים אותם "לימוד בחבורה". 0 — לא נשלח. */
+  if (fg) o.fg = Math.min(fg, o.f);
   if (stu) {
     Object.keys(lack).forEach(function (t) {
       var x = tr[t] = tr[t] || [0, 0, 0];

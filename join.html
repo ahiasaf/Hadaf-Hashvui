@@ -4308,7 +4308,7 @@ function tkCardHtml(c) {
   return '<div class="tk-top"><div class="tk-hd"><b>' + esc(tk && !(tk.t > 0) ? UI.myTkNone : UI.myTkHd) + '</b>' +
       (tk && up ? '<span>' + esc(up) + '</span>' : '') + '</div>' +
       (dd ? '<span class="tk-dd">' + esc(dd) + '</span>' : '') + '</div>' +
-    (tk ? '<div class="tk-ss">' + row(UI.myTkRL, tk.l) + row(UI.myTkRQ, tk.q) + row(UI.myTkRF, tk.f) + '</div>'
+    (tk ? '<div class="tk-ss">' + row(UI.myTkRL, tk.l) + row(UI.myTkRQ, tk.q) + row(tk.fg && tk.fg >= tk.f ? UI.myTkRG : UI.myTkRF, tk.f) + '</div>'
         : PTS_PH ? '<div class="tk-err" role="status" aria-busy="true">' +
             esc(PTS_PH === 'slow' ? UI.netSlow : PTS_PH === 'retry' ? UI.netRetry : UI.myTkLoad) + '</div>'
         : wait ? '<div class="tk-wt" aria-busy="true">…</div>' : '<div class="tk-err">' + esc(UI.myTkErr) + '</div>') + lk;
