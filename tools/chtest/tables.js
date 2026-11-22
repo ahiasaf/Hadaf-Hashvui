@@ -266,4 +266,4 @@ var miss = Object.keys(M.missing).filter(function (k) { return !/flush|Logger/.t
 if (miss.length) console.log('missing', miss.join(','));
 // לגשר מ-Playwright (scratchpad): העולם אחרי כל התרחישים.
 if (require.main === module) process.exit(fails ? 1 : 0);
-else module.exports = { W: W, c: c, at: at, exec: exec, fails: fails };
+else module.exports = { W: W, c: c, at: at, exec: exec, fails: fails, learn: learn, sync: sync, D1: D1 };

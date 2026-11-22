@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 254;
+var SCRIPT_VERSION = 255;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -11533,7 +11533,14 @@ function rafGenDraw_(P) {
   try {
     var T = rafRead_(), wk = progWeek_();
     var had = rafLastG_(T, wk);
-    if (had && had.st === 'הוגרל') { had.status = 'ok'; had.again = 1; return had; }
+    if (had && had.st === 'הוגרל') {
+      /* האוטומטית לא מפרסמת הגרלה שהרכז עוד לא החליט עליה — ננסה בשעה הבאה. */
+      if (P.who === 'אוטומטי' && had.by !== 'אוטומטי') return { status: 'busy', message: 'יש הגרלה כללית שעוד לא פורסמה' };
+      had.status = 'ok'; had.again = 1; return had;
+    }
+    /* בונוס (8.99.566): רק במוסדות שנבחרו; `per` — זוכה אחד בכל מוסד. */
+    var only = String(P.insts || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+    var per = String(P.per || '') === '1' && only.length;
     /* מי שכבר זכה השבוע — מכל הגרלה שלא בוטלה. */
     var won = {};
     for (var r = 1; r < T.rows.length; r++) {
@@ -11545,6 +11552,7 @@ function rafGenDraw_(P) {
       var p = C.ppl[id];
       if (p && !rafWhy_(p) && codes.indexOf(p.code) < 0) codes.push(p.code);
     });
+    if (only.length) codes = codes.filter(function (cd) { return only.indexOf(cd) >= 0; });
     var E = raffleElig_(codes, C), L = [], nx = 0, nt = 0;
     codes.forEach(function (cd) {
       (E.by[cd] || []).forEach(function (p) {
@@ -11554,10 +11562,19 @@ function rafGenDraw_(P) {
     });
     if (!L.length) return { status: 'error', message: nx ? 'אין זכאים שלא זכו כבר השבוע' : 'אין זכאים להגרלה' };
     var ne = L.length, W = [];
-    while (W.length < n && L.length) {
+    if (per) {
+      n = 0;
+      only.forEach(function (cd) {
+        var Li = L.filter(function (p) { return p.code === cd; });
+        if (!Li.length) return;
+        n++;
+        W.push(rafPickW_(Li, function (p) { return p.t; }));
+      });
+    } else while (W.length < n && L.length) {
       var w = rafPickW_(L, function (p) { return p.t; });
       W.push(w); L.splice(L.indexOf(w), 1);
     }
+    if (!W.length) return { status: 'error', message: 'אין זכאים במוסדות שנבחרו' };
     var nm = rafInstNm_(), rid = 'G' + wk + '-' + Utilities.getUuid().slice(0, 8);
     var who = String(P.who || 'רכז').slice(0, 40);
     var ex = E.ex.map(function (x) { return x.text; });
@@ -11565,7 +11582,7 @@ function rafGenDraw_(P) {
     W.forEach(function (w, i) {
       appendCols_(RAF_TAB, [
         ['מזהה הגרלה', rid], ['שבוע', wk], ['מועד חיתוך', E.cut], ['מבצע', who],
-        ['סוג', RAF_GEN_], ['מוסדות', ''], ['קוד ישיבה', w.code], ['ישיבה', w.inst || nm[w.code] || ''],
+        ['סוג', RAF_GEN_], ['מוסדות', only.join(',')], ['קוד ישיבה', w.code], ['ישיבה', w.inst || nm[w.code] || ''],
         ['מקום', 'g' + (i + 1)], ['מבוקש', n], ['זכאים', ne], ['כרטיסים', nt], ['דף', E.daf || ''],
         ['זוכה', w.id], ['מזהי הזוכה', w.ids.join(' ')], ['שם הזוכה', (w.name + ' ' + w.last).trim()],
         ['חריגים', ex.join(' | ').slice(0, 4000)], ['סטטוס', 'הוגרל']
@@ -11854,6 +11871,20 @@ function rafAutoSun_(force) {
   }
   return st;
 }
+/* ?challenge=bonus&key= — הגרלת בונוס על שולחנות (8.99.566, אחיאסף): הקפאה של השולחנות שכל
+   הארבעה בהם למדו השבוע, **בלי יציאות**, והגרלה — בלחיצה אחת. האישור (שובר + הודעה) — בלחיצה נפרדת. */
+function chBonus_(U) {
+  var o = chAct_(U, { bonus: 1 }, 'open');
+  if (o.status !== 'ok') return o;
+  var d = chAct_(U, { ms: String(o.ms), rq: 'bonus' + o.ms }, 'draw');
+  if (d.status !== 'ok') { d.ms = o.ms; return d; }
+  var M = chModel_(U) || chSync_(U), g = chGrpRow_(U, d.sel).g || {}, nm = [];
+  ['מזמין', 'חבר 1', 'חבר 2', 'חבר 3'].forEach(function (c) {
+    var p = (M && M.ppl && M.ppl[g[c]]) || {};
+    if (g[c]) nm.push(((p.f || '') + ' ' + (p.l || '')).trim());
+  });
+  return { status: 'ok', ms: o.ms, n: o.n, sel: d.sel, names: nm };
+}
 /* ?raffle=autogo&key= — הכפתור בניהול. אחת בכל פעם (מטמון), התשובה — מה בוצע. */
 function rafAutoGo_() {
   var rc = CacheService.getScriptCache();
@@ -11888,7 +11919,7 @@ function chAutoSun_(pr, st) {
   var U = { test: false };
   if (!st.chk) {
     var o = chAct_(U, {}, 'open');
-    if (o.status !== 'ok') return rafBusy_(o) ? '' : 'לא נפתחה: ' + (o.message || o.status);
+    if (o.status !== 'ok') return rafBusy_(o) || /לא הוכרעה/.test(String(o.message || '')) ? '' : 'לא נפתחה: ' + (o.message || o.status);
     st.chk = String(o.ms);
   }
   if (!st.chsel) {
@@ -15758,7 +15789,8 @@ function chTables_(U, S, K, X) {
     });
   }
   /* הגרלה בלחיצה (op=open): ההקפאה, ומיד אחריה האיפוס האישי. */
-  if (U.drawNow && draw(X.now, 'ידני')) weekOut(X.now);
+  /* בונוס (8.99.566, U.noOut): אותה הקפאה — בלי האיפוס האישי. */
+  if (U.drawNow && draw(X.now, 'ידני') && !U.noOut) weekOut(X.now);
   /* **"+" — שולחן נוסף** (8.99.441, ?challenge=newt): רק כשאין לו שולחן משלו שיש בו מקום,
      ובתקרה (3 בסך הכול, כולל שולחן של חבר). השולחן החדש — הוא לבדו, עד שחברים בוחרים בו. */
   if (U.openFor && X.P[U.openFor] && !X.P[U.openFor].par && tablesOf(U.openFor).length < CH_MAX_T_ &&
@@ -16584,7 +16616,7 @@ function chAct_(U, P, op) {
          בחירת זוכה; הבחירה — op=draw, בלחיצה נפרדת. */
       if (M.v2) {
         var n1 = M.ms.length;
-        M = chSync_({ test: U.test, drawNow: 1 });
+        M = chSync_({ test: U.test, drawNow: 1, noOut: P.bonus ? 1 : 0 });
         var m1 = M.ms.length > n1 ? M.ms[M.ms.length - 1] : null;
         if (!m1) return { status: 'error', message: 'אין שולחן שכל הארבעה בו למדו השבוע — אין על מה להגריל' };
         return { status: 'ok', ms: m1.k, n: m1.el.length, sel: m1.sel || '' };
@@ -17635,6 +17667,7 @@ function challengeRoute_(e) {
       if (!U.test) return reply_(e, { status: 'denied', message: 'רק בעולם הבדיקה' });
       return reply_(e, chTestClear_());
     }
+    if (op === 'bonus') return reply_(e, chBonus_(U));
     if (op === 'dmstart') return reply_(e, chDemoStart_(P));
     if (op === 'push') return reply_(e, chPush_(U, P));
     if (op === 'tmsg') return reply_(e, chTmsg_(U, P));
