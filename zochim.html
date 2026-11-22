@@ -256,13 +256,15 @@ function coCpOld(t, ok) {
    · אין רכז עם טלפון — "וואטסאפ" לכל זוכה עם אפליקציה (נזכר במכשיר, df:zchWa).
    · פעולות נדירות (סימון בחירה, החלפה, נמסר ידנית, קישור שובר) — תחת "עוד" לכל זוכה. */
 var CO_X = {}, CO_G = {};
-function coOk(c) { return c && !c.err && c.n && digits(c.ph).length >= 9; }
+function phOk(p) { var n = digits(p).length; return n >= 9 && n <= 12; }
+function coOk(c) { return c && !c.err && c.n && phOk(c.ph); }
 function coLive(x) { return x.st !== 'dlv' && x.st !== 'arr'; }
 function coWho(x) { return (x.name || '') + (x.gc ? ' (' + x.gc + ')' : ''); }
-/* זוכה בלי אפליקציה ששובר שלו מוכן ועוד לא נשלח לרכז. */
+/* זוכה בלי אפליקציה — או בלי טלפון תקין (8.99.569) — ששובר שלו מוכן ועוד לא נשלח לרכז.
+   עם אפליקציה: רק כל עוד לא צפה בשובר. */
 function coVchDue(x) {
-  var vc = x.na && coLive(x) ? coVch(x) : null;
-  if (!vc || (x.v && x.v.st === 'used')) return null;
+  var vc = (x.na || !phOk(x.ph)) && coLive(x) ? coVch(x) : null;
+  if (!vc || (x.v && x.v.st === 'used') || (!x.na && x.v && x.v.sn)) return null;
   var key = 'co|' + x.rid + '|' + x.code + '|v:' + vc.c;
   return vc.snt || WAS[key] ? null : { vc: vc, key: key };
 }
@@ -290,10 +292,13 @@ function coGroups() {
     g.ok = ok;
     g.ad = ok && R.some(function (x) { return !x.cad; });
     g.wa = ok && R.some(function (x) { return !x.cwa; });
-    g.kid = !ok ? R.filter(function (x) { return !x.na && digits(x.ph).length >= 9 && !WAS[coKidKey(x)]; }) : [];
+    g.kid = !ok ? R.filter(function (x) { return !x.na && phOk(x.ph) && !WAS[coKidKey(x)]; }) : [];
     /* בהגרלות קודמות — רק שובר ששויך מאז שהמעקב קיים (20.11), לא שוברים ישנים שנשלחו ביד. */
-    g.vch = ok ? R.filter(function (x) { return coVchDue(x) && (g.wi === 0 || (x.v && Date.parse(x.v.at) >= Date.parse('2026-11-20'))); }) : [];
-    g.open = g.wi === 0 ? !!(g.ad || g.wa || g.kid.length || g.vch.length) : !!g.vch.length;
+    var vd = R.filter(function (x) { return coVchDue(x) && (g.wi === 0 || (x.v && Date.parse(x.v.at) >= Date.parse('2026-11-20'))); });
+    g.vch = ok ? vd : [];
+    /* שובר שאין לאן לשלוח (אין טלפון לזוכה וגם לא לרכז) — הודעה מדויקת בכרטיס. */
+    g.vno = ok ? [] : vd;
+    g.open = g.wi === 0 ? !!(g.ad || g.wa || g.kid.length || g.vch.length || g.vno.length) : !!(g.vch.length || g.vno.length);
     CO_G[g.k] = g;
   });
   return G;
@@ -316,6 +321,8 @@ function coGHtml(g) {
 function coXHtml(x, g) {
   var pz = x.st === 'dlv' ? tp(UI.zchDlv, { p: przNm(x.p) }) : x.st === 'arr' ? UI.rafPrzArr : x.p ? przNm(x.p) : UI.zchNoPick0;
   var b = '';
+  if (g.open && g.vno.indexOf(x) >= 0) b += '<span class="co">' + esc((x.na ? '' : UI.vchNoPh + ' · ') +
+    (g.co.err ? UI.rafWaCoErr : !g.co.n ? UI.rafWaCoNone : tp(UI.rafWaCoNoPh, { name: g.co.n }))) + '</span>';
   if (g.open && g.kid.indexOf(x) >= 0) {
     var vv = { 'שם': x.first || x.name || '' }, t0 = '';
     try { t0 = JSON.parse(ls('df:rafWaTx') || '""') || ''; } catch (e) {}

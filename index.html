@@ -3184,7 +3184,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.568';
+var APP_VERSION = '8.99.569';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -14714,15 +14714,19 @@ function vtFill(t, v) {
   return o.split('\n').filter(function (l) { return l.replace(/[\s:·,]/g, '') !== '' && !/^בתוקף עד\s*$/.test(l.trim()); }).join('\n');
 }
 /* למי, באיזה טלפון ואיזו הודעה — אותם נוסחים של /zochim?r=1. null — אין למי לשלוח. */
+function phOk(p) { var n = digits(p).length; return n >= 9 && n <= 12; }
 function vtMsg(x) {
   var v = x.v, vv = { 'פרס': UI['przN_' + (v.p || x.p)] || v.p, 'קוד': v.c, 'קישור': v.u || '', 'תוקף': vtDmy(v.x) };
-  if (x.na) {
+  /* בלי אפליקציה — או בלי טלפון תקין לזוכה (8.99.569): השובר לרכז הישיבה. */
+  if (x.na || !phOk(x.ph)) {
     var c = x.co || {};
-    if (!c.n || digits(c.ph).length < 9) return { err: c.err ? UI.rafWaCoErr : !c.n ? UI.rafWaCoNone : fill(UI.rafWaCoNoPh, { name: c.n }) };
+    if (!c.n || !phOk(c.ph)) {
+      var ce = c.err ? UI.rafWaCoErr : !c.n ? UI.rafWaCoNone : fill(UI.rafWaCoNoPh, { name: c.n });
+      return { err: x.na ? ce : UI.vchNoPh + ' · ' + ce };
+    }
     vv['רכז'] = c.n; vv['שם'] = (x.name || '') + (x.gc ? ' (' + x.gc + ')' : ''); vv['ישיבה'] = x.inst || '';
     return { ph: c.ph, tx: vtFill(UI.rafWaCoVchTx, vv), lbl: fill(UI.rafWaCo, { name: c.n }) };
   }
-  if (digits(x.ph).length < 9) return { err: UI.vchNoPh };
   vv['שם'] = x.first || x.name || '';
   return { ph: x.ph, tx: vtFill(UI.rafWaVchTx, vv), lbl: UI.rafWaKid };
 }
@@ -16750,7 +16754,18 @@ function rafModeGo(m) {
   rafMode = m; rafD = null; rafA = null; rafPs = null; rafTx = null; rafP = null; rafMsg = '';
   rafLoad();
 }
-var RAFAU = null;
+var RAFAU = null, RAFST = null;
+/* שורת המצב (8.99.569): מה קרה השבוע — מההגרלה האוטומטית של יום ראשון, או מההפעלה הידנית. */
+function rafAuLine() {
+  var a = RAFST, st = null;
+  if (RAFAU && (RAFAU.raf || RAFAU.ch)) st = RAFAU;
+  else if (a && a.st && a.st.day === a.last && (a.st.raf || a.st.ch)) st = a.st;
+  else if (a && a.man && a.man.sun === a.next && (a.man.raf || a.man.ch)) st = a.man;
+  if (!st) return UI.rafAutoWhen;
+  var r = String(st.raf || '').replace(/^ידני · /, '');
+  return fill(UI.rafAutoDone, { raf: /^פורסם/.test(r) ? UI.rafAutoRafOk : (r || '—'),
+                                ch: String(st.ch || '—').replace(/^ידני · /, '') });
+}
 function rafAutoGo() {
   if (!SureLater(rafAutoGo, this, arguments)) return;
   rafCall({ raffle: 'autogo' }, function (d) {
@@ -16772,7 +16787,7 @@ function rafGenForm(dis) {
     '<button id="raf-gb" class="btn p"' + (parseInt(rafGenN, 10) >= 1 ? dis : ' disabled') + ' onclick="rafGenDraw()">' + esc(UI.rafDraw) + '</button>';
 }
 function rafLoad() {
-  rafCall({ raffle: 'state' }, function (d) { rafLoaded = true; rafD = d.d || null; rafA = null; rafPs = null; if (!VCH.d) setTimeout(vchLoad, 0); });
+  rafCall({ raffle: 'state' }, function (d) { rafLoaded = true; rafD = d.d || null; RAFST = d.au || null; rafA = null; rafPs = null; if (!VCH.d) setTimeout(vchLoad, 0); });
 }
 /* **הבחירה אחרי התמונה, ולא לפניה.** אף מוסד אינו מסומן מראש;
    הבחירה נשמרת בשרת רק בהגרלה עצמה ('pic' קורא בלבד). */
@@ -17565,10 +17580,12 @@ function admRaffle() {
   if (rafMsg === 'nokey') msg = '<div class="cond" style="margin-top:10px">' + esc(UI.rafNoKey) + '</div>';
   var dis = rafBusy ? ' disabled' : '';
   /* הגרלות השבוע בלחיצה (8.99.565): הכללית + השולחנות, ובלי האוטומטית של יום ראשון הקרוב. */
-  h += '<div class="pp-h">' + esc(UI.rafAutoH) + '</div><p class="h">' + esc(fill(UI.rafAutoP, { n: 10 })) + '</p>' +
+  /* 8.99.569 (אחיאסף: "כפתור מפחיד, לחצתי בטעות"): בראש — שורת מצב בלבד. ההפעלה הידנית — ב"כלים מתקדמים". */
+  h += '<div class="pp-h">' + esc(UI.rafAutoH) + '</div>' + (rafLoaded || RAFAU ? '<p class="h"><b>' + esc(rafAuLine()) + '</b></p>' : '');
+  var auBtn = '<p class="h" style="margin-top:8px">' + esc(fill(UI.rafAutoP, { n: 10 })) + '</p>' +
     (RAFAU ? '<p class="h"><b>' + esc(fill(UI.rafAutoRaf, { s: RAFAU.raf || fill(UI.rafAutoNo, { s: RAFAU.rafWhy || '—' }) })) + '</b><br><b>' +
       esc(fill(UI.rafAutoCh, { s: RAFAU.ch || fill(UI.rafAutoNo, { s: RAFAU.chErr || '—' }) })) + '</b></p>' : '') +
-    (RAFAU && RAFAU.raf && RAFAU.ch ? '' : '<button class="btn p" style="margin-top:6px"' + dis + ' onclick="rafAutoGo()">' +
+    (RAFAU && RAFAU.raf && RAFAU.ch ? '' : '<button class="btn g" style="margin-top:6px"' + dis + ' onclick="rafAutoGo()">' +
       esc(rafBusy ? UI.rafBusy : UI.rafAutoBtn) + '</button>');
   if (!rafLoaded) {
     if (!rafBusy && !rafMsg) setTimeout(rafLoad, 0);
@@ -17597,7 +17614,7 @@ function admRaffle() {
        '<p class="h">' + esc(UI.rafZchNote) + '</p>' +
        /* תצוגת הרכז (8.99.485) — אותו עמוד, עם פרס, מצב שובר ווואטסאפ לכל זוכה. */
        '<a class="btn g" style="margin-top:6px" href="' + esc(zu + (zu.indexOf('?') < 0 ? '?' : '&') + 'r=1') + '">' + esc(UI.zchCoBtn) + '</a>';
-  h += '<details class="hx" style="margin-top:14px"><summary>' + esc(UI.rafAdvH) + '</summary>' +
+  h += '<details class="hx" style="margin-top:14px"><summary>' + esc(UI.rafAdvH) + '</summary>' + auBtn +
     '<button class="btn g" style="margin-top:8px"' + dis + ' onclick="rafModeGo(\'i\')">' + esc(UI.rafAdvOld) + '</button></details>';
   return h + msg + '</div>';
 }

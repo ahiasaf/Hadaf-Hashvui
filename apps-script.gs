@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 257;
+var SCRIPT_VERSION = 258;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -11935,6 +11935,16 @@ function chBonus_(U) {
   });
   return { status: 'ok', ms: o.ms, n: o.n, sel: d.sel, names: nm };
 }
+/* מצב ההגרלות האוטומטיות לשורה בראש מסך ההגרלה (8.99.569): יום ראשון האחרון (היום, אם ראשון),
+   יום ראשון הקרוב, מה רץ (RAF_AUTO_ST) ומה הופעל ידנית (RAF_MANUAL). קריאה בלבד. */
+function rafAuSt_() {
+  var now = new Date(), pr = PropertiesService.getScriptProperties(), st = null, man = null;
+  var u = parseInt(Utilities.formatDate(now, 'Asia/Jerusalem', 'u'), 10) % 7;
+  try { st = JSON.parse(pr.getProperty('RAF_AUTO_ST') || 'null'); } catch (e1) {}
+  try { man = JSON.parse(pr.getProperty('RAF_MANUAL') || 'null'); } catch (e2) {}
+  return { last: Utilities.formatDate(new Date(now.getTime() - u * 864e5), 'Asia/Jerusalem', 'yyyy-MM-dd'),
+           next: rafSunNext_(now), st: st, man: man };
+}
 /* ?raffle=autogo&key= — הכפתור בניהול. אחת בכל פעם (מטמון), התשובה — מה בוצע. */
 function rafAutoGo_() {
   var rc = CacheService.getScriptCache();
@@ -14257,7 +14267,7 @@ function raffleRoute_(e) {
       /* gen=1 — ההגרלה הכללית של השבוע (8.99.492), באותו מבנה. */
       var T = rafRead_(), d = String(P.gen || '') === '1' ? rafLastG_(T, progWeek_()) : rafLast_(T, progWeek_());
       if (d) { d.ex = T.c(d.lines[0], 'חריגים'); rafPrzAdm_(T, d); }
-      return reply_(e, { status: 'ok', wk: progWeek_(), d: d });
+      return reply_(e, { status: 'ok', wk: progWeek_(), d: d, au: rafAuSt_() });
     }
     if (op === 'draw') return reply_(e, raffleDraw_(P));
     if (op === 'gdraw') return reply_(e, rafGenDraw_(P));
