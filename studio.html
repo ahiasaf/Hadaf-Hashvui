@@ -1977,7 +1977,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.565';
+var STUDIO_VER = '8.99.566';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -4623,6 +4623,7 @@ function cutRuns(runs, at) {
 function applySplits(list) {
   var keyed = [];
   allSplits().forEach(function (sp) {
+    if (sp[3]) return;              /* פיצול של פסקה מתוקנת — אחרי התיקון */
     if (sp[2]) { keyed.push({ s: sp, i: sp[0] }); return; }
     var i = sp[0];
     if (!list[i]) return;
@@ -4691,7 +4692,43 @@ function applyHidden(list) {
   return list;
 }
 /* החברותא כפי שהיא מוצגת: הפיצולים שנעשו, וההסתרות שנעשו */
-function buildChav(raw) { return applyFixes(applyHidden(applySplits(raw.slice()))); }
+/* 8.99.566 — "למרות שלחצתי על פסקה חדשה הוא לא נותן לי לפצל".
+   פסקה מתוקנת מפוצלת אחרי התיקון: הפיצול נשמר לפי הנוסח המתוקן
+   (`[i, at, key, 1]`) ומוחל אחרי applyFixes. החצאים — פסקאות רגילות,
+   ולכן תיקון של חצי נשמר לפי הנוסח שלו ומוחל במעבר השני. */
+function trimNl_(runs) {
+  runs = runs.map(function (r) { return { t: r.t, b: r.b }; });
+  while (runs.length && !(runs[0].t = runs[0].t.replace(/^[ \n]+/, ''))) runs.shift();
+  while (runs.length && !(runs[runs.length - 1].t = runs[runs.length - 1].t.replace(/[ \n]+$/, ''))) runs.pop();
+  return runs;
+}
+function cutFixed_(runs, at) {
+  var two = cutRuns(runs, at);
+  two[0].runs = trimNl_(two[0].runs); two[1].runs = trimNl_(two[1].runs);
+  return two;
+}
+function applyLateSplits(list) {
+  var keyed = allSplits().filter(function (sp) { return sp[3] && sp[2]; })
+    .sort(function (a, b) { return a[0] - b[0]; });
+  var go = true;
+  while (go && keyed.length) {
+    go = false;
+    for (var n = 0; n < keyed.length; n++) {
+      var sp = keyed[n], best = -1;
+      for (var j = 0; j < list.length; j++)
+        if (fixKey(list[j].runs) === sp[2] && (best < 0 || Math.abs(j - sp[0]) < Math.abs(best - sp[0]))) best = j;
+      if (best < 0) continue;
+      keyed.splice(n--, 1); go = true;
+      var two = cutFixed_(list[best].runs, sp[1]);
+      if (!two[0].runs.length || !two[1].runs.length) continue;
+      list.splice(best, 1, two[0], two[1]);
+    }
+  }
+  return list;
+}
+function buildChav(raw) {
+  return applyHidden(applyFixes(applyLateSplits(applyFixes(applySplits(raw.slice())))));
+}
 
 /* ============================================================
    תיקון טקסט בחברותא.
@@ -4970,7 +5007,7 @@ function paraText(i) {
 
 /* המשפטים שבפסקה, עם מיקום ההתחלה של כל אחד */
 function sentences(t) {
-  var out = [], at = 0, re = /[.!?]["'\)\]]*\s+/g, m;
+  var out = [], at = 0, re = /[.!?]["'\)\]]*\s+|\n+/g, m;
   while ((m = re.exec(t))) {
     out.push([at, t.slice(at, m.index + m[0].length).trim()]);
     at = m.index + m[0].length;
@@ -5032,10 +5069,13 @@ function doSplit(i, at) {
   document.body.classList.remove('splitting');
   if (!CHV || !CHV[i]) return;
   var p = CHV[i];
-  var two = cutRuns(p.runs, at);
+  var two = p.orig ? cutFixed_(p.runs, at) : cutRuns(p.runs, at);
   if (!two[0].runs.length || !two[1].runs.length) return;
   var rec = BOOK[PKEY] || (BOOK[PKEY] = {});
-  (rec.splits = rec.splits || []).push([i, at, fixKey(p.runs)]);
+  /* פסקה מתוקנת — לפי הנוסח המתוקן, ומוחל אחרי התיקון */
+  (rec.splits = rec.splits || []).push(p.orig
+    ? [i, runsText(two[0].runs).length, fixKey(p.runs), 1]
+    : [i, at, fixKey(p.runs)]);
   var oldH = paraHtml_(p);
   two[0].off = two[1].off = !!p.off;
   CHV.splice(i, 1, two[0], two[1]);
@@ -5218,13 +5258,7 @@ function chavBind() {
       if (FIX_MODE) { fixSheet(i); return; }
       if (JOIN_MODE) { joinSheet(i); return; }
       if (SPLIT_MODE) {
-        /* הפיצול נשמר לפי הנוסח המקורי, והתיקון — לפי הנוסח של
-           הפסקה השלמה; יחד הם לא היו שורדים טעינה. בתיקון יש
-           "↵ פסקה חדשה", וזה אותו מראה. */
-        if (CHV[i] && CHV[i].orig) {
-          say('בפסקה הזו יש תיקון טקסט. לחלק אותה — ב"✎ תיקון טקסט", בכפתור "↵ פסקה חדשה".', 1);
-          return;
-        }
+        /* גם פסקה מתוקנת (8.99.566) — applyLateSplits */
         splitSheet(i);
       } else pickPara(i);
     };
