@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 258;
+var SCRIPT_VERSION = 259;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -7873,9 +7873,7 @@ function autoRecount() {
   /* ההגרלות של יום ראשון 16:00 (8.99.552) — השבועית והשולחנות. */
   try { rafAutoSun_(); } catch (se) {}
   /* בחירה אוטומטית אחרי חמישי 19:00 (8.99.551), ואז שוברים מהמלאי לממתינים וההתראות (8.99.546). */
-  /* בלי מועד לבחירה (8.99.568, אחיאסף 22.11): התלמיד בוחר מתי שהוא רוצה. הבחירה האוטומטית —
-     רק לזוכה בלי אפליקציה (אין לו איך לבחור), אחרי חמישי 19:00. */
-  try { rafPrzAutoAll_(); } catch (ze) {}
+  /* בלי מועד ובלי בחירה אוטומטית לאף זוכה (8.99.572, אחיאסף): בלי אפליקציה — הרכז בוחר איתו בקישור. */
   try { vchFill_(); } catch (ve) {}
   try { tmFlush_(); } catch (te) {}
   if (autoNightOk_()) autoNight();
@@ -12034,7 +12032,27 @@ function rafWSeen_(P) {
 }
 /* הזכיות של המכשיר (או של הבן/ים, להורה) בכל ההגרלות שפורסמו.
    [{ r, rid, wk, wid, kid, ids }] — ids = מזהי הזוכה באותה שורה. */
+/* קישור בחירה לרכז (8.99.572, אחיאסף): זוכה בלי אפליקציה — הרכז בוחר איתו את הפרס בקישור. האסימון
+   קשור לזכייה אחת (הגרלה + זוכה) וחתום בסוד השרת (hasaaSalt_). `ct` בכל נתיבי הזוכה (rafWinsOf_). */
+function rafCoTok_(rid, wid) {
+  var b = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, hasaaSalt_() + '|copick|' + rid + '|' + wid, Utilities.Charset.UTF_8);
+  var h = '';
+  for (var i = 0; i < 12; i++) h += ((b[i] + 256) % 256 + 256).toString(16).slice(1);
+  return 'c' + h;
+}
 function rafWinsOf_(P, T) {
+  var ct = String(P.ct || '');
+  if (/^c[0-9a-f]{24}$/.test(ct)) {
+    var o1 = [];
+    for (var r1 = 1; r1 < T.rows.length && !o1.length; r1++) {
+      if (T.c(r1, 'סטטוס') !== 'פורסם' || !T.c(r1, 'זוכה')) continue;
+      if (rafCoTok_(T.c(r1, 'מזהה הגרלה'), T.c(r1, 'זוכה')) !== ct) continue;
+      o1.push({ r: r1, rid: T.c(r1, 'מזהה הגרלה'), wk: T.c(r1, 'שבוע'), wid: T.c(r1, 'זוכה'),
+                kid: String(T.c(r1, 'שם הזוכה') || '').split(/\s+/)[0] || ' ',
+                ids: (T.c(r1, 'מזהי הזוכה') || T.c(r1, 'זוכה')).split(/\s+/) });
+    }
+    return o1;
+  }
   var mine = String(P.id || '').split(',').map(function (x) { return x.trim(); })
     .filter(function (x) { return /^[\w:.\-]{1,60}$/.test(x); }).slice(0, 4);
   if (!mine.length) return [];
@@ -12071,9 +12089,10 @@ function rafPrize_(P) {
   var none = { status: 'ok', list: [] };
   var mine = String(P.id || '').split(',').map(function (x) { return x.trim(); })
     .filter(function (x) { return /^[\w:.\-]{1,60}$/.test(x); }).slice(0, 4);
-  if (!mine.length) return none;
+  var ctq = /^c[0-9a-f]{24}$/.test(String(P.ct || '')) ? String(P.ct) : '';
+  if (!mine.length && !ctq) return none;
   var dad = String(P.role || '') === 'dad', rc = CacheService.getScriptCache();
-  var ck = 'raf:pz:' + rafPrzVer_() + ':' + (dad ? 'd:' : '') + mine.join(',');
+  var ck = 'raf:pz:' + rafPrzVer_() + ':' + (dad ? 'd:' : '') + (ctq ? 'ct:' + ctq : mine.join(','));
   if (String(P.fresh || '') !== '1') { var c0 = rc.get(ck); if (c0) { try { return JSON.parse(c0); } catch (x) {} } }
   var T = rafRead_();
   var out = T.rows.length ? rafWinsOf_(P, T) : [];
@@ -12751,6 +12770,8 @@ function rafWadm_(P) {
       /* הרכז לכל זוכה (8.99.556) — המודעה והוואטסאפ עם השובר; מתי נשלחו. */
       if (!o.co) { if (!co) co = rafCoords_(); o.co = co.err ? { err: 1 } : (co.m[x.code] || {}); }
       o.cad = T.c(ln, 'מודעה לרכז'); o.cwa = T.c(ln, 'וואטסאפ לרכז'); o.cpu = T.c(ln, 'הודעה לרכז');
+      /* זוכה בלי אפליקציה (8.99.572): קישור הבחירה לרכז, ומתי נשלח. */
+      if (o.na && rafPubMs_(T, r) >= Date.parse(VCH_POP_FROM_)) { o.ct = rafCoTok_(rid, T.c(ln, 'זוכה')); o.cpk = T.c(ln, 'קישור בחירה לרכז'); }
       /* לא מחובר להתראות (8.99.558): לאף מזהה שלו אין מנוי ב"התראות". קריאה שנכשלה — לא מסמנים. */
       if (subd && !o.na) {
         var all = row ? rowIds_(t, row) : ws;
@@ -13229,7 +13250,7 @@ function rafPDlv_(P) {
 }
 /* ?raffle=cosent&key=&rid=&code=&k=ad|wa — הבעלים שלח לרכז את המודעה / את הוואטסאפ עם השובר. פעם אחת. */
 function rafCoSent_(P) {
-  var k = String(P.k || ''), col = k === 'ad' ? 'מודעה לרכז' : k === 'wa' ? 'וואטסאפ לרכז' : '';
+  var k = String(P.k || ''), col = k === 'ad' ? 'מודעה לרכז' : k === 'wa' ? 'וואטסאפ לרכז' : k === 'pk' ? 'קישור בחירה לרכז' : '';
   if (!col) return { status: 'error', message: 'סוג' };
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(15000)) return { status: 'busy' };

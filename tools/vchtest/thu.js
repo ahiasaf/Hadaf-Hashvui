@@ -50,23 +50,14 @@ post({ action: 'vchadd', key: 'k', rows: [{ t: 'פיצה', p: 'pizza', c: 'PZ-1'
 var realNow = Date.now;
 Date.now = function () { return Date.parse('2026-11-26T17:30:00Z'); };
 c.autoRecount();
+// 8.99.572 — אין בחירה אוטומטית לאף זוכה (גם בלי אפליקציה: הרכז בוחר בקישור).
 var A = raf({ raffle: 'prize', id: 'AmWINAAA1', fresh: '1' }).list[0], B = raf({ raffle: 'prize', id: 'AmWINBBB2', fresh: '1' }).list[0];
-ok(A.p && B.p && A.how === 'הוגרל' && B.how === 'הוגרל', 'after deadline: both picked automatically', [A, B]);
-ok((A.v ? 1 : 0) + (B.v ? 1 : 0) === 1 && (A.v || B.v).p === 'pizza', 'one got the pizza voucher', [A.v, B.v]);
+ok(!A.p && !B.p && !A.v && !B.v, 'after deadline: nothing picked automatically (no-app too)', [A, B]);
 ok(!raf({ raffle: 'prize', id: 'DWINCCC3', fresh: '1' }).list[0].p, 'pre-voucher raffle untouched');
 var E = raf({ raffle: 'prize', id: 'DWINEEE5', fresh: '1' }).list[0];
 ok(!E.p && !E.ov && E.st === 'pick', 'app winner: no auto pick, still open', E);
 ok(raf({ raffle: 'vpick', id: 'DWINEEE5', rid: 'R1', p: 'book' }).status !== 'late', 'app winner can pick after Thursday');
-ok(PUSH.length === 1 && /^זכית פיצה!/.test(PUSH[0].t) && /^ש, השובר שלך/.test(PUSH[0].b), 'push "זכית פיצה"', PUSH);
-c.autoRecount();
-ok(PUSH.length === 1, 'push once');
-// 6. הממתין מקבל כשמגיע מלאי — עדיין "זכית {p}"
-var wp = (A.v ? B : A).p, cd = { pizza: 'PZ-2', book: 'BK-1', burger: 'BG-1', maafe: 'MF-1', pretzel: 'PR-1' }[wp];
-post({ action: 'vchadd', key: 'k', rows: [{ t: 'x', p: wp, c: cd, x: '2027-12-31' }] });
-c.autoRecount();
-var A2 = raf({ raffle: 'prize', id: 'AmWINAAA1', fresh: '1' }).list[0], B2 = raf({ raffle: 'prize', id: 'AmWINBBB2', fresh: '1' }).list[0];
-ok(A2.v && B2.v, 'waiting one got voucher from stock', [A2, B2]);
-ok(PUSH.length === 2 && /^זכית /.test(PUSH[1].t), 'second push also "זכית"', PUSH[1]);
+ok(PUSH.length === 0, 'no "זכית" push without a pick', PUSH);
 Date.now = realNow;
 console.log(n - fails + '/' + n + ' passed');
 process.exit(fails ? 1 : 0);

@@ -95,7 +95,13 @@ function makeWorld() {
       return { getScriptLock: mk('script'), getDocumentLock: mk('doc'), getUserLock: mk('user') };
     })()),
     Utilities: fallback('Utilities', { formatDate: fmt, sleep: function (ms) { if (W.sleepHook) W.sleepHook(ms); },
-      getUuid: function () { return 'u' + Math.random().toString(36).slice(2); } }),
+      getUuid: function () { return 'u' + Math.random().toString(36).slice(2); },
+      /* SHA-256 כמו בגוגל — בתים עם סימן (-128..127). */
+      DigestAlgorithm: { SHA_256: 'sha256' }, Charset: { UTF_8: 'utf8' },
+      computeDigest: function (a, t) {
+        return Array.prototype.slice.call(require('crypto').createHash('sha256').update(String(t), 'utf8').digest())
+          .map(function (b) { return b > 127 ? b - 256 : b; });
+      } }),
     Session: fallback('Session', { getScriptTimeZone: function () { return 'Asia/Jerusalem'; } }),
     Logger: { log: function () {} },
     ContentService: fallback('ContentService', { createTextOutput: function (t) { return { t: t, setMimeType: function () { return this; } }; }, MimeType: { JSON: 1, JAVASCRIPT: 2 } }),

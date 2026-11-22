@@ -200,6 +200,10 @@ $('illus').textContent = UI.hagIllus;
 /* ---- מי פותח את העמוד ---- */
 var ME = null;
 try { ME = JSON.parse(ls('df:me') || 'null'); } catch (e) { ME = null; }
+/* קישור בחירה לרכז (8.99.572): ?ct= — הרכז בוחר עם זוכה בלי אפליקציה. רק הזכייה הזו, בלי חשבון. */
+var CT = (location.search.match(/[?&]ct=(c[0-9a-f]{24})(&|$)/) || [])[1] || '';
+if (CT) ME = { id: 'co', role: 'co', ct: CT };
+function ctq() { return ME && ME.ct ? '&ct=' + ME.ct : ''; }
 var INST = ME && ME.inst ? String(ME.inst) : '';
 function api() {
   var u = ls('dfApi') || (typeof APPS_SCRIPT_URL !== 'undefined' ? APPS_SCRIPT_URL : '');
@@ -371,7 +375,7 @@ function vchGo() {
   };
   setTimeout(function () { if (!done) lost(); }, 25000);
   fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + 'raffle=vpick&id=' + encodeURIComponent(ME.id) +
-        (ME.role === 'dad' ? '&role=dad' : '') + '&rid=' + encodeURIComponent(z.rid) + '&p=' + k + '&t=' + Date.now())
+        (ME.role === 'dad' ? '&role=dad' : '') + ctq() + '&rid=' + encodeURIComponent(z.rid) + '&p=' + k + '&t=' + Date.now())
     .then(function (r) { return r.json(); })
     .then(function (d) {
       if (done) return;
@@ -396,7 +400,7 @@ function vchUsed(vid) {
   var u = api();
   if (!u || !ME || !ME.id || !SureLater(vchUsed, this, arguments)) return;
   fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + 'raffle=vused&id=' + encodeURIComponent(ME.id) +
-        (ME.role === 'dad' ? '&role=dad' : '') + '&vid=' + encodeURIComponent(vid) + '&t=' + Date.now())
+        (ME.role === 'dad' ? '&role=dad' : '') + ctq() + '&vid=' + encodeURIComponent(vid) + '&t=' + Date.now())
     .then(function (r) { return r.json(); })
     .then(function (d) {
       if (!d || d.status !== 'ok' || !d.v) { SayMsg(UI.przFail); return; }
@@ -417,7 +421,7 @@ function vchSeen(L) {
   setTimeout(function () {
     if (document.visibilityState && document.visibilityState !== 'visible') return;
     if (!document.querySelector('.vch')) return;
-    fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + 'raffle=vseen&id=' + encodeURIComponent(ME.id) +
+    fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + 'raffle=vseen&id=' + encodeURIComponent(ME.id) + ctq() +
           '&vid=' + encodeURIComponent(ids.join(',')) + '&t=' + Date.now())
       .then(function (r) { return r.json(); })
       .then(function (d) {
@@ -490,7 +494,7 @@ function wSeen(L, api0, id) {
 function przGet(fresh) {
   var u = api();
   return fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + 'raffle=prize&id=' + encodeURIComponent(ME.id) +
-               (ME.role === 'dad' ? '&role=dad' : '') + (fresh ? '&fresh=1' : '') + '&t=' + Date.now())
+               (ME.role === 'dad' ? '&role=dad' : '') + ctq() + (fresh ? '&fresh=1' : '') + '&t=' + Date.now())
     .then(function (r) { return r.json(); })
     .then(function (d) {
       if (!d || d.status !== 'ok' || !d.list) return null;
@@ -618,6 +622,7 @@ function demo(d) {
     return;
   }
   if (VCH_ALL && ME && ME.id) { vchAll(); return; }
+  if (CT) { przAlone(); return; }
   if (INST === 'lapid' || INST === 'other') { hide(); return; }
   var u = api();
   if (!ME || !ME.id || !INST || !u || !window.fetch) return;
