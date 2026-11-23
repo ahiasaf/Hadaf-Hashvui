@@ -1,0 +1,25 @@
+# ============================================================
+# צמאה — שליחת ההתראה לבעלי התווית "הדף השבועי" ולהוריהם (8.99.578).
+# הפעלה ידנית בלבד. השרת שולח פעם אחת לכל קהל (TZM_PUSHED) —
+# הפעלה חוזרת אינה שולחת שוב. בלי שמות בלוג: מספרים בלבד.
+# ============================================================
+name: צמאה — שליחת ההזמנה
+
+on:
+  workflow_dispatch:
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: שליחה
+        env:
+          READ_KEY: ${{ secrets.READ_KEY }}
+        run: |
+          set -u
+          U=$(grep -o "https://script.google.com/macros/s/[A-Za-z0-9_-]*/exec" data.js | head -1)
+          if [ -z "${READ_KEY:-}" ] || [ -z "$U" ]; then echo "::error::חסר READ_KEY או הכתובת"; exit 1; fi
+          curl -sL -m 300 -o out.txt "$U?tzm=push&key=$READ_KEY&go=1&t=$(date +%s)" || true
+          echo "תוצאה: $(head -c 800 out.txt)"
+          grep -q '"status":"ok"' out.txt || { echo "::error::השליחה לא אושרה"; exit 1; }

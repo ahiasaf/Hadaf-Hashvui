@@ -1831,6 +1831,8 @@ body:not(.land) #gstx{display:none}
     <!-- עלונים להורדה — רק בימי שישי, ורק כשיש עלון שפורסם (alonim.js, 8.99.449). -->
     <div id="aldl"></div>
     <div id="rail"></div>
+    <!-- הזמנה לצמאה לבעלי התווית "הדף השבועי" ולהוריהם (tzmInvDraw, 8.99.578). -->
+    <div id="tzinv" class="przno" hidden></div>
     <div id="mytk" class="mytk" hidden></div>
     <!-- בית ההורה — "כרטיסים שהענקת ל…" (parTkDraw). -->
     <div id="partk" class="mytk" hidden></div>
@@ -4427,6 +4429,55 @@ function wSeen(L, api0, id) {
       })['catch'](function () {});
   }, 600);
 }
+/* הזמנה לצמאה (8.99.578, אחיאסף 23.11): תלמיד מלפיד שסומן 3 פעמים בדף בעמדה — הנוסח
+   וכפתור ההרשמה (בקשה בלבד; הרב מאשר בעמוד הצמאה). ההורה המחובר — הנוסח בלבד. מי
+   ומה — רק מהשרת (?tzm=me); כבוי בניהול — נעלם. המצב האחרון נשמר במכשיר. */
+var TZI_BUSY = false;
+function tzmInvPaint() {
+  var el = $('tzinv'), me = get('me', null), c = get('tzmInv', null);
+  if (!el) return;
+  if (!me || !c || c.id !== me.id || !c.d || !c.d.on || !c.d.r) { el.hidden = true; el.innerHTML = ''; return; }
+  var d = c.d, h;
+  if (d.r === 'p') {
+    if (!UI.tzmInvP) { el.hidden = true; return; }
+    h = '<p>' + esc(UI.tzmInvP) + '</p>';
+  } else {
+    if (!UI.tzmInvK) { el.hidden = true; return; }
+    h = '<p>' + esc(UI.tzmInvK) + '</p>';
+    if (d.st === 'q' || d.st === 'y') h += '<p style="margin:0;color:var(--green-d)">' + esc(UI.tzmInvSent) + '</p>';
+    else h += '<button type="button" id="tzinv-go"' + (TZI_BUSY ? ' disabled' : '') + '>' + esc(UI.tzmInvBtn) + '</button>' +
+      (c.err ? '<p style="margin:8px 0 0;color:#B3261E">' + esc(UI.tzmInvErr) + '</p>' : '');
+  }
+  el.innerHTML = h;
+  el.hidden = false;
+  var b = $('tzinv-go');
+  if (b) b.onclick = function () {
+    if (TZI_BUSY || !API) return;
+    TZI_BUSY = true; c.err = 0; set('tzmInv', c); tzmInvPaint();
+    LJsonp(API + (API.indexOf('?') < 0 ? '?' : '&') + 'tzm=req&id=' + encodeURIComponent(me.id) + '&t=' + Date.now(), 25000)
+      .then(function (r) {
+        TZI_BUSY = false;
+        if (r && r.status === 'ok' && (r.st === 'q' || r.st === 'y')) { c.d.st = r.st; c.err = 0; }
+        else if (r && r.status === 'off') c.d.on = false;
+        else c.err = 1;
+        set('tzmInv', c); tzmInvPaint();
+      }, function () { TZI_BUSY = false; c.err = 1; set('tzmInv', c); tzmInvPaint(); });
+  };
+}
+function tzmInvDraw() {
+  var me = get('me', null);
+  tzmInvPaint();
+  if (!me || !me.id || String(me.inst || '') !== 'lapid' || INTER || demoOn() || (window.TM && TM.on()) || !API) return;
+  var c = get('tzmInv', null);
+  if (c && c.id === me.id && Date.now() - c.at < 2 * 60000) return;
+  LJsonp(API + (API.indexOf('?') < 0 ? '?' : '&') + 'tzm=me&id=' + encodeURIComponent(me.id) + '&t=' + Date.now(), 25000)
+    .then(function (d) {
+      if (!d || d.status !== 'ok') return;
+      var o = get('tzmInv', null) || {};
+      set('tzmInv', { id: me.id, at: Date.now(), d: d, err: o.id === me.id ? o.err : 0 });
+      tzmInvPaint();
+    }, function () {});
+}
 /* זוכה (לא הורה) שאין לו התראות במכשיר — כפתור להפעלה (8.99.557), כדי שיקבל את העדכונים על הפרס והשובר.
    רק כשיש זכייה פתוחה (לא "הגיע", שובר שלא מומש). חסומות — איך פותחים (hitraot); לא נתמך כאן — אותו קישור. */
 var PRZNO_BUSY = false;
@@ -6052,6 +6103,7 @@ function showDone(me, how) {
   drawKids();
   drawWa();
   drawTell();
+  tzmInvDraw();
   drawWeek();
   drawApp();
   drawPhNag();

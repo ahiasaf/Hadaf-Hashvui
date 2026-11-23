@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 261;
+var SCRIPT_VERSION = 262;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -20490,6 +20490,12 @@ function tzmReg_() {
   });
   return out;
 }
+/* בקשות התלמידים שעוד לא אושרו: [שכבה, כיתה, שם]. */
+function tzmRq_() {
+  var out = [];
+  tzmRows_(tzmSheet_()).forEach(function (o) { if (o['מצב'] === 'בקשה') out.push([o['שכבה'], o['כיתה'], o['שם']]); });
+  return out;
+}
 function tzmPut_(d) {
   var k = tzmKeyOf_(false);
   if (!k || String(d.k || '') !== k) return { status: 'denied' };
@@ -20531,51 +20537,219 @@ function tzmPut_(d) {
   } finally { lock.releaseLock(); }
 }
 /* ============================================================
-   תווית "הדף השבועי" בעמוד צמאה (SCRIPT_VERSION 261, אחיאסף 23.11).
-   תלמיד של לפיד שיש לו סימון מסוג "דף" בעמדת הלימוד ב-3 שבועות שונים
-   לפחות (עמודת `שבוע`, כל השורות מתחילת המסלול). שבוע — פעם אחת גם עם
-   כמה סימונים. "שיעור" — לא; לימוד באפליקציה — לא. אותו מפתח כמו בשיוך
-   הנוכחות (amdaSync_): ישיבה · שכבה · כיתה · שם מנורמל (amdaNorm_).
-   תצוגה בלבד — לא כותב דבר. מחזיר { 'שכבה|כיתה|שם': [שבועות] }.
+   תווית "הדף השבועי" והזמנה לצמאה (SCRIPT_VERSION 262, אחיאסף 23.11).
+   ============================================================
+   · **התווית:** תלמיד שסומן לפחות 3 פעמים (TZM_BD_MIN_) בסימון מסוג "דף"
+     בעמדת הלימוד. "פעם" = מועד אחד (יום · מועד, TZM_UNIT_) — אותו מועד
+     פעמיים הוא פעם אחת. "שיעור" ולימוד באפליקציה — לא נספרים. אין סימון ידני.
+     המפתח כמו בשיוך הנוכחות (amdaSync_): ישיבה · שכבה · כיתה · שם מנורמל.
+   · **ההזמנה:** לבעלי התווית מלפיד (TZM_INST_) — כרטיס בבית ובקשת הרשמה,
+     ולהורים המחוברים (parPairs_) — כרטיס בלי כפתור. המכשיר — דרך "עמדה — שיוך"
+     (המפתח ← מזהה התלמיד) ו-rafPpl_ (כל המזהים). תלמיד שלא התקין — אין לו מכשיר.
+   · **הבקשה** (?tzm=req&id=) — שורה ב"צמאה — רישום" במצב "בקשה". **לא רישום:**
+     הרב מסמן בעמוד הצמאה (tzmPut_ — בקשה ← רשום). המקומות — החלטת אחיאסף.
+   · **מתג אחד** — מאפיין TZM_INV ('0' = כבוי; חסר = מוצג). ?tzm=inv&key=&on=0|1.
+   · **התראה** — ?tzm=push&key=[&go=1]: בלי go — מניין בלבד. עם go — פעם אחת לכל
+     קהל (TZM_PUSHED), בנוסחים מ-data.js (tzmPushKB · tzmPushPB).
    ============================================================ */
 var TZM_BD_MIN_ = 3;
+var TZM_UNIT_ = 's';
 function tzmBdKey_(g, c, n) { return chnGr_(g) + '|' + clsK_(c) + '|' + amdaNorm_(n); }
-function tzmWeeks_() {
-  var at = amdaTable_(AMDA_TAB_), m = {}, nowk = 0;
+/* כל הישיבות: { 'ישיבה|שכבה|כיתה|שם': { w, d, s, r } } — קבוצות של שבועות, ימים, מועדים ושורות. */
+function tzmMarks_() {
+  var at = amdaTable_(AMDA_TAB_), m = {};
   for (var r = 1; r < at.rows.length; r++) {
     var x = at.rows[r];
-    if (at.c(x, 'סוג') !== 'דף' || at.c(x, 'קוד ישיבה') !== TZM_INST_) continue;
-    var w = at.c(x, 'שבוע'), n = at.c(x, 'שם');
-    if (!n) continue;
-    if (!w) { nowk++; continue; }
-    var k = tzmBdKey_(at.c(x, 'שכבה'), at.c(x, 'כיתה'), n);
-    (m[k] = m[k] || {})[w] = 1;
+    if (at.c(x, 'סוג') !== 'דף') continue;
+    var n = at.c(x, 'שם'), y = at.c(x, 'קוד ישיבה');
+    if (!n || !y) continue;
+    var k = y + '|' + tzmBdKey_(at.c(x, 'שכבה'), at.c(x, 'כיתה'), n);
+    var o = m[k] = m[k] || { w: {}, d: {}, s: {}, r: {} };
+    var day = at.c(x, 'יום'), wk = at.c(x, 'שבוע');
+    if (wk) o.w[wk] = 1;
+    if (day) { o.d[day] = 1; o.s[day + '|' + at.c(x, 'קוד עמדה')] = 1; }
+    o.r[at.c(x, 'מזהה') || ('#' + r)] = 1;
   }
-  var out = {};
-  for (var k2 in m) out[k2] = Object.keys(m[k2]);
-  return { m: out, nowk: nowk };
+  return m;
 }
-function tzmBadge_() {
-  var W = tzmWeeks_().m, out = [];
-  for (var k in W) if (W[k].length >= TZM_BD_MIN_) out.push(k);
+function tzmCnt_(o, u) { return Object.keys(o[u || TZM_UNIT_]).length; }
+/* בעלי התווית בלפיד: [ 'שכבה|כיתה|שם' ]. */
+function tzmBadge_(M) {
+  M = M || tzmMarks_();
+  var out = [], pre = TZM_INST_ + '|';
+  for (var k in M) if (k.indexOf(pre) === 0 && tzmCnt_(M[k]) >= TZM_BD_MIN_) out.push(k.slice(pre.length));
   return out;
+}
+/* מי מקבל: { kids: { badgeKey: { id, ids } }, par: { parentId: { ids, kids:[badgeKey] } },
+   dev: { deviceId: 'k:<badgeKey>' | 'p' } }. במטמון 10 דקות (מכשיר → תפקיד). */
+function tzmAud_(M) {
+  var B = tzmBadge_(M), want = {};
+  B.forEach(function (k) { want[k] = 1; });
+  var lt = amdaTable_(AMDA_LINK_), lid = {};
+  for (var l = 1; l < lt.rows.length; l++) {
+    var p = lt.c(lt.rows[l], 'מפתח').split('|');
+    if (p.length < 4 || p[0] !== TZM_INST_) continue;
+    var bk = tzmBdKey_(p[1], p[2], p[3]), id = lt.c(lt.rows[l], 'מזהה');
+    if (want[bk] && id) (lid[bk] = lid[bk] || {})[id] = 1;
+  }
+  var P = rafPpl_(), cn = parCanon_(P), kids = {}, byCanon = {}, noId = 0;
+  B.forEach(function (k) {
+    var ids = Object.keys(lid[k] || {}).map(cn).filter(function (x) { return x && P.ppl[x]; });
+    if (!ids.length) { noId++; return; }
+    var all = [];
+    ids.forEach(function (x) { (P.ppl[x].ids || [x]).forEach(function (y) { if (all.indexOf(y) < 0) all.push(y); }); });
+    kids[k] = { id: ids[0], ids: all, dev: all.some(function (y) { return !/^Am/.test(y); }) };
+    ids.forEach(function (x) { byCanon[x] = k; });
+  });
+  var par = {}, pp = parPairs_(P);
+  Object.keys(pp).forEach(function (pid) {
+    var ks = pp[pid].filter(function (x) { return byCanon[x]; }).map(function (x) { return byCanon[x]; });
+    if (ks.length) par[pid] = { ids: (P.ppl[pid] && P.ppl[pid].ids) || [pid], kids: ks };
+  });
+  var dev = {};
+  Object.keys(kids).forEach(function (k) { kids[k].ids.forEach(function (y) { dev[y] = 'k:' + k; }); });
+  Object.keys(par).forEach(function (pid) { par[pid].ids.forEach(function (y) { if (!dev[y]) dev[y] = 'p'; }); });
+  return { kids: kids, par: par, dev: dev, n: B.length, noId: noId };
+}
+function tzmDev_() {
+  var rc = CacheService.getScriptCache();
+  var hit = bigGet_(rc, 'tzm:dev');
+  if (hit) return hit;
+  var d = tzmAud_().dev;
+  bigPut_(rc, 'tzm:dev', d, 600);
+  return d;
+}
+function tzmOn_() { return PropertiesService.getScriptProperties().getProperty('TZM_INV') !== '0'; }
+/* השם כפי שהוא ברשימה של הכיתה (אם יש), אחרת השם מהנוכחות. */
+function tzmNmOf_(bk) {
+  var p = bk.split('|'), L = tzmRoster_()[p[0] + '|' + p[1]] || [], n = p.slice(2).join('|');
+  for (var i = 0; i < L.length; i++) if (amdaNorm_(L[i]) === n) return L[i];
+  var M = tzmMarks_(), pre = TZM_INST_ + '|' + bk;
+  if (!M[pre]) return n;
+  var at = amdaTable_(AMDA_TAB_);
+  for (var r = at.rows.length - 1; r >= 1; r--) {
+    var x = at.rows[r];
+    if (at.c(x, 'קוד ישיבה') === TZM_INST_ && tzmBdKey_(at.c(x, 'שכבה'), at.c(x, 'כיתה'), at.c(x, 'שם')) === bk) return tzmNm_(at.c(x, 'שם'));
+  }
+  return n;
+}
+/* המצב של התלמיד ב"צמאה — רישום": '' · 'בקשה' · 'רשום' · 'בוטל'. */
+function tzmStOf_(bk) {
+  var st = '';
+  tzmRows_(tzmSheet_()).forEach(function (o) {
+    if (o['קוד ישיבה'] !== TZM_INST_) return;
+    if (tzmBdKey_(o['שכבה'], o['כיתה'], o['שם']) === bk && (o['מצב'] === 'רשום' || !st)) st = o['מצב'];
+  });
+  return st;
+}
+/* למכשיר: q — בקשה · y — רשום · '' — אין. */
+function tzmSt1_(st) { return st === 'בקשה' ? 'q' : st === 'רשום' ? 'y' : ''; }
+/* ?tzm=me&id= — { on, r: 'k'|'p'|'', st } */
+function tzmMe_(id) {
+  if (!tzmOn_()) return { status: 'ok', on: false };
+  id = String(id || '').trim();
+  if (!id || id.length > 80) return { status: 'ok', on: true, r: '' };
+  var v = tzmDev_()[id] || '';
+  if (v === 'p') return { status: 'ok', on: true, r: 'p' };
+  if (!v) return { status: 'ok', on: true, r: '' };
+  return { status: 'ok', on: true, r: 'k', st: tzmSt1_(tzmStOf_(v.slice(2))) };
+}
+/* ?tzm=req&id= — בקשת הרשמה של התלמיד. נעילה קצרה, ואז קריאה חוזרת. */
+function tzmReq_(id) {
+  if (!tzmOn_()) return { status: 'off' };
+  id = String(id || '').trim();
+  var v = id ? tzmDev_()[id] || '' : '';
+  if (v.indexOf('k:') !== 0) return { status: 'denied' };
+  var bk = v.slice(2), lock = LockService.getScriptLock();
+  if (!lock.tryLock(15000)) return { status: 'busy' };
+  try {
+    var st = tzmStOf_(bk);
+    if (st !== 'בקשה' && st !== 'רשום') {
+      var p = bk.split('|'), n = tzmNmOf_(bk), key = p[0] + '|' + p[1] + '|' + n, sh = tzmSheet_(), now = chnNow_(), row = null;
+      tzmRows_(sh).forEach(function (o) { if (o['מפתח'] === key) row = o; });
+      if (row) {
+        sh.getRange(row.r, TZM_COLS_.indexOf('מצב') + 1).setValue('בקשה');
+        sh.getRange(row.r, TZM_COLS_.indexOf('עודכן') + 1).setValue(now);
+      } else {
+        var rg = sh.getRange(Math.max(sh.getLastRow(), 1) + 1, 1, 1, TZM_COLS_.length);
+        rg.setNumberFormat('@');
+        rg.setValues([[key, 'בקשה', TZM_INST_, p[0], p[1], n, '', 'בקשת התלמיד', now, now]]);
+      }
+      SpreadsheetApp.flush();
+    }
+    st = tzmStOf_(bk);
+    return { status: st === 'בקשה' || st === 'רשום' ? 'ok' : 'error', st: tzmSt1_(st) };
+  } catch (err) {
+    return { status: 'error' };
+  } finally { lock.releaseLock(); }
+}
+/* ההתראה — פעם אחת לכל קהל. נוסח מ-data.js באתר (או מהניהול, "טקסטים"). */
+function tzmPush_(go) {
+  var M = tzmMarks_(), A = tzmAud_(M), kidIds = [], parIds = [], kDev = 0;
+  Object.keys(A.kids).forEach(function (k) {
+    if (A.kids[k].dev) kDev++;
+    A.kids[k].ids.forEach(function (y) { if (!/^Am/.test(y) && kidIds.indexOf(y) < 0) kidIds.push(y); });
+  });
+  Object.keys(A.par).forEach(function (pid) { A.par[pid].ids.forEach(function (y) { if (parIds.indexOf(y) < 0 && kidIds.indexOf(y) < 0) parIds.push(y); }); });
+  var o = { status: 'ok', badge: A.n, linked: Object.keys(A.kids).length, noId: A.noId, kidsDev: kDev,
+            parents: Object.keys(A.par).length, on: tzmOn_() };
+  var pr = PropertiesService.getScriptProperties(), done = {};
+  try { done = JSON.parse(pr.getProperty('TZM_PUSHED') || '{}') || {}; } catch (x) {}
+  o.sent = done;
+  if (!go) return o;
+  if (!o.on) { o.status = 'off'; return o; }
+  var T = autoTxMap_(['tzmPushKB', 'tzmPushPB']);
+  if (!T.tzmPushKB || !T.tzmPushPB) { o.status = 'error'; o.message = 'אין נוסח'; return o; }
+  if (!done.k && kidIds.length) {
+    var r1 = ghFire_('', T.tzmPushKB, '', '', '', 'צמאה', 'join', '', '', JSON.stringify({ ids: kidIds }), false, '', 'בעלי התווית — צמאה');
+    if (r1 && r1.status === 'ok') done.k = { sid: r1.sid, n: kidIds.length, at: chnNow_() };
+    else o.kErr = (r1 && r1.message) || 'error';
+  }
+  if (!done.p && parIds.length) {
+    var r2 = ghFire_('', T.tzmPushPB, '', '', '', 'צמאה', 'join', '', '', JSON.stringify({ ids: parIds }), false, '', 'הורי בעלי התווית — צמאה');
+    if (r2 && r2.status === 'ok') done.p = { sid: r2.sid, n: parIds.length, at: chnNow_() };
+    else o.pErr = (r2 && r2.message) || 'error';
+  }
+  pr.setProperty('TZM_PUSHED', JSON.stringify(done));
+  o.sent = done;
+  return o;
 }
 /* בדיקה בלבד — מספרים, בלי שמות. ?tzm=bdn&key= */
 function tzmBdStat_() {
-  var T = tzmWeeks_(), W = T.m, cur = String(progWeek_()), R = tzmRoster_(), inR = {};
-  for (var rk in R) R[rk].forEach(function (n) { inR[rk + '|' + amdaNorm_(n)] = 1; });
-  var o = { wk: cur, nowk: T.nowk, ex45: {}, all: {}, noCur: {}, curOnly: 0, notInRoster: 0, dist: {} };
-  for (var k in W) {
-    var p = k.split('|'), g = p[0], c = p[1], n = W[k].length;
-    o.dist[n] = (o.dist[n] || 0) + 1;
-    if (n < TZM_BD_MIN_) continue;
-    o.all[g] = (o.all[g] || 0) + 1;
-    if (!inR[k]) o.notInRoster++;
-    if (c === '4' || c === '5') continue;
-    o.ex45[g] = (o.ex45[g] || 0) + 1;
-    var nc = W[k].filter(function (w) { return w !== cur; }).length;
-    if (nc >= TZM_BD_MIN_) o.noCur[g] = (o.noCur[g] || 0) + 1; else o.curOnly++;
+  var M = tzmMarks_(), o = { unit: TZM_UNIT_, min: TZM_BD_MIN_, v: {} };
+  ['w', 'd', 's', 'r'].forEach(function (u) {
+    var v = o.v[u] = { all: {}, lapid: {}, zh: 0, zhL: 0, tot: 0, totL: 0 };
+    for (var k in M) {
+      if (tzmCnt_(M[k], u) < TZM_BD_MIN_) continue;
+      var p = k.split('|'), g = p[1], L = p[0] === TZM_INST_;
+      v.all[g] = (v.all[g] || 0) + 1; v.tot++;
+      if (L) { v.lapid[g] = (v.lapid[g] || 0) + 1; v.totL++; }
+      if (g === 'ז' || g === 'ח') { v.zh++; if (L) v.zhL++; }
+    }
+  });
+  var A = tzmAud_(M), kd = 0, sample = { yes: '', no: '' };
+  Object.keys(A.kids).forEach(function (k) { if (A.kids[k].dev) kd++; });
+  o.aud = { badge: A.n, linked: Object.keys(A.kids).length, noId: A.noId, kidsDev: kd, parents: Object.keys(A.par).length };
+  /* דוגמה — רק אם התלמיד והמכשיר מוכרים: התשובה של ?tzm=me לתלמיד זכאי ולתלמיד לא זכאי. */
+  var yk = Object.keys(A.kids).filter(function (k) { return A.kids[k].dev; })[0];
+  if (yk) {
+    var dv = A.kids[yk].ids.filter(function (y) { return !/^Am/.test(y); })[0];
+    sample.yes = JSON.stringify(tzmMe_(dv)) + ' · סימונים: ' + tzmCnt_(M[TZM_INST_ + '|' + yk]);
   }
+  var nk = null;
+  for (var k2 in M) if (k2.indexOf(TZM_INST_ + '|') === 0 && tzmCnt_(M[k2]) < TZM_BD_MIN_ && tzmCnt_(M[k2]) > 0) { nk = k2; break; }
+  if (nk) {
+    var bk = nk.slice(TZM_INST_.length + 1), lt = amdaTable_(AMDA_LINK_), P = rafPpl_(), cn = parCanon_(P), dv2 = '';
+    for (var l = 1; l < lt.rows.length && !dv2; l++) {
+      var pz = lt.c(lt.rows[l], 'מפתח').split('|');
+      if (pz[0] === TZM_INST_ && tzmBdKey_(pz[1], pz[2], pz[3]) === bk) {
+        var c0 = cn(lt.c(lt.rows[l], 'מזהה'));
+        ((P.ppl[c0] && P.ppl[c0].ids) || []).forEach(function (y) { if (!dv2 && !/^Am/.test(y)) dv2 = y; });
+      }
+    }
+    sample.no = (dv2 ? JSON.stringify(tzmMe_(dv2)) : 'בלי מכשיר') + ' · סימונים: ' + tzmCnt_(M[nk]);
+  }
+  o.sample = sample;
   return o;
 }
 function tzmRoute_(P) {
@@ -20583,10 +20757,17 @@ function tzmRoute_(P) {
   if (op === 'cls') {
     var k = tzmKeyOf_(false);
     if (!k || String(P.k || '') !== k) return { status: 'denied' };
-    return { status: 'ok', cls: tzmRoster_(), reg: tzmReg_() };
+    return { status: 'ok', cls: tzmRoster_(), reg: tzmReg_(), rq: tzmRq_(), bd: tzmBadge_() };
   }
+  if (op === 'me') return tzmMe_(P.id);
+  if (op === 'req') return tzmReq_(P.id);
   if (!READ_KEY || String(P.key || '') !== READ_KEY) return { status: 'denied' };
-  if (op === 'adm') return { status: 'ok', k: tzmKeyOf_(true), reg: tzmReg_() };
+  if (op === 'adm') return { status: 'ok', k: tzmKeyOf_(true), reg: tzmReg_(), rq: tzmRq_(), on: tzmOn_() };
   if (op === 'bdn') return { status: 'ok', s: tzmBdStat_() };
+  if (op === 'inv') {
+    PropertiesService.getScriptProperties().setProperty('TZM_INV', String(P.on) === '1' ? '1' : '0');
+    return { status: 'ok', on: tzmOn_() };
+  }
+  if (op === 'push') return tzmPush_(String(P.go) === '1');
   return { status: 'error' };
 }

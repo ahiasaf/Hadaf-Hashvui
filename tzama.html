@@ -67,6 +67,8 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 .row .t b{display:block;font-weight:700;font-size:1.02rem}
 .row .t small{display:block;font-size:.78rem;color:var(--ink-2)}
 .row.ch{background:var(--green-l)}
+.row .t .bd{display:inline-block;margin-inline-start:6px;padding:1px 8px;border-radius:99px;background:#1F4E8C;color:#fff;font-size:.74rem;font-weight:800;vertical-align:2px}
+.row .t small.rq{color:#9A5B00;font-weight:800}
 .note{font-size:.88rem;font-weight:700;color:var(--ink-2);margin-bottom:10px}
 .add{display:flex;gap:8px;margin-top:12px}
 .add input{flex:1}
@@ -157,7 +159,9 @@ var GRADES = ['ז', 'ח', 'ט', 'י', 'יא', 'יב'];
 /* הכיתות של לפיד (מספרים בלבד) — מופיעות גם כשאין להן רשימת תלמידים. */
 var KNOWN = { 'ז': 7, 'ח': 8, 'ט': 6, 'י': 7, 'יא': 6 };
 /* R — שמות לפי "שכבה|כיתה" · REG — "שכבה|כיתה|שם" ← [מי רשם] · P — שינויים שלא נשמרו */
-var S = { R: {}, REG: {}, P: {}, g: '', c: '', extra: {}, busy: false };
+/* BD — בעלי התווית "הדף השבועי" ('שכבה|כיתה|שם מנורמל') · RQ — ביקשו מהאפליקציה ('שכבה|כיתה|שם') */
+var S = { R: {}, REG: {}, P: {}, BD: {}, RQ: {}, g: '', c: '', extra: {}, busy: false };
+function nm0(n) { return String(n || '').replace(/["'׳״`]/g, '').replace(/\s+/g, ' ').trim(); }
 
 function api() { return String(ls('dfApi') || (typeof APPS_SCRIPT_URL !== 'undefined' ? APPS_SCRIPT_URL : '') || '').trim(); }
 function viaOk() { return typeof APPS_SCRIPT_URL !== 'undefined' && api() === APPS_SCRIPT_URL; }
@@ -190,6 +194,10 @@ function take2(d) {
   var m = {};
   (d.reg || []).forEach(function (x) { m[x[0] + '|' + x[1] + '|' + x[2]] = [x[3] || '']; });
   S.REG = m;
+  var b = {}, q = {};
+  (d.bd || []).forEach(function (k) { b[k] = 1; });
+  (d.rq || []).forEach(function (x) { q[x[0] + '|' + x[1] + '|' + x[2]] = 1; });
+  S.BD = b; S.RQ = q;
 }
 function fetchCls() {
   return get('tzm=cls&k=' + encodeURIComponent(KEY)).then(function (d) {
@@ -230,7 +238,11 @@ function namesOf(g, c) {
   var pre = g + '|' + c + '|', l = (S.R[g + '|' + c] || []).slice(), k;
   var add = function (n) { if (l.indexOf(n) < 0) l.push(n); };
   for (k in S.REG) if (k.indexOf(pre) === 0) add(k.slice(pre.length));
+  for (k in S.RQ) if (k.indexOf(pre) === 0) add(k.slice(pre.length));
   for (k in S.P) if (k.indexOf(pre) === 0) add(k.slice(pre.length));
+  /* בעל תווית שהשם שלו בנוכחות אינו ברשימה — מופיע כמו שנרשם בנוכחות. */
+  var nn = l.map(nm0);
+  for (k in S.BD) if (k.indexOf(pre) === 0 && nn.indexOf(k.slice(pre.length)) < 0) { add(k.slice(pre.length)); nn.push(k.slice(pre.length)); }
   return l;
 }
 function nP() { return Object.keys(S.P).length; }
@@ -273,8 +285,10 @@ function paintStu() {
   var h = (S.R[g + '|' + c] || []).length ? '' : '<p class="note">' + esc(UI.tzmNoList) + '</p>';
   if (L.length) h += '<div class="list">' + L.map(function (n) {
     var k = g + '|' + c + '|' + n, on = isOn(k), by = S.REG[k] && !S.P[k] ? S.REG[k][0] : '';
+    var bd = S.BD[g + '|' + c + '|' + nm0(n)] && UI.tzmBadge ? '<span class="bd">' + esc(UI.tzmBadge) + '</span>' : '';
+    var rq = !on && S.RQ[k] && UI.tzmRqLine ? '<small class="rq">' + esc(UI.tzmRqLine) + '</small>' : '';
     return '<label class="row' + (S.P[k] ? ' ch' : '') + '"><input type="checkbox" data-k="' + esc(k) + '"' + (on ? ' checked' : '') + '>' +
-      '<span class="t"><b>' + esc(n) + '</b>' + (on && by ? '<small>' + esc(tp(UI.tzmByLine, { n: by })) + '</small>' : '') + '</span></label>';
+      '<span class="t"><b>' + esc(n) + bd + '</b>' + (on && by ? '<small>' + esc(tp(UI.tzmByLine, { n: by })) + '</small>' : '') + rq + '</span></label>';
   }).join('') + '</div>';
   $('stuBox').innerHTML = h;
   Array.prototype.forEach.call($('stuBox').querySelectorAll('[data-k]'), function (el) {

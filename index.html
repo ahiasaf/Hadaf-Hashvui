@@ -3184,7 +3184,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.577';
+var APP_VERSION = '8.99.578';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -18192,6 +18192,15 @@ function tzmLoad() {
     tzmPaint();
   }, function () { TZM.busy = false; TZM.msg = UI.tzmAdmFail; tzmPaint(); });
 }
+function tzmInvSet(on) {
+  if (!SureLater(tzmInvSet, this, arguments)) return;
+  var k = (CFG.readKey || '').trim();
+  if (!k) return;
+  scriptGet({ tzm: 'inv', key: k, on: on ? 1 : 0 }).then(function (d) {
+    if (d && d.status === 'ok' && TZM.d) TZM.d.on = !!d.on; else TZM.msg = UI.tzmAdmFail;
+    tzmPaint();
+  }, function () { TZM.msg = UI.tzmAdmFail; tzmPaint(); });
+}
 function tzmGrD(g) { g = String(g || ''); return g.length > 1 ? g.charAt(0) + '״' + g.charAt(1) : g + '׳'; }
 function tzmCls(g, c) { return String(g || '').length > 1 ? tzmGrD(g) + ' ' + c : tzmGrD(g) + c; }
 /* הרשומים לפי כיתה, בסדר שכבות. */
@@ -18227,6 +18236,13 @@ function tzmPaint() {
   h += '<p class="h"><b>' + esc(UI.tzmAdmLink) + '</b></p><div style="margin-bottom:14px">' +
     '<input readonly dir="ltr" style="display:block;width:100%;box-sizing:border-box;padding:8px;margin-bottom:6px;border:1px solid #ddd;border-radius:8px" value="' + esc(url) + '" onfocus="this.select()">' +
     '<button class="btn g" type="button" onclick="copyText(\'' + esc(url) + '\', UI.tzmAdmCopied)">' + esc(UI.tzmAdmCopy) + '</button></div>';
+  /* ההזמנה לבעלי התווית — מתג אחד (8.99.578). */
+  h += '<p class="h"><b>' + esc(UI.tzmAdmInv) + '</b></p><div style="margin-bottom:14px">' +
+    '<button class="btn' + (d.on ? '' : ' g') + '" type="button" id="tzm-inv" onclick="tzmInvSet(' + (d.on ? 0 : 1) + ')">' +
+    esc(d.on ? UI.tzmAdmOn : UI.tzmAdmOff) + '</button></div>';
+  var rq = d.rq || [];
+  if (rq.length) h += '<p class="h"><b>' + esc(fill(UI.tzmAdmRq, { n: rq.length })) + '</b></p><div class="prow2" style="margin-bottom:14px"><div style="flex:1">' +
+    rq.map(function (x) { return '<span>' + esc(tzmCls(x[0], x[1]) + ' · ' + x[2]) + '</span>'; }).join('') + '</div></div>';
   var gr = tzmGroups(), n = (d.reg || []).length;
   h += '<p class="h"><b>' + esc(n ? fill(UI.tzmAdmTot, { n: n }) : UI.tzmAdmNone) + '</b></p>';
   if (n) {

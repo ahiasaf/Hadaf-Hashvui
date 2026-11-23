@@ -288,7 +288,10 @@ jobs:
           # צמאה (SCRIPT_VERSION 261): תווית "הדף השבועי" — מספרים בלבד, בלי שמות.
           if [ -n "${READ_KEY:-}" ]; then
             curl -sL -m 120 -o tzb.txt "$U?tzm=bdn&key=$READ_KEY&t=$(date +%s)" || true
-            echo "צמאה — תווית: $(head -c 600 tzb.txt)"
+            echo "צמאה — תווית: $(head -c 1500 tzb.txt)"
+            # ההזמנה (8.99.578): מניין בלבד — בלי go אין שליחה.
+            curl -sL -m 120 -o tzp.txt "$U?tzm=push&key=$READ_KEY&t=$(date +%s)" || true
+            echo "צמאה — מי יקבל: $(head -c 600 tzp.txt)"
           fi
           C=$(ask "raffle=autost"); echo "autost בלי סיסמה → $(head -c 80 out.txt)"
           grep -q '"status":"denied"' out.txt || { echo "::error::autost בלי סיסמה לא נדחה"; FAIL=1; }
