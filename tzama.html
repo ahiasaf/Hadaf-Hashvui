@@ -66,6 +66,7 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 .row .t{flex:1;min-width:0}
 .row .t b{display:block;font-weight:700;font-size:1.02rem}
 .row .t small{display:block;font-size:.78rem;color:var(--ink-2)}
+.row .bd{display:inline-block;margin-right:8px;padding:1px 9px;border-radius:999px;background:#E6EEF9;color:var(--blue-d);font-size:.74rem;font-weight:800;vertical-align:2px;white-space:nowrap}
 .row.ch{background:var(--green-l)}
 .note{font-size:.88rem;font-weight:700;color:var(--ink-2);margin-bottom:10px}
 .add{display:flex;gap:8px;margin-top:12px}
@@ -190,6 +191,10 @@ function take2(d) {
   var m = {};
   (d.reg || []).forEach(function (x) { m[x[0] + '|' + x[1] + '|' + x[2]] = [x[3] || '']; });
   S.REG = m;
+  /* תווית "הדף השבועי" — מהשרת (tzmBadge_), לפי שכבה|כיתה|שם מנורמל. תצוגה בלבד. */
+  var b = {};
+  (d.bd || []).forEach(function (k) { b[k] = 1; });
+  S.BD = b;
 }
 function fetchCls() {
   return get('tzm=cls&k=' + encodeURIComponent(KEY)).then(function (d) {
@@ -217,6 +222,10 @@ function clsOf(g) {
   for (var i = 1; i <= (KNOWN[g] || 0); i++) have[String(i)] = 1;
   if (S.extra[g]) have[S.extra[g]] = 1;
   return Object.keys(have).sort(function (a, b) { return (+a || 99) - (+b || 99) || (a < b ? -1 : 1); });
+}
+/* אותו נרמול כמו amdaNorm_ בשרת. */
+function bdOf(g, c, n) {
+  return !!(S.BD || {})[g + '|' + c + '|' + String(n || '').replace(/["'׳״`]/g, '').replace(/\s+/g, ' ').trim()];
 }
 function isOn(k) { return S.P[k] ? S.P[k].on : !!S.REG[k]; }
 function regN(g, c) {
@@ -274,7 +283,7 @@ function paintStu() {
   if (L.length) h += '<div class="list">' + L.map(function (n) {
     var k = g + '|' + c + '|' + n, on = isOn(k), by = S.REG[k] && !S.P[k] ? S.REG[k][0] : '';
     return '<label class="row' + (S.P[k] ? ' ch' : '') + '"><input type="checkbox" data-k="' + esc(k) + '"' + (on ? ' checked' : '') + '>' +
-      '<span class="t"><b>' + esc(n) + '</b>' + (on && by ? '<small>' + esc(tp(UI.tzmByLine, { n: by })) + '</small>' : '') + '</span></label>';
+      '<span class="t"><b>' + esc(n) + (bdOf(g, c, n) && UI.tzmBd ? '<span class="bd">' + esc(UI.tzmBd) + '</span>' : '') + '</b>' + (on && by ? '<small>' + esc(tp(UI.tzmByLine, { n: by })) + '</small>' : '') + '</span></label>';
   }).join('') + '</div>';
   $('stuBox').innerHTML = h;
   Array.prototype.forEach.call($('stuBox').querySelectorAll('[data-k]'), function (el) {

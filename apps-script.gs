@@ -20583,7 +20583,9 @@ function tzmRoute_(P) {
   if (op === 'cls') {
     var k = tzmKeyOf_(false);
     if (!k || String(P.k || '') !== k) return { status: 'denied' };
-    return { status: 'ok', cls: tzmRoster_(), reg: tzmReg_() };
+    var bd = [];
+    try { bd = tzmBadge_(); } catch (eb) {}
+    return { status: 'ok', cls: tzmRoster_(), reg: tzmReg_(), bd: bd };
   }
   if (!READ_KEY || String(P.key || '') !== READ_KEY) return { status: 'denied' };
   if (op === 'adm') return { status: 'ok', k: tzmKeyOf_(true), reg: tzmReg_() };
