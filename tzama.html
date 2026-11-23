@@ -4,10 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="color-scheme" content="only light">
-<title>הדף השבועי של בני עקיבא</title>
+<title>רישום לאירוע צמאה</title>
 <link rel="icon" href="icon-192.png">
 <meta name="theme-color" content="#5E7A2A">
 <meta name="robots" content="noindex">
+<!-- תצוגת הקישור בוואטסאפ (8.99.577, אחיאסף): הפוסטר של צמאה, לא "הדף השבועי". נקרא לפני שהעמוד רץ — ולכן כאן. -->
+<meta property="og:locale" content="he_IL">
+<meta property="og:type" content="website">
+<meta property="og:title" content="רישום לאירוע צמאה">
+<meta property="og:description" content="יום ראשון, 29.11 · רישום התלמידים לאירוע">
+<meta property="og:image" content="https://hadaf-hashvui.vercel.app/tzama-share.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <!-- ============================================================
      רישום לאירוע צמאה — ישיבת לפיד (8.99.575).
      ============================================================
@@ -27,16 +37,11 @@ html,body{touch-action:manipulation;overflow-x:clip}
 img:not([src]){visibility:hidden}
 body{background:var(--paper);color:var(--ink);line-height:1.5;padding-bottom:calc(env(safe-area-inset-bottom) + 96px)}
 header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
-.masthead{display:flex;align-items:center;gap:13px;padding:14px 16px 10px;max-width:32rem;margin:0 auto}
-.masthead .m{width:58px;height:58px;border-radius:50%;background:#fff;flex:none;display:flex;align-items:center;
-  justify-content:center;box-shadow:0 2px 5px rgba(37,29,12,.07),0 8px 22px rgba(37,29,12,.09)}
-.masthead .m img{width:38px;height:38px;display:block;object-fit:contain}
-.masthead h1{font-size:1.24rem;font-weight:800;letter-spacing:-.035em;line-height:1.2;color:var(--blue-d)}
-.masthead .yr{font-size:.76rem;font-weight:800;color:var(--gold-d);letter-spacing:.05em;margin-top:3px}
+.poster{max-width:32rem;margin:0 auto;padding-left:16px;padding-right:16px;padding-top:calc(env(safe-area-inset-top) + 12px)}
+.poster img{display:block;width:100%;max-width:300px;height:auto;margin:0 auto;border-radius:16px;box-shadow:0 10px 26px rgba(0,0,0,.18)}
 .wrap{max-width:32rem;margin:0 auto;padding:0 16px}
 .hero{display:flex;align-items:center;gap:14px;margin:8px 0 16px;padding:14px;border-radius:20px;
   background:var(--green);color:#fff;box-shadow:0 10px 26px rgba(94,122,42,.28)}
-.hero img{flex:none;width:92px;height:auto;border-radius:10px;box-shadow:0 6px 14px rgba(0,0,0,.22)}
 .hero h2{font-size:1.4rem;font-weight:900;line-height:1.15}
 .hero p{font-size:.92rem;font-weight:600;margin-top:6px;opacity:.95}
 .card{background:var(--card);border:1px solid var(--rule);border-radius:18px;padding:16px;margin-bottom:12px;
@@ -81,15 +86,10 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 </style>
 </head>
 <body>
-<header>
-  <div class="masthead">
-    <span class="m"><img id="hdr-mark" alt=""></span>
-    <div><h1 id="brand"></h1><div class="yr" id="yr"></div></div>
-  </div>
-</header>
+<!-- אחיאסף (23.11): בראש העמוד הפוסטר של צמאה, בלי הלוגו של הדף השבועי — חריג לכלל הלוגו. -->
+<header class="poster"><img src="tzama-logo.jpg" alt="" width="600" height="656"></header>
 <main class="wrap">
-  <div class="hero"><img src="tzama-logo.jpg" alt="" width="330" height="361">
-    <div><h2 id="ttl"></h2><p id="sub"></p></div></div>
+  <div class="hero"><div><h2 id="ttl"></h2><p id="sub"></p></div></div>
   <div class="msg" id="msg" hidden></div>
   <div class="st" id="lerr" hidden><p id="lerrT"></p><button class="btn g" id="lre" type="button"></button></div>
   <div id="f" hidden>
@@ -131,9 +131,6 @@ function take(map) {
 }
 try { take(jget('df:textCache')); take((jget('df:cfg') || {}).texts); } catch (e) {}
 
-$('hdr-mark').src = window.LOGO_MARK || '';
-$('brand').innerHTML = esc(PROGRAM.short) + '<br>' + esc(PROGRAM.name.slice(PROGRAM.short.length).trim());
-$('yr').textContent = tp(UI.rstYear, { y: PROGRAM.year });
 $('ttl').textContent = UI.tzmTitle;
 $('sub').textContent = UI.tzmSub;
 if (UI.tzmTitle) document.title = UI.tzmTitle;
