@@ -58,6 +58,11 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     ok(/אינו פעיל/.test(await bad.textContent('#msg')), 'no key → denied text');
 
     var p = await page(b, port, W, '/tzama?k=' + adm.k);
+    await p.waitForSelector('#byCard:not([hidden])');
+    ok(await p.isHidden('#main2') && /כדי שנדע/.test(await p.textContent('#byCard')) && /המשך/.test(await p.textContent('#byGo')), 'name first with explanation');
+    await p.click('#byGo');
+    ok(await p.isHidden('#main2'), 'no name → stays');
+    await p.fill('#by', 'רכז בדיקה'); await p.click('#byGo');
     await p.waitForSelector('#grs [data-g="ז"]');
     var gl = await p.$$eval('#grs button', function (a) { return a.map(function (x) { return x.textContent; }); });
     ok(gl.join(',') === 'ז׳,ח׳,ט׳,י׳,י״א,י״ב', 'grades ז–יב', gl);
@@ -69,9 +74,6 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     await p.fill('#addN', 'תלמיד חדש'); await p.click('#addB');
     ok(/\(2\)/.test(await p.textContent('#go')), 'save shows 2 changes');
     if (SHOT) await p.screenshot({ path: SHOT + '/1.png', fullPage: true });
-    await p.click('#go');
-    ok(/השם/.test(await p.textContent('#bs')) && rows(W).length === 0, 'name required, nothing sent');
-    await p.fill('#by', 'רכז בדיקה');
     await p.click('#go');
     await p.waitForSelector('#bs.ok', { timeout: 20000 });
     ok(rows(W).length === 2 && rows(W).every(function (r) { return r[1] === 'רשום' && r[7] === 'רכז בדיקה'; }), 'rows saved', rows(W));
@@ -88,8 +90,8 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     ok(/הא וו/.test(await p.textContent('#stuBox')), 'יא from school roster');
     // ביטול
     var p2 = await page(b, port, W, '/tzama?k=' + adm.k);
+    await p2.fill('#by', 'רכז שני'); await p2.click('#byGo');
     await p2.waitForSelector('#grs [data-g="ז"]');
-    await p2.fill('#by', 'רכז שני');
     await p2.click('#grs [data-g="ז"]');
     ok(/· 2/.test(await p2.textContent('#clsBox [data-c="3"]')), 'class chip shows registered count');
     await p2.click('#clsBox [data-c="3"]');
@@ -100,8 +102,8 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     ok(rows(W).filter(function (r) { return r[1] === 'רשום'; }).length === 1, 'unregister → בוטל', rows(W));
     // כשל רשת — הסימונים נשארים
     var p3 = await page(b, port, W, '/tzama?k=' + adm.k, { dropPost: 9 });
-    await p3.waitForSelector('#grs [data-g="ז"]');
-    await p3.fill('#by', 'רכז'); await p3.click('#grs [data-g="ז"]'); await p3.click('#clsBox [data-c="3"]');
+    await p3.fill('#by', 'רכז'); await p3.click('#byGo');
+    await p3.waitForSelector('#grs [data-g="ז"]'); await p3.click('#grs [data-g="ז"]'); await p3.click('#clsBox [data-c="3"]');
     await p3.click('#stuBox .row:nth-child(1)'); await p3.click('#go');
     await p3.waitForSelector('#bs.bad', { timeout: 30000 });
     ok(!(await p3.isHidden('#go')), 'failure keeps pending');

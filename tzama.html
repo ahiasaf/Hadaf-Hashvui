@@ -93,11 +93,15 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
   <div class="msg" id="msg" hidden></div>
   <div class="st" id="lerr" hidden><p id="lerrT"></p><button class="btn g" id="lre" type="button"></button></div>
   <div id="f" hidden>
-    <div class="card"><label class="fl"><h3 id="byL"></h3><input id="by" maxlength="60" autocomplete="name"></label></div>
+    <div class="card" id="byCard"><label class="fl"><h3 id="byL"></h3><p class="note" id="byP"></p>
+      <input id="by" maxlength="60" autocomplete="name"></label>
+      <button class="btn" id="byGo" type="button" style="margin-top:12px;width:100%;padding:13px"></button></div>
+    <div id="main2" hidden>
     <div class="card"><h3 id="stG"></h3><div class="chips" id="grs"></div>
       <div id="clsStep" hidden><h3 id="stC" style="margin-top:16px"></h3><div id="clsBox"></div></div></div>
     <div class="card" id="stuCard" hidden><h3 id="clsH"></h3><div id="stuBox"></div>
       <div class="add"><input id="addN" maxlength="60"><button class="btn" id="addB" type="button"></button></div></div>
+    </div>
   </div>
 </main>
 <div class="bar" id="bar" hidden><div class="in"><button class="go" id="go" type="button"></button>
@@ -134,6 +138,8 @@ $('ttl').textContent = UI.tzmTitle;
 $('sub').textContent = UI.tzmSub;
 if (UI.tzmTitle) document.title = UI.tzmTitle;
 $('byL').textContent = UI.tzmBy;
+$('byP').textContent = UI.tzmByP;
+$('byGo').textContent = UI.tzmByGo;
 $('stG').textContent = UI.tzmStepG;
 $('stC').textContent = UI.tzmStepC;
 $('addN').placeholder = UI.tzmAddPh;
@@ -141,6 +147,13 @@ $('addB').textContent = UI.tzmAdd;
 $('lre').textContent = UI.tzmRetry;
 $('by').value = ls('df:tzmBy') || '';
 $('by').oninput = function () { lset('df:tzmBy', this.value); this.className = ''; };
+/* קודם השם — ורק אחריו הרשימות (אחיאסף). */
+function byGo() {
+  if (!String($('by').value || '').trim()) { $('by').className = 'need'; $('by').focus(); return; }
+  $('byCard').hidden = true; $('main2').hidden = false; window.scrollTo(0, 0);
+}
+$('byGo').onclick = byGo;
+$('by').onkeydown = function (ev) { if (ev.keyCode === 13) { ev.preventDefault(); byGo(); } };
 
 var KEY = (location.search.match(/[?&]k=([0-9a-zA-Z]+)/) || [])[1] || '';
 var GRADES = ['ז', 'ח', 'ט', 'י', 'יא', 'יב'];
