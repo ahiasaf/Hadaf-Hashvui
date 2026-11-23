@@ -32,6 +32,9 @@ mark('lapid', 'ח', '1', 'גדי ישראל', '2026-11-03', 'a', 'שיעור'); 
 ['2026-11-01', '2026-11-02', '2026-11-03'].forEach(function (d, i) { mark('lapid', 'ח', '3', 'הלל הר', d, i ? 'b' : 'a'); });
 link('KA', 'lapid', 'ז׳', '2', 'אבי כהן'); link('KB', 'lapid', 'ז׳', '2', 'בני לוי');
 
+c.READ_KEY = c.READ_KEY || 'rk';
+ok(c.tzmMe_('KA').on === false, 'off by default');
+c.tzmRoute_({ tzm: 'inv', key: c.READ_KEY, on: '1' });
 var B = c.tzmBadge_().sort();
 ok(B.length === 2 && B.indexOf('ז|2|אבי כהן') >= 0 && B.indexOf('ח|3|הלל הר') >= 0, 'badge: A and E only', B);
 var S = c.tzmBdStat_();

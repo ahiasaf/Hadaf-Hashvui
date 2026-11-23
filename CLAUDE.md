@@ -2186,6 +2186,6 @@ node scratchpad/smoke.js     # כל המסכים, שתי רזולוציות
 * **ההזמנה** — רק לפיד: כרטיס בבית (`#tzinv`, tzmInvDraw ב-join.html, `?tzm=me`). תלמיד — נוסח + "להרשמה" →
   `?tzm=req` = שורה "בקשה" ב"צמאה — רישום" (**לא רישום**; הרב מסמן בעמוד הצמאה → "רשום"). הורה מחובר — נוסח בלבד.
   המכשיר — דרך "עמדה — שיוך" ו-rafPpl_ (tzmAud_); תלמיד שלא התקין — אין לו מכשיר.
-* **מתג אחד:** ניהול ← עוד ← אירוע צמאה (`TZM_INV`, `?tzm=inv`). **ההתראה:** `?tzm=push&key=&go=1` — פעם אחת לכל
+* **מתג אחד — כבוי עד שאחיאסף מדליק** (SCRIPT_VERSION 263): ניהול ← עוד ← אירוע צמאה (`TZM_INV` = '1', `?tzm=inv`). **ההתראה:** `?tzm=push&key=&go=1` — פעם אחת לכל
   קהל (`TZM_PUSHED`), מופעלת מ-`.github/workflows/tzama-push.yml` (ידני). בלי go — מניין.
 * בדיקה: `node tools/tzmtest/badge.js` (21) · `NODE_PATH=$(npm root -g) node tools/tzmtest/inv.js` (7).

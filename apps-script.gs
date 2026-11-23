@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 262;
+var SCRIPT_VERSION = 263;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -20548,7 +20548,7 @@ function tzmPut_(d) {
      (המפתח ← מזהה התלמיד) ו-rafPpl_ (כל המזהים). תלמיד שלא התקין — אין לו מכשיר.
    · **הבקשה** (?tzm=req&id=) — שורה ב"צמאה — רישום" במצב "בקשה". **לא רישום:**
      הרב מסמן בעמוד הצמאה (tzmPut_ — בקשה ← רשום). המקומות — החלטת אחיאסף.
-   · **מתג אחד** — מאפיין TZM_INV ('0' = כבוי; חסר = מוצג). ?tzm=inv&key=&on=0|1.
+   · **מתג אחד** — מאפיין TZM_INV ('1' = מוצג; חסר = כבוי). ?tzm=inv&key=&on=0|1.
    · **התראה** — ?tzm=push&key=[&go=1]: בלי go — מניין בלבד. עם go — פעם אחת לכל
      קהל (TZM_PUSHED), בנוסחים מ-data.js (tzmPushKB · tzmPushPB).
    ============================================================ */
@@ -20619,7 +20619,8 @@ function tzmDev_() {
   bigPut_(rc, 'tzm:dev', d, 600);
   return d;
 }
-function tzmOn_() { return PropertiesService.getScriptProperties().getProperty('TZM_INV') !== '0'; }
+/* כבוי עד שאחיאסף מדליק (SCRIPT_VERSION 263): המספרים בפועל רחוקים מהספירה הידנית. */
+function tzmOn_() { return PropertiesService.getScriptProperties().getProperty('TZM_INV') === '1'; }
 /* השם כפי שהוא ברשימה של הכיתה (אם יש), אחרת השם מהנוכחות. */
 function tzmNmOf_(bk) {
   var p = bk.split('|'), L = tzmRoster_()[p[0] + '|' + p[1]] || [], n = p.slice(2).join('|');

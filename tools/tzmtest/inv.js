@@ -68,6 +68,7 @@ function me(id, role) { return { id: id, first: 'x', last: 'y', inst: 'lapid', i
   var s = await srv(), port = s.address().port, b = await pw.chromium.launch();
   try {
     var W = world(); setup(W);
+    W.ctx.tzmRoute_({ tzm: 'inv', key: 'k', on: '1' });
     var k = await page(b, port, W, '/join', { me: me('KA') });
     await k.waitForSelector('#tzinv:not([hidden])', { timeout: 20000 });
     ok(/כבונוס/.test(await k.textContent('#tzinv')) && await k.isVisible('#tzinv-go'), 'kid card with button');
