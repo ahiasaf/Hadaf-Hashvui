@@ -11,8 +11,8 @@ function join(id, role, first, last, ph, other, inst, g, k) {
     ['תפקיד', role], ['טלפון', ph], ['טלפון ההורה', other], ['שכבה', g || ''], ['כיתה', k || '']]);
 }
 var seq = 0;
-function mark(inst, g, k, name, day, slot, kind, wk) {
-  c.appendCols_('עמדת לימוד', [['מזהה', 'm' + (++seq)], ['שבוע', wk || '5'], ['יום', day], ['קוד עמדה', slot || 'a'], ['סוג', kind || 'דף'],
+function mark(inst, g, k, name, day, slot, kind, wk, id) {
+  c.appendCols_('עמדת לימוד', [['מזהה', id || ('m' + (++seq))], ['שבוע', wk || '5'], ['יום', day], ['קוד עמדה', slot || 'a'], ['סוג', kind || 'דף'],
     ['מסלול', 'taanit'], ['דף', 'ב'], ['שכבה', g], ['כיתה', k], ['שם', name], ['קוד ישיבה', inst]]);
 }
 function link(id, inst, g, k, name) {
@@ -25,7 +25,9 @@ join('DA', 'הורה', 'משה', 'כהן', '0002000001', '0001000001', 'lapid');
 join('KB', 'תלמיד', 'בני', 'לוי', '0001000002', '', 'lapid', 'ז׳', '2');
 ['2026-11-01', '2026-11-02', '2026-11-03'].forEach(function (d) { mark('lapid', 'ז׳', '2', 'אבי כהן', d); });
 mark('lapid', 'ז׳', '2', 'אבי כהן', '2026-11-03');                 // כפול — אותו מועד
-[1, 2, 3].forEach(function () { mark('lapid', 'ז׳', '2', 'בני לוי', '2026-11-04'); });
+[1, 2, 3].forEach(function () { mark('lapid', 'ז׳', '2', 'בני לוי', '2026-11-04', 'a', 'דף', '5', 'dupId'); }); // אותו מזהה ×3 = 1
+mark('lapid', 'ז׳', '2', 'בני לוי', '2026-11-05');                                                            // = 2
+[1, 2, 3].forEach(function () { mark('lapid', 'ח', '4', 'צורבא אחד', '2026-11-04'); });                   // כיתה 4 — בחוץ
 mark('lapid', 'ח', '1', 'גדי ישראל', '2026-11-01'); mark('lapid', 'ח', '1', 'גדי ישראל', '2026-11-02');
 mark('lapid', 'ח', '1', 'גדי ישראל', '2026-11-03', 'a', 'שיעור'); mark('lapid', 'ח', '1', 'גדי ישראל', '2026-11-05', 'a', 'שיעור');
 ['2026-11-01', '2026-11-02', '2026-11-03'].forEach(function (d) { mark('givat', 'ז', '1', 'דני דן', d); });
@@ -38,7 +40,7 @@ c.tzmRoute_({ tzm: 'inv', key: c.READ_KEY, on: '1' });
 var B = c.tzmBadge_().sort();
 ok(B.length === 2 && B.indexOf('ז|2|אבי כהן') >= 0 && B.indexOf('ח|3|הלל הר') >= 0, 'badge: A and E only', B);
 var S = c.tzmBdStat_();
-ok(S.v.s.tot === 3 && S.v.s.totL === 2 && S.v.s.zh === 3, 'stat all/lapid', S.v.s);
+ok(S.fin.tot === 2 && S.fin.g['ז'] === 1 && S.fin.g['ח'] === 1, 'final rule count', S.fin);
 ok(S.aud.badge === 2 && S.aud.linked === 1 && S.aud.noId === 1 && S.aud.parents === 1 && S.aud.kidsDev === 1, 'audience', S.aud);
 ok(c.tzmMe_('KA').r === 'k' && c.tzmMe_('KA').st === '', 'me kid', c.tzmMe_('KA'));
 ok(c.tzmMe_('DA').r === 'p', 'me parent', c.tzmMe_('DA'));

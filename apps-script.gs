@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 263;
+var SCRIPT_VERSION = 264;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -20539,9 +20539,10 @@ function tzmPut_(d) {
 /* ============================================================
    תווית "הדף השבועי" והזמנה לצמאה (SCRIPT_VERSION 262, אחיאסף 23.11).
    ============================================================
-   · **התווית:** תלמיד שסומן לפחות 3 פעמים (TZM_BD_MIN_) בסימון מסוג "דף"
-     בעמדת הלימוד. "פעם" = מועד אחד (יום · מועד, TZM_UNIT_) — אותו מועד
-     פעמיים הוא פעם אחת. "שיעור" ולימוד באפליקציה — לא נספרים. אין סימון ידני.
+   · **התווית (הכלל הסופי, אחיאסף 23.11):** תלמיד של לפיד שיש לו לפחות 3 (TZM_BD_MIN_)
+     סימונים מסוג "דף" בעמדת הלימוד, **שונים לפי המזהה** (TZM_UNIT_ = 'r' — מזהה שחוזר
+     בגיליון נספר פעם אחת). לא חייבים שבועות שונים. בלי כיתות 4–5 (צורבא, TZM_BD_NO_CLS_).
+     "שיעור" ולימוד באפליקציה — לא נספרים. אין סימון ידני.
      המפתח כמו בשיוך הנוכחות (amdaSync_): ישיבה · שכבה · כיתה · שם מנורמל.
    · **ההזמנה:** לבעלי התווית מלפיד (TZM_INST_) — כרטיס בבית ובקשת הרשמה,
      ולהורים המחוברים (parPairs_) — כרטיס בלי כפתור. המכשיר — דרך "עמדה — שיוך"
@@ -20553,7 +20554,9 @@ function tzmPut_(d) {
      קהל (TZM_PUSHED), בנוסחים מ-data.js (tzmPushKB · tzmPushPB).
    ============================================================ */
 var TZM_BD_MIN_ = 3;
-var TZM_UNIT_ = 's';
+var TZM_UNIT_ = 'r';
+/* כיתות צורבא — לא מקבלות תווית (אחיאסף, 23.11). */
+var TZM_BD_NO_CLS_ = ['4', '5'];
 function tzmBdKey_(g, c, n) { return chnGr_(g) + '|' + clsK_(c) + '|' + amdaNorm_(n); }
 /* כל הישיבות: { 'ישיבה|שכבה|כיתה|שם': { w, d, s, r } } — קבוצות של שבועות, ימים, מועדים ושורות. */
 function tzmMarks_() {
@@ -20568,16 +20571,23 @@ function tzmMarks_() {
     var day = at.c(x, 'יום'), wk = at.c(x, 'שבוע');
     if (wk) o.w[wk] = 1;
     if (day) { o.d[day] = 1; o.s[day + '|' + at.c(x, 'קוד עמדה')] = 1; }
-    o.r[at.c(x, 'מזהה') || ('#' + r)] = 1;
+    var mid = at.c(x, 'מזהה');
+    o.r[mid || ('#' + r)] = 1;
+    if (!mid) o.noMid = (o.noMid || 0) + 1;
   }
   return m;
 }
 function tzmCnt_(o, u) { return Object.keys(o[u || TZM_UNIT_]).length; }
+/* מפתח 'ישיבה|שכבה|כיתה|שם' — בעל תווית לפי הכלל הסופי. */
+function tzmHas_(k, o) {
+  var p = k.split('|');
+  return p[0] === TZM_INST_ && TZM_BD_NO_CLS_.indexOf(p[2]) < 0 && tzmCnt_(o) >= TZM_BD_MIN_;
+}
 /* בעלי התווית בלפיד: [ 'שכבה|כיתה|שם' ]. */
 function tzmBadge_(M) {
   M = M || tzmMarks_();
   var out = [], pre = TZM_INST_ + '|';
-  for (var k in M) if (k.indexOf(pre) === 0 && tzmCnt_(M[k]) >= TZM_BD_MIN_) out.push(k.slice(pre.length));
+  for (var k in M) if (tzmHas_(k, M[k])) out.push(k.slice(pre.length));
   return out;
 }
 /* מי מקבל: { kids: { badgeKey: { id, ids } }, par: { parentId: { ids, kids:[badgeKey] } },
@@ -20728,6 +20738,14 @@ function tzmBdStat_() {
       if (g === 'ז' || g === 'ח') { v.zh++; if (L) v.zhL++; }
     }
   });
+  /* הכלל הסופי (אחיאסף 23.11): לפיד · סימוני "דף" שונים לפי המזהה · בלי כיתות 4–5. */
+  var fin = o.fin = { g: {}, tot: 0, noMid: 0 };
+  for (var fk in M) {
+    if (!tzmHas_(fk, M[fk])) continue;
+    var fg = fk.split('|')[1];
+    fin.g[fg] = (fin.g[fg] || 0) + 1; fin.tot++;
+    if (M[fk].noMid) fin.noMid++;
+  }
   var A = tzmAud_(M), kd = 0, sample = { yes: '', no: '' };
   Object.keys(A.kids).forEach(function (k) { if (A.kids[k].dev) kd++; });
   o.aud = { badge: A.n, linked: Object.keys(A.kids).length, noId: A.noId, kidsDev: kd, parents: Object.keys(A.par).length };
@@ -20738,7 +20756,7 @@ function tzmBdStat_() {
     sample.yes = JSON.stringify(tzmMe_(dv)) + ' · סימונים: ' + tzmCnt_(M[TZM_INST_ + '|' + yk]);
   }
   var nk = null;
-  for (var k2 in M) if (k2.indexOf(TZM_INST_ + '|') === 0 && tzmCnt_(M[k2]) < TZM_BD_MIN_ && tzmCnt_(M[k2]) > 0) { nk = k2; break; }
+  for (var k2 in M) if (k2.indexOf(TZM_INST_ + '|') === 0 && !tzmHas_(k2, M[k2]) && tzmCnt_(M[k2]) > 0) { nk = k2; break; }
   if (nk) {
     var bk = nk.slice(TZM_INST_.length + 1), lt = amdaTable_(AMDA_LINK_), P = rafPpl_(), cn = parCanon_(P), dv2 = '';
     for (var l = 1; l < lt.rows.length && !dv2; l++) {
