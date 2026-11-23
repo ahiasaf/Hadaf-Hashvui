@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="only light">
+<title>הדף השבועי של בני עקיבא</title>
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#5E7A2A">
+<meta name="robots" content="noindex">
+<!-- ============================================================
+     רישום לאירוע צמאה — ישיבת לפיד (8.99.575).
+     ============================================================
+     רכז שכבה פותח קישור עם מפתח (`?k=`, נוצר בניהול ← עוד ← אירוע צמאה),
+     כותב את שמו, בוחר שכבה (ז׳–י״ב) וכיתה, ומסמן את התלמידים שנרשמים.
+     תלמיד שאינו ברשימה — מוסיפים בשם. שכבה בלי כיתות במאגר — מספר כיתה ביד.
+     שמירה: POST {action:'tzm'} (no-cors) → קריאה חוזרת של ?tzm=cls → "נשמר"
+     רק כשכל סימון נראה בלשונית. נכשל — הסימונים נשארים. השרת: tzmPut_.
+     ============================================================ -->
+<style>
+html,body{touch-action:manipulation;overflow-x:clip}
+:root{
+  --green:#9DBB5C; --green-d:#5E7A2A; --green-l:#EEF4E0; --ink:#2B2A22; --ink-2:#6B6A5C;
+  --paper:#F7F5EE; --card:#FFFFFE; --rule:#E3E0D2; --blue-d:#0B2550; --gold-d:#8A6512; --stop:#A5382D;
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+img:not([src]){visibility:hidden}
+body{background:var(--paper);color:var(--ink);line-height:1.5;padding-bottom:calc(env(safe-area-inset-bottom) + 96px)}
+header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
+.masthead{display:flex;align-items:center;gap:13px;padding:14px 16px 10px;max-width:32rem;margin:0 auto}
+.masthead .m{width:58px;height:58px;border-radius:50%;background:#fff;flex:none;display:flex;align-items:center;
+  justify-content:center;box-shadow:0 2px 5px rgba(37,29,12,.07),0 8px 22px rgba(37,29,12,.09)}
+.masthead .m img{width:38px;height:38px;display:block;object-fit:contain}
+.masthead h1{font-size:1.24rem;font-weight:800;letter-spacing:-.035em;line-height:1.2;color:var(--blue-d)}
+.masthead .yr{font-size:.76rem;font-weight:800;color:var(--gold-d);letter-spacing:.05em;margin-top:3px}
+.wrap{max-width:32rem;margin:0 auto;padding:0 16px}
+.hero{display:flex;align-items:center;gap:14px;margin:8px 0 16px;padding:14px;border-radius:20px;
+  background:var(--green);color:#fff;box-shadow:0 10px 26px rgba(94,122,42,.28)}
+.hero img{flex:none;width:92px;height:auto;border-radius:10px;box-shadow:0 6px 14px rgba(0,0,0,.22)}
+.hero h2{font-size:1.4rem;font-weight:900;line-height:1.15}
+.hero p{font-size:.92rem;font-weight:600;margin-top:6px;opacity:.95}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:18px;padding:16px;margin-bottom:12px;
+  box-shadow:0 2px 6px rgba(0,0,0,.04)}
+.card h3{font-size:1.08rem;font-weight:800;margin-bottom:10px}
+.fl input,.add input{display:block;width:100%;border:1.5px solid var(--rule);border-radius:12px;background:#fff;
+  padding:11px 13px;font:inherit;font-size:16px;color:var(--ink)}
+.fl input.need{border-color:var(--stop)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{min-width:52px;border:1.5px solid var(--rule);border-radius:999px;background:#fff;color:var(--ink);
+  font:inherit;font-weight:800;font-size:1.08rem;padding:9px 14px;cursor:pointer}
+.chips button.on{border-color:var(--green-d);background:var(--green-d);color:#fff}
+.chips button .n{font-size:.78rem;font-weight:700;opacity:.8;margin-right:4px}
+.num{display:flex;gap:8px;margin-top:10px}
+.num input{flex:1;border:1.5px solid var(--rule);border-radius:12px;padding:10px 12px;font:inherit;font-size:16px}
+.btn{border:0;border-radius:12px;background:var(--green-d);color:#fff;font:inherit;font-weight:800;padding:10px 16px;cursor:pointer}
+.btn.g{background:#fff;color:var(--ink);border:1px solid var(--rule)}
+.list{border:1px solid var(--rule);border-radius:14px;overflow:hidden;background:#fff}
+.row{display:flex;align-items:center;gap:12px;padding:13px 14px;border-top:1px solid var(--rule);cursor:pointer}
+.row:first-child{border-top:0}
+.row input{width:24px;height:24px;flex:none;accent-color:var(--green-d)}
+.row .t{flex:1;min-width:0}
+.row .t b{display:block;font-weight:700;font-size:1.02rem}
+.row .t small{display:block;font-size:.78rem;color:var(--ink-2)}
+.row.ch{background:var(--green-l)}
+.note{font-size:.88rem;font-weight:700;color:var(--ink-2);margin-bottom:10px}
+.add{display:flex;gap:8px;margin-top:12px}
+.add input{flex:1}
+.msg{text-align:center;font-size:1.1rem;font-weight:800;padding:28px 8px}
+.st{text-align:center;margin-top:12px}
+.st p{font-weight:800;color:var(--stop);margin-bottom:8px}
+.bar{position:fixed;left:0;right:0;bottom:0;padding:10px 16px calc(env(safe-area-inset-bottom) + 10px);
+  background:rgba(247,245,238,.96);border-top:1px solid var(--rule)}
+.bar .in{max-width:32rem;margin:0 auto}
+.bar .go{display:block;width:100%;border:0;border-radius:14px;background:var(--green-d);color:#fff;
+  font:inherit;font-weight:900;font-size:1.1rem;padding:14px;cursor:pointer}
+.bar .go[disabled]{opacity:.7}
+.bar .s{text-align:center;font-weight:800;font-size:.92rem;margin-top:6px}
+.bar .s.bad{color:var(--stop)}
+.bar .s.ok{color:var(--green-d)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <div class="masthead">
+    <span class="m"><img id="hdr-mark" alt=""></span>
+    <div><h1 id="brand"></h1><div class="yr" id="yr"></div></div>
+  </div>
+</header>
+<main class="wrap">
+  <div class="hero"><img src="tzama-logo.jpg" alt="" width="330" height="361">
+    <div><h2 id="ttl"></h2><p id="sub"></p></div></div>
+  <div class="msg" id="msg" hidden></div>
+  <div class="st" id="lerr" hidden><p id="lerrT"></p><button class="btn g" id="lre" type="button"></button></div>
+  <div id="f" hidden>
+    <div class="card"><label class="fl"><h3 id="byL"></h3><input id="by" maxlength="60" autocomplete="name"></label></div>
+    <div class="card"><h3 id="stG"></h3><div class="chips" id="grs"></div>
+      <div id="clsStep" hidden><h3 id="stC" style="margin-top:16px"></h3><div id="clsBox"></div></div></div>
+    <div class="card" id="stuCard" hidden><h3 id="clsH"></h3><div id="stuBox"></div>
+      <div class="add"><input id="addN" maxlength="60"><button class="btn" id="addB" type="button"></button></div></div>
+  </div>
+</main>
+<div class="bar" id="bar" hidden><div class="in"><button class="go" id="go" type="button"></button>
+  <div class="s" id="bs" hidden></div></div></div>
+<script src="data.js"></script>
+<script src="logo.js"></script>
+<script>
+function $(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+function tp(t, v) { return String(t || '').replace(/\{(\w+)\}/g, function (m, k) { return v[k] != null ? v[k] : m; }); }
+function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lset(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function jget(k) { try { return JSON.parse(ls(k) || 'null'); } catch (e) { return null; } }
+/* המלל שנערך בניהול. נוסח שהוחלף בקוד (TEXT_RETIRED) — אינו גובר. */
+function take(map) {
+  for (var k in (map || {})) {
+    var p = k.split('.'), v = map[k];
+    if (p.length !== 2 || p[0] !== 'ui' || typeof v !== 'string' || !v) continue;
+    var old = (typeof TEXT_RETIRED !== 'undefined' && TEXT_RETIRED[k]) || [];
+    if ([].concat(old).indexOf(v) >= 0) continue;
+    UI[p[1]] = v;
+  }
+}
+try { take(jget('df:textCache')); take((jget('df:cfg') || {}).texts); } catch (e) {}
+
+$('hdr-mark').src = window.LOGO_MARK || '';
+$('brand').innerHTML = esc(PROGRAM.short) + '<br>' + esc(PROGRAM.name.slice(PROGRAM.short.length).trim());
+$('yr').textContent = tp(UI.rstYear, { y: PROGRAM.year });
+$('ttl').textContent = UI.tzmTitle;
+$('sub').textContent = UI.tzmSub;
+if (UI.tzmTitle) document.title = UI.tzmTitle;
+$('byL').textContent = UI.tzmBy;
+$('stG').textContent = UI.tzmStepG;
+$('stC').textContent = UI.tzmStepC;
+$('addN').placeholder = UI.tzmAddPh;
+$('addB').textContent = UI.tzmAdd;
+$('lre').textContent = UI.tzmRetry;
+$('by').value = ls('df:tzmBy') || '';
+$('by').oninput = function () { lset('df:tzmBy', this.value); this.className = ''; };
+
+var KEY = (location.search.match(/[?&]k=([0-9a-zA-Z]+)/) || [])[1] || '';
+var GRADES = ['ז', 'ח', 'ט', 'י', 'יא', 'יב'];
+/* הכיתות של לפיד (מספרים בלבד) — מופיעות גם כשאין להן רשימת תלמידים. */
+var KNOWN = { 'ז': 7, 'ח': 8, 'ט': 6, 'י': 7, 'יא': 6 };
+/* R — שמות לפי "שכבה|כיתה" · REG — "שכבה|כיתה|שם" ← [מי רשם] · P — שינויים שלא נשמרו */
+var S = { R: {}, REG: {}, P: {}, g: '', c: '', extra: {}, busy: false };
+
+function api() { return String(ls('dfApi') || (typeof APPS_SCRIPT_URL !== 'undefined' ? APPS_SCRIPT_URL : '') || '').trim(); }
+function viaOk() { return typeof APPS_SCRIPT_URL !== 'undefined' && api() === APPS_SCRIPT_URL; }
+function get(q) {
+  var u = api();
+  var j = function (r) { if (!r.ok) throw new Error('http'); return r.json(); };
+  return fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + q + '&t=' + Date.now()).then(j)['catch'](function () {
+    if (!viaOk()) throw new Error('net');
+    return fetch('/api/gs?' + q + '&t=' + Date.now()).then(j);
+  });
+}
+function post(o) {
+  var b = JSON.stringify(o);
+  return fetch(api(), { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: b })['catch'](function () {
+    if (!viaOk()) throw new Error('net');
+    return fetch('/api/gs', { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: b });
+  });
+}
+function wait(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
+
+function grD(g) { return g.length > 1 ? g.charAt(0) + '״' + g.charAt(1) : g + '׳'; }
+function clsD(g, c) { return g.length > 1 ? grD(g) + ' ' + c : grD(g) + c; }
+
+function show(w) { $('msg').hidden = w !== 'msg'; $('lerr').hidden = w !== 'lerr'; $('f').hidden = w !== 'f'; }
+function say(t) { $('msg').textContent = t; show('msg'); }
+
+/* הרשומים מהשרת → מפה */
+function take2(d) {
+  S.R = d.cls || {};
+  var m = {};
+  (d.reg || []).forEach(function (x) { m[x[0] + '|' + x[1] + '|' + x[2]] = [x[3] || '']; });
+  S.REG = m;
+}
+function fetchCls() {
+  return get('tzm=cls&k=' + encodeURIComponent(KEY)).then(function (d) {
+    if (d && d.status === 'denied') throw new Error('denied');
+    if (!d || d.status !== 'ok') throw new Error('bad');
+    return d;
+  });
+}
+function load() {
+  if (!KEY) return say(UI.tzmDenied);
+  say(UI.tzmLoad);
+  fetchCls().then(function (d) { take2(d); show('f'); paint(); }, function (e) {
+    if (e && e.message === 'denied') return say(UI.tzmDenied);
+    $('lerrT').textContent = UI.tzmLoadErr; show('lerr');
+  });
+}
+$('lre').onclick = load;
+
+/* הכיתות של שכבה: מהמאגר, מהרשומים, הידועות, ומה שנכתב ביד. */
+function clsOf(g) {
+  var have = {}, k;
+  for (k in S.R) if (k.split('|')[0] === g) have[k.split('|')[1]] = 1;
+  for (k in S.REG) if (k.split('|')[0] === g) have[k.split('|')[1]] = 1;
+  for (k in S.P) if (S.P[k].g === g) have[S.P[k].c] = 1;
+  for (var i = 1; i <= (KNOWN[g] || 0); i++) have[String(i)] = 1;
+  if (S.extra[g]) have[S.extra[g]] = 1;
+  return Object.keys(have).sort(function (a, b) { return (+a || 99) - (+b || 99) || (a < b ? -1 : 1); });
+}
+function isOn(k) { return S.P[k] ? S.P[k].on : !!S.REG[k]; }
+function regN(g, c) {
+  var n = 0, pre = g + '|' + c + '|', k, seen = {};
+  for (k in S.REG) if (k.indexOf(pre) === 0) seen[k] = 1;
+  for (k in S.P) if (k.indexOf(pre) === 0) seen[k] = 1;
+  for (k in seen) if (isOn(k)) n++;
+  return n;
+}
+function namesOf(g, c) {
+  var pre = g + '|' + c + '|', l = (S.R[g + '|' + c] || []).slice(), k;
+  var add = function (n) { if (l.indexOf(n) < 0) l.push(n); };
+  for (k in S.REG) if (k.indexOf(pre) === 0) add(k.slice(pre.length));
+  for (k in S.P) if (k.indexOf(pre) === 0) add(k.slice(pre.length));
+  return l;
+}
+function nP() { return Object.keys(S.P).length; }
+
+function paint() {
+  $('grs').innerHTML = GRADES.map(function (g) {
+    return '<button type="button" data-g="' + g + '"' + (S.g === g ? ' class="on"' : '') + '>' + grD(g) + '</button>';
+  }).join('');
+  Array.prototype.forEach.call($('grs').querySelectorAll('[data-g]'), function (el) {
+    el.onclick = function () { var g = this.getAttribute('data-g'); if (S.g !== g) { S.g = g; S.c = ''; } paint(); };
+  });
+  $('clsStep').hidden = !S.g;
+  var L = S.g ? clsOf(S.g) : [], h = '';
+  if (S.g) {
+    h = '<div class="chips">' + L.map(function (c) {
+      var n = regN(S.g, c);
+      return '<button type="button" data-c="' + esc(c) + '"' + (S.c === c ? ' class="on"' : '') + '>' +
+        esc(clsD(S.g, c)) + (n ? '<span class="n">· ' + n + '</span>' : '') + '</button>';
+    }).join('') + '</div>';
+    /* שכבה בלי כיתות במאגר — מספר הכיתה ביד. */
+    if (!L.length) h += '<div class="num"><input id="cn" inputmode="numeric" maxlength="2" placeholder="' + esc(UI.tzmClsNum) + '">' +
+      '<button class="btn" type="button" id="cnGo">' + esc(UI.tzmClsGo) + '</button></div>';
+  }
+  $('clsBox').innerHTML = h;
+  Array.prototype.forEach.call($('clsBox').querySelectorAll('[data-c]'), function (el) {
+    el.onclick = function () { S.c = this.getAttribute('data-c'); paint(); $('stuCard').scrollIntoView({ block: 'start', behavior: 'smooth' }); };
+  });
+  if ($('cnGo')) $('cnGo').onclick = function () {
+    var c = String($('cn').value || '').replace(/\D/g, '');
+    if (!c) return;
+    S.extra[S.g] = c; S.c = c; paint();
+  };
+  paintStu();
+}
+function paintStu() {
+  $('stuCard').hidden = !(S.g && S.c);
+  if (!S.g || !S.c) { paintBar(); return; }
+  $('clsH').textContent = tp(UI.tzmCls, { cls: clsD(S.g, S.c) });
+  var g = S.g, c = S.c, L = namesOf(g, c);
+  var h = (S.R[g + '|' + c] || []).length ? '' : '<p class="note">' + esc(UI.tzmNoList) + '</p>';
+  if (L.length) h += '<div class="list">' + L.map(function (n) {
+    var k = g + '|' + c + '|' + n, on = isOn(k), by = S.REG[k] && !S.P[k] ? S.REG[k][0] : '';
+    return '<label class="row' + (S.P[k] ? ' ch' : '') + '"><input type="checkbox" data-k="' + esc(k) + '"' + (on ? ' checked' : '') + '>' +
+      '<span class="t"><b>' + esc(n) + '</b>' + (on && by ? '<small>' + esc(tp(UI.tzmByLine, { n: by })) + '</small>' : '') + '</span></label>';
+  }).join('') + '</div>';
+  $('stuBox').innerHTML = h;
+  Array.prototype.forEach.call($('stuBox').querySelectorAll('[data-k]'), function (el) {
+    el.onchange = function () {
+      var k = this.getAttribute('data-k'), p = k.split('|');
+      var want = this.checked;
+      if (want === !!S.REG[k]) delete S.P[k];
+      else S.P[k] = { g: p[0], c: p[1], n: p.slice(2).join('|'), on: want };
+      bsSet('', '');
+      paint();
+    };
+  });
+  paintBar();
+}
+function addName() {
+  var n = String($('addN').value || '').replace(/[|]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!n || !S.g || !S.c) return;
+  var k = S.g + '|' + S.c + '|' + n;
+  if (!S.REG[k]) S.P[k] = { g: S.g, c: S.c, n: n, on: true };
+  else delete S.P[k];
+  $('addN').value = '';
+  bsSet('', '');
+  paint();
+}
+$('addB').onclick = addName;
+$('addN').onkeydown = function (ev) { if (ev.keyCode === 13) { ev.preventDefault(); addName(); } };
+
+function bsSet(t, cls) { $('bs').textContent = t; $('bs').className = 's' + (cls ? ' ' + cls : ''); $('bs').hidden = !t; }
+function paintBar() {
+  var n = nP();
+  $('go').hidden = !n;
+  $('go').disabled = S.busy;
+  $('go').textContent = S.busy ? UI.tzmSaving : tp(UI.tzmSave, { n: n });
+  $('bar').hidden = !n && $('bs').hidden;
+}
+
+/* ---- שמירה: "נשמר" רק כשהקריאה החוזרת מראה כל סימון ---- */
+function allIn(d, ch) {
+  var m = {};
+  (d.reg || []).forEach(function (x) { m[x[0] + '|' + x[1] + '|' + x[2]] = 1; });
+  return ch.every(function (x) { return !!m[x.g + '|' + x.c + '|' + x.n] === x.on; });
+}
+function check(ch, n) {
+  return fetchCls().then(function (d) { return allIn(d, ch) ? d : null; }, function () { return null; })
+    .then(function (d) {
+      if (d || n <= 1) return d;
+      return wait(2500).then(function () { return check(ch, n - 1); });
+    });
+}
+function save() {
+  if (S.busy || !nP()) return;
+  var by = String($('by').value || '').replace(/\s+/g, ' ').trim();
+  if (!by) {
+    $('by').className = 'need'; $('by').focus();
+    bsSet(UI.tzmByNeed, 'bad'); paintBar();
+    return;
+  }
+  var ch = Object.keys(S.P).map(function (k) { return S.P[k]; });
+  S.busy = true; bsSet('', ''); paintBar();
+  post({ action: 'tzm', k: KEY, by: by, ch: ch })['catch'](function () {})
+    .then(function () { return wait(1500); })
+    .then(function () { return check(ch, 4); })
+    .then(function (d) {
+      S.busy = false;
+      if (d) {
+        /* מה שנשמר יורד מהשינויים; מה שנגע בו בינתיים — נשאר. */
+        take2(d);
+        ch.forEach(function (x) {
+          var k = x.g + '|' + x.c + '|' + x.n;
+          if (S.P[k] && S.P[k].on === x.on) delete S.P[k];
+        });
+        bsSet(UI.tzmSaved, 'ok');
+      } else bsSet(UI.tzmFail, 'bad');
+      paint();
+    }, function () { S.busy = false; bsSet(UI.tzmFail, 'bad'); paint(); });
+}
+$('go').onclick = save;
+
+load();
+</script>
+</body>
+</html>

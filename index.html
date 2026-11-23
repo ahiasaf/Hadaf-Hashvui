@@ -3184,7 +3184,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.574';
+var APP_VERSION = '8.99.575';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -12818,7 +12818,7 @@ var SUB = { daf: [['daf', 'moreDaf'], ['qbank', 'moreQBank'], ['alonim', 'moreAl
    אחת הם רצועה שנגררת בטלפון. */
 var MORE = [
   /* עמדת הלימוד עצמה — בכפתור הקבוע למעלה. כאן רק מה שאין שם. */
-  { g:'moreGSet', items:[['links','moreLinks'], ['amdawa','moreAmdaWa'], ['net','moreNet'], ['lottery','moreLottery'], ['ltime','moreLtime'], ['amdaneed','moreAmdaNeed'], ['chn','moreChn'],
+  { g:'moreGSet', items:[['links','moreLinks'], ['amdawa','moreAmdaWa'], ['net','moreNet'], ['lottery','moreLottery'], ['ltime','moreLtime'], ['amdaneed','moreAmdaNeed'], ['tzm','moreTzm'], ['chn','moreChn'],
                          ['prz','morePrz'], ['chal','moreChal'], ['quad','moreQuad'], ['hash','moreHash'],
                          ['test','moreTest']] },
   /* מה שנסגר לשנה הזו — במגירה, ולא נמחק: בלי המלל והמערכת אין
@@ -13487,6 +13487,7 @@ function admPane() {
   if (sub === 'quad')    return admQuad(body);
   if (sub === 'hash')    return admHash(body);
   if (sub === 'ltime')   return admLtime(body);
+  if (sub === 'tzm')     return admTzm(body);
   if (sub === 'chn')     return admChn(body);
   if (sub === 'amdaneed') return admAmdaNeed(body);
   /* השליחה — הרשימה נטענת לבד כשנכנסים, ולא רק ב"רענון". פעם
@@ -18174,6 +18175,71 @@ function ltmPaint() {
    "לבירור" — בקשה נוספת לאותה כיתה, עד שמכריעים. בלי מועד סגירה הקישור סגור
    לר"מים. כישלון משאיר את מה שעל המסך. */
 var CHN = { d: null, busy: false, msg: '', tst: false, at: 0, rams: null, ramMsg: '', ramBusy: false };
+/* רישום לאירוע צמאה (8.99.575) — הקישור לרכזי השכבה (עם המפתח) והרשומים. ראו tzmRoute_. */
+var TZM = { d: null, busy: false, msg: '' };
+function admTzm(body) {
+  body.innerHTML = '<div id="tzm"></div>';
+  tzmPaint();
+  tzmLoad();
+}
+function tzmLoad() {
+  var k = (CFG.readKey || '').trim();
+  if (!k) { TZM.msg = UI.przNoKey; tzmPaint(); return; }
+  TZM.busy = true; TZM.msg = ''; tzmPaint();
+  scriptGet({ tzm: 'adm', key: k }).then(function (d) {
+    TZM.busy = false;
+    if (d && d.status === 'ok') TZM.d = d; else TZM.msg = UI.tzmAdmFail;
+    tzmPaint();
+  }, function () { TZM.busy = false; TZM.msg = UI.tzmAdmFail; tzmPaint(); });
+}
+function tzmGrD(g) { g = String(g || ''); return g.length > 1 ? g.charAt(0) + '״' + g.charAt(1) : g + '׳'; }
+function tzmCls(g, c) { return String(g || '').length > 1 ? tzmGrD(g) + ' ' + c : tzmGrD(g) + c; }
+/* הרשומים לפי כיתה, בסדר שכבות. */
+function tzmGroups() {
+  var G = ['ז', 'ח', 'ט', 'י', 'יא', 'יב'], m = {}, keys = [];
+  ((TZM.d && TZM.d.reg) || []).forEach(function (x) {
+    var k = x[0] + '|' + x[1];
+    if (!m[k]) { m[k] = []; keys.push(k); }
+    m[k].push(x);
+  });
+  keys.sort(function (a, b) {
+    var p = a.split('|'), q = b.split('|');
+    return (G.indexOf(p[0]) - G.indexOf(q[0])) || ((+p[1] || 99) - (+q[1] || 99));
+  });
+  return keys.map(function (k) {
+    m[k].sort(function (a, b) { return String(a[2]).localeCompare(String(b[2]), 'he'); });
+    return { g: k.split('|')[0], c: k.split('|')[1], l: m[k] };
+  });
+}
+function tzmListTxt() {
+  return tzmGroups().map(function (o) {
+    return tzmCls(o.g, o.c) + ' (' + o.l.length + ')\n' + o.l.map(function (x) { return x[2]; }).join('\n');
+  }).join('\n\n');
+}
+function tzmCopyList() { copyText(tzmListTxt(), UI.tzmAdmListOk); }
+function tzmPaint() {
+  var el = document.getElementById('tzm');
+  if (!el) return;
+  var d = TZM.d, h = '<div class="adm-card"><h4>' + esc(UI.moreTzm) + '</h4>' +
+    (TZM.msg ? '<div class="cond" style="margin-bottom:10px">' + esc(TZM.msg) + '</div>' : '');
+  if (!d) { el.innerHTML = h + (TZM.busy ? '<p class="h">' + esc(UI.tzmLoad) + '</p>' : '') + '</div>'; return; }
+  var url = location.origin + '/tzama?k=' + encodeURIComponent(d.k || '');
+  h += '<p class="h"><b>' + esc(UI.tzmAdmLink) + '</b></p><div style="margin-bottom:14px">' +
+    '<input readonly dir="ltr" style="display:block;width:100%;box-sizing:border-box;padding:8px;margin-bottom:6px;border:1px solid #ddd;border-radius:8px" value="' + esc(url) + '" onfocus="this.select()">' +
+    '<button class="btn g" type="button" onclick="copyText(\'' + esc(url) + '\', UI.tzmAdmCopied)">' + esc(UI.tzmAdmCopy) + '</button></div>';
+  var gr = tzmGroups(), n = (d.reg || []).length;
+  h += '<p class="h"><b>' + esc(n ? fill(UI.tzmAdmTot, { n: n }) : UI.tzmAdmNone) + '</b></p>';
+  if (n) {
+    h += '<div style="margin:6px 0 10px"><button class="btn g" type="button" onclick="tzmCopyList()">' + esc(UI.tzmAdmList) + '</button></div>' +
+      gr.map(function (o) {
+        return '<div class="prow2"><div style="flex:1"><b>' + esc(tzmCls(o.g, o.c)) + ' · ' + o.l.length + '</b>' +
+          o.l.map(function (x) {
+            return '<span>' + esc(x[2]) + (x[3] ? ' · ' + esc(fill(UI.tzmByLine, { n: x[3] })) : '') + '</span>';
+          }).join('') + '</div></div>';
+      }).join('');
+  }
+  el.innerHTML = h + '</div>';
+}
 function admChn(body) {
   body.innerHTML = '<div id="chn"></div>';
   chnPaint();

@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 259;
+var SCRIPT_VERSION = 260;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -169,6 +169,8 @@ var PRIVATE_TABS = ['תמונת בית א', 'תמונת בית ב', 'עלוני�
                     'חוברות חנוכה',
                     /* חוברות חנוכה — שם הר"ם של כל כיתה (אחיאסף מדביק בניהול). ראו chnRams_. */
                     'חוברות חנוכה — ר"מים',
+                    /* רישום לאירוע צמאה — שמות התלמידים שנרשמו. ראו tzmPut_. */
+                    'צמאה — רישום',
                     /* הגרלת הרביעיות — מי בקבוצה עם מי, והזוכות. ראו quadRoute_. */
                     'רביעיות', 'רביעיות-הגרלות',
                     /* שני אנשי קשר שונים נרשמו לאותו מוסד. ראו `flagRegConflict_`. */
@@ -366,7 +368,7 @@ var TM_KEYS_ = ['file', 'help', 'setup', 'fire', 'helpdone', 'conflictdone', 'sa
   'parstat', 'ltime', 'amdaneed', 'test', 'sayCount', 'inbox', 'mark', 'funnel', 'trails', 'arrived', 'push',
   'pairHist', 'pair', 'pairok', 'pairSeen', 'pairFor', 'idFor', 'amdaFor', 'whoIs', 'wid', 'acc', 'accset',
   'netbaks', 'netrun', 'netmarks', 'board', 'ov', 'team', 'recount', 'delrow', 'contactSave', 'archived',
-  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid', 'hasaa', 'hlpq', 'acclim', 'chn'];
+  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid', 'hasaa', 'hlpq', 'acclim', 'chn', 'tzm'];
 /* שם הבקשה — המפתח הראשון ברשימה שקיים, ועם ערכו רק כשהוא מילה קצרה
    באנגלית (op של האתגר/ההגרלה). מזהה או מספר לעולם אינו נכנס. */
 function tmName_(e, post) {
@@ -522,6 +524,8 @@ function doPostMain_(e) {
   if (hd && hd.action === 'hasaa') return json_(hasaaPut_(hd));
   /* הזמנת חוברות חנוכה (chanuka.html) — נעילה קצרה משלה. ראו chnPut_. */
   if (hd && hd.action === 'chn') return json_(chnPut_(hd));
+  /* רישום לאירוע צמאה (tzama.html) — נעילה קצרה משלו. ראו tzmPut_. */
+  if (hd && hd.action === 'tzm') return json_(tzmPut_(hd));
   /* חוברות חנוכה — רשימת הר"מים לפי כיתה, מודבקת בניהול (בסיסמה). ראו chnRoute_ ramset. */
   if (hd && hd.action === 'chnrams') {
     if (!READ_KEY || String(hd.key || '') !== READ_KEY) return json_({ status: 'denied' });
@@ -1130,6 +1134,11 @@ function doGetMain_(e) {
   if (e && e.parameter && e.parameter.lapid) return reply_(e, lapidGet_());
   /* הצהרת התלמיד — רק "נשמר / לא נשמר" לפי sid, בלי שום תוכן. ראו hasaaCheck_. */
   /* הזמנת חוברות חנוכה — ראו chnRoute_. */
+  /* רישום לאירוע צמאה — ראו tzmRoute_. */
+  if (e && e.parameter && e.parameter.tzm) {
+    try { return reply_(e, tzmRoute_(e.parameter)); }
+    catch (eTz) { return reply_(e, { status: 'error' }); }
+  }
   if (e && e.parameter && e.parameter.chn) {
     try { return reply_(e, chnRoute_(e.parameter)); }
     catch (eCh) { return reply_(e, { status: 'error' }); }
@@ -20409,5 +20418,126 @@ function chnRoute_(P) {
     var s2 = chnState_();
     return { status: 'ok', open: s2.open, close: s2.close, rows: chnAdmRows_(tst) };
   }
+  return { status: 'error' };
+}
+
+/* ============================================================
+   רישום לאירוע צמאה (tzama.html, 8.99.575 · SCRIPT_VERSION 260).
+   ============================================================
+   אחיאסף (23.11): אירוע של ישיבת לפיד ביום ראשון 29.11. רכזי השכבה מקבלים
+   קישור, בוחרים שכבה (ז׳–י״ב) וכיתה, ומסמנים את התלמידים שנרשמים. תלמיד
+   שאינו ברשימה — מוסיפים בשם. שורה לכל תלמיד בלשונית הפרטית "צמאה — רישום".
+   · **הקישור נושא מפתח** (`k`, מאפיין TZM_KEY, נוצר בניהול): בלעדיו אין שמות.
+     העמוד מציג שמות תלמידים — לא פתוח למי שאין לו את הקישור.
+   · ?tzm=cls&k= — התלמידים לפי כיתה (netRosterRead_ של לפיד) והרשומים.
+   · POST {action:'tzm', k, by, ch:[{g,c,n,on}]} — לפני הנעילה הראשית, נעילה קצרה.
+     עדכון לפי המפתח (שכבה|כיתה|שם): on — "רשום", off — "בוטל". שורה לא נמחקת.
+     "נשמר" בעמוד — רק מקריאה חוזרת של cls.
+   · ?tzm=adm&key=READ_KEY — המפתח (נוצר אם אין) וכל הרשומים.
+   ============================================================ */
+var TZM_TAB_ = 'צמאה — רישום';
+var TZM_COLS_ = ['מפתח', 'מצב', 'קוד ישיבה', 'שכבה', 'כיתה', 'שם', 'נוסף ביד', 'נרשם ע"י', 'נוצר', 'עודכן'];
+var TZM_INST_ = 'lapid';
+var TZM_GR_ = ['ז', 'ח', 'ט', 'י', 'יא', 'יב'];
+function tzmKeyOf_(make) {
+  var P = PropertiesService.getScriptProperties(), k = P.getProperty('TZM_KEY') || '';
+  if (!k && make) { k = Utilities.getUuid().replace(/-/g, '').slice(0, 20); P.setProperty('TZM_KEY', k); }
+  return k;
+}
+function tzmNm_(n) { return String(n || '').replace(/\s+/g, ' ').trim().slice(0, 60); }
+function tzmK_(g, c, n) { return chnGr_(g) + '|' + clsK_(c) + '|' + tzmNm_(n); }
+function tzmSheet_() {
+  var sh = sheet_(TZM_TAB_);
+  if (sh.getLastRow() < 1) {
+    sh.getRange(1, 1, 1, TZM_COLS_.length).setValues([TZM_COLS_]);
+    try { sh.setFrozenRows(1); } catch (x) {}
+  }
+  return sh;
+}
+function tzmRows_(sh) {
+  var n = sh.getLastRow();
+  if (n < 2) return [];
+  var v = sh.getRange(2, 1, n - 1, TZM_COLS_.length).getDisplayValues(), out = [];
+  for (var i = 0; i < v.length; i++) {
+    var o = { r: i + 2 };
+    for (var j = 0; j < TZM_COLS_.length; j++) o[TZM_COLS_[j]] = String(v[i][j] || '').trim();
+    out.push(o);
+  }
+  return out;
+}
+/* התלמידים של לפיד: { 'ז|1': [שמות] }. במטמון לעשר דקות. */
+function tzmRoster_() {
+  var rc = CacheService.getScriptCache();
+  try { var hit = rc.get('tzm:r'); if (hit) return JSON.parse(hit); } catch (x) {}
+  var R = netRosterRead_(TZM_INST_).rows, m = {}, seen = {};
+  R.forEach(function (x) {
+    var g = chnGr_(x[0]), c = clsK_(x[1]), n = tzmNm_(x[2]);
+    if (TZM_GR_.indexOf(g) < 0 || !c || !n) return;
+    var k = g + '|' + c;
+    if (seen[k + '|' + n]) return;
+    seen[k + '|' + n] = 1;
+    (m[k] = m[k] || []).push(n);
+  });
+  for (var k2 in m) m[k2].sort(function (a, b) { return a.localeCompare(b, 'he'); });
+  try { rc.put('tzm:r', JSON.stringify(m), 600); } catch (x) {}
+  return m;
+}
+function tzmReg_() {
+  var sh = tzmSheet_(), out = [];
+  tzmRows_(sh).forEach(function (o) {
+    if (o['מצב'] !== 'רשום') return;
+    out.push([o['שכבה'], o['כיתה'], o['שם'], o['נרשם ע"י'], o['נוסף ביד'] === 'כן' ? 1 : 0, o['עודכן'] || o['נוצר']]);
+  });
+  return out;
+}
+function tzmPut_(d) {
+  var k = tzmKeyOf_(false);
+  if (!k || String(d.k || '') !== k) return { status: 'denied' };
+  var by = tzmNm_(d.by), ch = d.ch;
+  if (!by || !ch || !ch.length || ch.length > 120) return { status: 'error', message: 'bad' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(15000)) return { status: 'busy' };
+  try {
+    var R = tzmRoster_(), sh = tzmSheet_(), rows = tzmRows_(sh), at = {}, now = chnNow_(), add = [];
+    rows.forEach(function (o) { at[o['מפתח']] = o; });
+    var stC = TZM_COLS_.indexOf('מצב') + 1, byC = TZM_COLS_.indexOf('נרשם ע"י') + 1, upC = TZM_COLS_.indexOf('עודכן') + 1;
+    ch.forEach(function (x) {
+      var g = chnGr_(x.g), c = clsK_(x.c), n = tzmNm_(x.n);
+      if (TZM_GR_.indexOf(g) < 0 || !c || c.length > 4 || !n) return;
+      var key = g + '|' + c + '|' + n, o = at[key], on = !!x.on;
+      if (o) {
+        var want = on ? 'רשום' : 'בוטל';
+        if (o['מצב'] === want) return;
+        sh.getRange(o.r, stC).setValue(want);
+        if (on) sh.getRange(o.r, byC).setValue(by);
+        sh.getRange(o.r, upC).setValue(now);
+        o['מצב'] = want;
+      } else if (on) {
+        var man = (R[g + '|' + c] || []).indexOf(n) < 0;
+        var line = [key, 'רשום', TZM_INST_, g, c, n, man ? 'כן' : '', by, now, now];
+        add.push(line);
+        at[key] = { 'מצב': 'רשום' };
+      }
+    });
+    if (add.length) {
+      var rg = sh.getRange(Math.max(sh.getLastRow(), 1) + 1, 1, add.length, TZM_COLS_.length);
+      rg.setNumberFormat('@');
+      rg.setValues(add);
+    }
+    SpreadsheetApp.flush();
+    return { status: 'ok' };
+  } catch (err) {
+    return { status: 'error' };
+  } finally { lock.releaseLock(); }
+}
+function tzmRoute_(P) {
+  var op = String(P.tzm || '');
+  if (op === 'cls') {
+    var k = tzmKeyOf_(false);
+    if (!k || String(P.k || '') !== k) return { status: 'denied' };
+    return { status: 'ok', cls: tzmRoster_(), reg: tzmReg_() };
+  }
+  if (!READ_KEY || String(P.key || '') !== READ_KEY) return { status: 'denied' };
+  if (op === 'adm') return { status: 'ok', k: tzmKeyOf_(true), reg: tzmReg_() };
   return { status: 'error' };
 }
