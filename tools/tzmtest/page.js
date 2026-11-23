@@ -10,6 +10,10 @@ function world() {
     ['lapid', 'ז', '3', 'אלף', 'בית'], ['lapid', 'ז', '3', 'גימל', 'דלת'], ['other', 'ז', '3', 'זר', 'זר']]);
   c.sheet_('תלמידי בית הספר').getRange(1, 1, 3, 4).setValues([['קוד ישיבה', 'שכבה', 'כיתה', 'שם'],
     ['lapid', 'י״א', '2', 'הא וו'], ['lapid', 'ז׳', '3', 'אלף בית']]);
+  var H = ['מזהה', 'שבוע', 'יום', 'סוג', 'קוד ישיבה', 'שכבה', 'כיתה', 'שם'], A = [H];
+  [[1, 'דף'], [2, 'דף'], [2, 'דף'], [3, 'שיעור']].forEach(function (x, i) { A.push(['a' + i, String(x[0]), 'd' + i, x[1], 'lapid', 'ז', '3', 'גימל דלת']); });
+  [1, 2, 3].forEach(function (w, i) { A.push(['b' + i, String(w), 'e' + i, 'דף', 'lapid', 'ז׳', 'ז3', 'אלף  בית']); });
+  c.sheet_('עמדת לימוד').getRange(1, 1, A.length, H.length).setValues(A);
   return W;
 }
 function srv() {
@@ -68,8 +72,10 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     ok(gl.join(',') === 'ז׳,ח׳,ט׳,י׳,י״א,י״ב', 'grades ז–יב', gl);
     await p.click('#grs [data-g="ז"]');
     await p.click('#clsBox [data-c="3"]');
-    var nm = await p.$$eval('#stuBox .row b', function (a) { return a.map(function (x) { return x.textContent; }); });
+    var nm = await p.$$eval('#stuBox .row b', function (a) { return a.map(function (x) { return x.firstChild.nodeValue; }); });
     ok(nm.join(',') === 'אלף בית,גימל דלת', 'roster names, deduped, other inst excluded', nm);
+    var bds = await p.$$eval('#stuBox .row', function (a) { return a.map(function (x) { return !!x.querySelector('.bd'); }); });
+    ok(bds[0] === true && bds[1] === false, 'badge: 3 weeks yes, 2 weeks + lesson no', bds);
     await p.click('#stuBox .row:nth-child(1)');
     await p.fill('#addN', 'תלמיד חדש'); await p.click('#addB');
     ok(/\(2\)/.test(await p.textContent('#go')), 'save shows 2 changes');
