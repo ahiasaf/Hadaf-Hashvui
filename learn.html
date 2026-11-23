@@ -3405,6 +3405,13 @@ function mergeWhy_(n) {
     return 'שני הקטעים שייכים לשני דפים שונים, וכל אחד מבוסס על חברותא אחרת — אי אפשר לאחד אותם.';
   if (aLast.rec !== b.rec && b.si !== 0)
     return 'הקטעים אינם צמודים זה לזה בסימון — צריך לאחד אותם בסטודיו.';
+  /* קטע שהחברותא שלו בעמוד הבא (`cn`, הסטודיו): רק המשך שלו עם הקטע
+     שאחריו באותו עמוד, או קטע ממתין עם הראשון בעמוד הבא. */
+  if (A[0].st.cn) {
+    var rv = aLast.st.cont && aLast.st.cj && aLast.st.c && aLast.st.c.from == null;
+    if (!(rv && aLast.rec === b.rec) && !(A.length === 1 && b.si === 0 && aLast.rec !== b.rec))
+      return 'הביאור של הקטע הזה מגיע מהעמוד הבא — את האיחוד הזה עושים בסטודיו.';
+  }
   return '';
 }
 function mergeLegacy_() {
@@ -3457,6 +3464,14 @@ function mergeNext_() {
     var c = { from: root.c.from, to: bs.c.to,
               text: (root.c.text || '') + ' ' + (bs.c.text || ''),
               h: (root.c.h || '') + (bs.c.h || '') };
+    /* שורש `cn`: אין לו פסקאות משלו — הפסקאות הן של ההמשך (`cj`) */
+    var cnCj = null;
+    if (root.cn) {
+      c = { from: null, to: null, text: String(c.text).trim(), h: c.h };
+      cnCj = aLast.st.cont && aLast.st.cj
+        ? { from: aLast.st.cj.from, to: bs.c.to, text: c.text, h: c.h }
+        : { from: bs.c.from, to: bs.c.to, text: c.text, h: c.h };
+    }
     var also = (root.also || []).slice();
     [bs.id].concat(bs.also || []).forEach(function (a) { if (a && also.indexOf(a) < 0 && a !== root.id) also.push(a); });
     if (also.length) root.also = also;
@@ -3471,7 +3486,9 @@ function mergeNext_() {
       /* השני בעמוד הבא: הוא נשאר במקומו, ונעשה המשך של הראשון. */
       bs.cont = 1;
       delete bs.id; delete bs.also;
+      if (cnCj) bs.cj = cnCj;
     }
+    if (cnCj && aLast.rec === b.rec) aLast.st.cj = cnCj;
     A.concat(B).forEach(function (v) {
       if (v.st === bs && aLast.rec === b.rec) return;
       v.st.c = { from: c.from, to: c.to, text: c.text, h: c.h };

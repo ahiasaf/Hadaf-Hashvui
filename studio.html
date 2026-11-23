@@ -624,6 +624,8 @@ body.mark #toast{top:auto !important}
   <span class="gh" id="ghint"></span>
   <button id="contjoin" style="display:none"
           title="המשך הקטע מהעמוד הקודם — והפסקה שנבחרה בחברותא מצטרפת לביאור שלו">↩ חיבור</button>
+  <button id="waitadd" style="display:none"
+          title="קטע גמרא בלבד — החברותא שלו בראש העמוד הבא, ושם מחברים">⏳ החברותא בעמוד הבא</button>
   <button class="add" id="addstep2">הוספת הקטע</button>
 </div>
 
@@ -1977,7 +1979,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.573';
+var STUDIO_VER = '8.99.574';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -2148,9 +2150,10 @@ function lastChav() {
      של הקטע שלפני המעבר. בראש דף הוא אפילו נושא מספרי פסקאות של
      קובץ חברותא **אחר**, של הדף הקודם. לכן אינו נספר כאן. */
   for (var j = STEPS.length - 1; j >= 0; j--) {
-    if (!STEPS[j].cont) return STEPS[j].c.to;
-    /* המשך שצירף פסקאות משלו (`cj`) — הן כבר תפוסות */
-    if (STEPS[j].cj) return STEPS[j].cj.to;
+    /* המשך שצירף פסקאות משלו (`cj`) — הן כבר תפוסות. קטע שהחברותא
+       שלו בעמוד הבא (`cn`) אינו צורך כאן דבר. */
+    var oj = ownTo_(STEPS[j]);
+    if (oj != null) return oj;
   }
   /* סורקים את כל עמודי הדף שלפני העמוד הנוכחי ולוקחים את הפסקה
      הגבוהה ביותר ששובצה. סריקה ולא "העמוד הקודם בלבד": עמוד אחד
@@ -2163,8 +2166,8 @@ function lastChav() {
     if ((+k.slice(pre.length) || 1) >= pg) continue;
     var st = BOOK[k].steps || [];
     for (var i = 0; i < st.length; i++) {
-      if (!st[i].cont) best = Math.max(best, st[i].c.to);
-      else if (st[i].cj) best = Math.max(best, st[i].cj.to);
+      var oi = ownTo_(st[i]);
+      if (oi != null) best = Math.max(best, oi);
     }
   }
   return best;
@@ -2328,6 +2331,14 @@ function markDraw() {
     var li = ls[Math.min(st.g.from.line, st.g.to.line)];
     var x = li ? li.x2 : sh[0][0] + sh[0][2];        /* הקצה הימני של הטור */
     var w = Math.max(6, Math.round(S.w * 0.006));
+    /* קטע שממתין לחברותא מהעמוד הבא — כתום ומקווקו: לא גמור */
+    if (cnPend_(st, PKEY)) {
+      s += '<rect x="' + (x + w * 0.7) + '" y="' + top + '" width="' + w +
+           '" height="' + (bot - top) + '" rx="' + (w / 2) + '" fill="#FBE3C8" stroke="#D9822B"' +
+           ' stroke-width="' + Math.max(2, w / 3) + '" stroke-dasharray="' + (w * 1.2) + ' ' + (w * 0.8) +
+           '" pointer-events="none"/>';
+      return;
+    }
     s += '<rect x="' + (x + w * 0.7) + '" y="' + top + '" width="' + w +
          '" height="' + (bot - top) + '" rx="' + (w / 2) + '" fill="' +
          (k % 2 ? '#7FA6D9' : '#17468F') + '" opacity=".85" pointer-events="none"/>';
@@ -2445,6 +2456,11 @@ function stepAtPara(i) {
   var pg1 = (+selVal('pg') || 1) === 1;
   for (var k = 0; k < STEPS.length; k++) {
     var c = STEPS[k].c;
+    /* המשך שהביאור כולו ממנו (חיבור לקטע ממתין) — הפסקאות שלו ב-`cj` */
+    if (revCont_(STEPS[k])) {
+      if (i >= STEPS[k].cj.from && i <= STEPS[k].cj.to) return k;
+      continue;
+    }
     if (!c || c.from == null) continue;
     /* קטע המשך בראש דף מצביע על פסקאות בקובץ של הדף הקודם. */
     if (STEPS[k].cont && pg1) continue;
@@ -2489,6 +2505,12 @@ function inspSave() {
     prev.g.to = { line: f.i, x: f.x };
 
   st.g = { from: { line: f.i, x: f.x }, to: { line: t.i, x: t.x } };
+  /* קטע שממתין לחברותא מהעמוד הבא, ונבחרה לו פסקה כאן — נעשה רגיל.
+     מחובר כבר — הביאור שלו נשאר זה שמהעמוד הבא. */
+  if (CSEL_P && st.cn) {
+    if (!cnPend_(st, PKEY)) { CSEL_P = null; say('הביאור של הקטע הזה מגיע מהעמוד הבא — החברותא לא שונתה.', 1); }
+    else delete st.cn;
+  }
   if (CSEL_P) {
     st.c = st.c || {};
     st.c.from = Math.min(CSEL_P.a, CSEL_P.b);
@@ -2527,6 +2549,10 @@ function inspSplit() {
   var st = STEPS[INSP];
   if (st.cont) {
     say('זה קטע המשך מהעמוד הקודם — מפצלים אותו בעמוד שבו הוא מתחיל.', 1);
+    return;
+  }
+  if (st.cn) {
+    say('החברותא של הקטע הזה בעמוד הבא — אין כאן פסקאות לפצל לפיהן.', 1);
     return;
   }
   if (!CHV) { say('החברותא עוד לא נטענה — נסו שוב בעוד רגע.', 1); return; }
@@ -2844,7 +2870,8 @@ function markPanel() {
     ih.textContent = 'קטע ' + (INSP + 1) + ' · שורות ' +
       (Math.min(ist.g.from.line, ist.g.to.line) + 1) + '–' +
       (Math.max(ist.g.from.line, ist.g.to.line) + 1) +
-      (ic.from != null ? ' · פסקה ' + (ic.from + 1) +
+      (ist.cn ? ' · ' + stepParaTxt_(ist) :
+       ic.from != null ? ' · פסקה ' + (ic.from + 1) +
         (ic.to > ic.from ? '–' + (ic.to + 1) : '') : '');
   }
 
@@ -2869,7 +2896,11 @@ function markPanel() {
      שנבחרת פסקה בחברותא הוא חוזר להיות "הוספת הקטע". שני
      כפתורים זה לצד זה רק הכריחו לבחור בין שניים שרק אחד מהם
      נכון ברגע נתון. */
-  var cont = !CSEL_P && canContinue();
+  /* קטע שממתין לחברותא: בסוף העמוד הקודם (כשכאן עוד אין קטעים, או
+     שהראשון כאן עדיין קטע רגיל) */
+  var pvS = prevStep();
+  var pvWait = !!(pvS && pvS.cn && (!STEPS.length || !STEPS[0].cont) && cnPend_(pvS));
+  var cont = !CSEL_P && canContinue() && !pvWait;
   var hint = document.getElementById('ghint');
   /* רמז קצר ובשורה אחת. הכפתור הראשי אומר ממילא מה קורה, ורמז
      ארוך רק דחק אותו מהמסך.
@@ -2898,6 +2929,14 @@ function markPanel() {
   if (hint && noExp) hint.textContent =
       '⚠ ' + noExp + ' בלי ביאור שמור' +
       (hint.textContent ? ' · ' + hint.textContent : '');
+  /* קטע ממתין — לא גמור, ונאמר כך עד שמחברים אותו */
+  var wl = STEPS[STEPS.length - 1];
+  if (hint && wl && cnPend_(wl, PKEY)) hint.textContent =
+      '⏳ קטע ' + STEPS.length + ' ממתין לחברותא מהעמוד הבא' +
+      (hint.textContent && hint.textContent.indexOf('✓') !== 0 ? ' · ' + hint.textContent : '');
+  if (hint && pvWait) hint.textContent =
+      '⏳ בסוף העמוד הקודם קטע ממתין לחברותא' +
+      (STEPS.length ? ' · אפשר לחבר אליו את קטע 1' : ' · סמנו כאן גמרא + חברותא ← ↩ חיבור');
   var b2 = document.getElementById('addstep2');
   if (b2) {
     b2.textContent = cont ? '↩ המשך הקטע' : 'הוספת הקטע';
@@ -2907,7 +2946,20 @@ function markPanel() {
   /* נבחרה גם פסקה בחברותא, וזה ראש עמוד שאפשר להמשיך בו: הכפתור
      הראשי נשאר "הוספת הקטע", ולצידו החיבור לקטע הקודם. */
   var bj = document.getElementById('contjoin');
-  if (bj) bj.style.display = ready && INSP < 0 && canContinue() ? '' : 'none';
+  if (bj) {
+    /* בראש העמוד, אחרי קטע ממתין: החיבור הוא הפעולה — ומפורשת.
+       כשהקטע הראשון כאן כבר סומן — חיבור שלו, בלי בחירה חדשה. */
+    var jFirst = pvWait && STEPS.length && !GSEL && INSP < 0;
+    bj.style.display = (ready && INSP < 0 && canContinue()) || jFirst ? '' : 'none';
+    bj.dataset.first = jFirst ? '1' : '';
+    bj.textContent = jFirst ? '↩ חיבור קטע 1 לקטע הממתין'
+                   : pvWait ? '↩ חיבור לקטע הממתין' : '↩ חיבור';
+    bj.className = pvWait ? 'add' : '';
+  }
+  /* גמרא בלי חברותא: הקטע שהביאור שלו בעמוד הבא */
+  var bw = document.getElementById('waitadd');
+  if (bw) bw.style.display = GSEL && !CSEL_P && INSP < 0 && !SPL && !canContinue() &&
+    !(wl && wl.cn) ? '' : 'none';
   var b1 = document.getElementById('addstep');
   /* בזמן בחינה או פיצול הבחירה היא של קטע קיים — "הוספה" שלה
      הייתה מכפילה אותו */
@@ -2945,7 +2997,7 @@ function markPanel() {
       return '<div class="step"><span class="x" data-x="' + i + '" title="מחיקה">✕</span>' +
         '<span class="lk" data-lk="' + i + '" title="איחוד עם הקטע הבא">🔗</span>' +
         '<b>' + (i + 1) + '.</b> שורות ' + (st.g.from.line + 1) + '–' + (st.g.to.line + 1) +
-        ' · פסקה ' + (st.c.from + 1) + (st.c.to > st.c.from ? '–' + (st.c.to + 1) : '') +
+        ' · ' + stepParaTxt_(st) +
         '<span class="q">' + esc((st.c.text || '').slice(0, 55)) + '…</span></div>';
     }).join('') || '<div class="hint">עדיין אין קטעים.</div>';
     [].forEach.call(document.querySelectorAll('[data-x]'), function (b) {
@@ -3009,6 +3061,196 @@ function canContinue() {
 }
 
 /* ============================================================
+   הכיוון ההפוך: הגמרא מתחילה כאן, והחברותא שלה בעמוד הבא.
+   ============================================================
+   "הסוגיה מתחילה בסוף ז׳ ע״ב, אבל החברותא שלה נמצאת בח׳ ע״א."
+   עד עכשיו הוספה דרשה פסקה בעמוד הזה, ולכן הקטע קיבל ביאור זמני
+   או פסקה לא שלו.
+
+   המודל: הקטע שבסוף העמוד הוא השורש (מזהה, פירוש, שאלות, שקפים),
+   ומסומן `cn` — "החברותא מהעמוד הבא". הוא אינו צורך אף פסקה בקובץ
+   של העמוד שלו, ולכן `c.from`/`c.to` שלו ריקים תמיד (null).
+   · **ממתין** — `cn` בלי ביאור (`c.h` ריק). נוסף בכפתור "⏳ החברותא
+     בעמוד הבא", ומסומן על המסך כלא גמור.
+   · **מחובר** — בראש העמוד הבא קטע המשך (`cont`) שנושא את הפסקאות
+     שלו ב-`cj`, במספור הקובץ שלו. הביאור של השורש = `cj`, וההמשך
+     מעתיק ממנו כמו תמיד. החיבור נעשה רק בלחיצה ("↩ חיבור לקטע
+     הממתין") — לעולם לא מעצמו, רק מפני שחסר ביאור.
+   · **ביטול החיבור** — מחיקת ההמשך: השורש חוזר להיות ממתין.
+   לומד: SidFlat כבר מציג שורש + המשך כקטע אחד עם אותו מזהה, וכל
+   חלק מציג את `c.h` שלו — אותו ביאור בשניהם.
+   ============================================================ */
+/* העמוד שאחרי מפתח עמוד: ע״א → ע״ב, ע״ב → ע״א של הדף הבא */
+function dafItemAt_(daf, d) {
+  var it = document.getElementById('daf')._items || [];
+  for (var i = 0; i < it.length; i++)
+    if (String(it[i][0]) === String(daf)) return it[i + d] || null;
+  return null;
+}
+function pageNext_(key) {
+  var a = String(key || '').split('|');
+  if (a.length < 4) return '';
+  if ((+a[3] || 1) === 1) { a[3] = '2'; return a.join('|'); }
+  var n = dafItemAt_(a[1], 1);
+  if (!n) return '';
+  a[1] = String(n[0]); a[3] = '1';
+  return a.join('|');
+}
+/* העמוד שלפני: ע״ב → ע״א, ע״א → העמוד האחרון של הדף הקודם */
+function pagePrev_(key) {
+  var a = String(key || '').split('|');
+  if (a.length < 4) return '';
+  if ((+a[3] || 1) > 1) { a[3] = String((+a[3] || 1) - 1); return a.join('|'); }
+  var p = dafItemAt_(a[1], -1);
+  if (!p) return '';
+  var pre = [a[0], p[0], a[2]].join('|') + '|', hi = 0;
+  for (var k in BOOK) if (k.indexOf(pre) === 0 && ((BOOK[k].steps || []).length)) hi = Math.max(hi, +k.slice(pre.length) || 1);
+  return hi ? pre + hi : '';
+}
+/* כמה פסקאות קטע צורך בקובץ של העמוד שלו (עד איזו). null — אף אחת. */
+function ownTo_(st) {
+  if (!st || !st.c) return null;
+  if (st.cont) return st.cj ? st.cj.to : null;
+  if (st.cn) return null;
+  return st.c.to;
+}
+/* הקטע שבראש העמוד שאחרי — המשך שנושא פסקאות משלו, או null */
+function cnHead_(rootKey) {
+  var nk = pageNext_(rootKey), r = nk && BOOK[nk];
+  var h = r && r.steps && r.steps[0];
+  return h && h.cont && h.cj ? { k: nk, st: h } : null;
+}
+/* המשך שחובר לקטע ממתין: הפסקאות שלו (`cj`) הן כל הביאור, ולשורש
+   ולהמשך עצמו אין מספרי פסקאות (`c.from` ריק). */
+function revCont_(st) {
+  return !!(st && st.cont && st.cj && st.c && st.c.from == null);
+}
+/* פסקה שהשתנתה (תיקון טקסט, החזרה מהסתרה) — `cj` כזה נבנה מחדש,
+   ו-seal מיישר אחריו את השורש. */
+function revRebuild_(st, i) {
+  if (!revCont_(st) || i < st.cj.from || i > st.cj.to) return false;
+  var got = chavRange(st.cj.from, st.cj.to);
+  if (!got) return false;
+  st.cj = { from: st.cj.from, to: st.cj.to, text: got.text, h: got.h };
+  return true;
+}
+/* "פסקה 3–5" ברשימות. קטע שהחברותא שלו מהעמוד הבא — במילים. */
+function stepParaTxt_(st) {
+  if (st.cn) return cnPend_(st) ? '⏳ ממתין לחברותא מהעמוד הבא' : '↩ החברותא מהעמוד הבא';
+  var c = st.cont && st.cj && st.c && st.c.from == null ? st.cj : st.c;
+  if (!c || c.from == null) return 'בלי פסקה';
+  return 'פסקה ' + (c.from + 1) + (c.to > c.from ? '–' + (c.to + 1) : '');
+}
+/* קטע `cn` שעוד לא חובר לחברותא */
+function cnPend_(st, key) {
+  return !!(st && st.cn && !cnHead_(key || keyOfStep_(st)));
+}
+function cnEmpty_() { return { from: null, to: null, text: '', h: '' }; }
+function cnMark_(k) {
+  if (k && BOOK[k]) { BOOK[k].t = Date.now(); DIRTY[k] = 1; }
+}
+/* השורש והמשכו נושאים בדיוק את `cj`. פעולה שבנתה את אחד מהם מחדש
+   (פיצול, הסתרה או תיקון של פסקה) — כאן הם מתיישרים, משני הצדדים. */
+function cnSync_(root, rk, head, hk) {
+  if (!root || !root.cn || !head || !head.cont || !head.cj) return 0;
+  var n = 0, cj = head.cj;
+  if (!root.c || root.c.h !== cj.h || root.c.text !== cj.text || root.c.from != null) {
+    root.c = { from: null, to: null, text: cj.text, h: cj.h };
+    if (rk !== PKEY) cnMark_(rk);
+    n++;
+  }
+  if (!head.c || head.c.h !== cj.h || head.c.text !== cj.text || head.c.from != null) {
+    head.c = { from: null, to: null, text: cj.text, h: cj.h };
+    if (hk !== PKEY) cnMark_(hk);
+    n++;
+  }
+  return n;
+}
+/* כל הזוגות שנוגעים בדף שעל המסך — גם זה שהשורש שלו בדף הקודם,
+   וגם זה שההמשך שלו בדף הבא. */
+function cnSyncDaf_() {
+  var n = 0;
+  hiddenKeys().forEach(function (k) {
+    var st = BOOK[k].steps || [];
+    var h = st[0];
+    if (h && h.cont && h.cj) {
+      var pk = pagePrev_(k), ps = pk && BOOK[pk] && BOOK[pk].steps;
+      var r = ps && ps[ps.length - 1];
+      if (r && r.cn) n += cnSync_(r, pk, h, k);
+    }
+    var last = st[st.length - 1];
+    if (last && last.cn) {
+      var hd = cnHead_(k);
+      if (hd) n += cnSync_(last, k, hd.st, hd.k);
+    }
+  });
+  return n;
+}
+/* "⏳ החברותא בעמוד הבא" — קטע גמרא בלבד, שממתין לחיבור */
+function addWait_() {
+  if (INSP >= 0 || !GSEL) return;
+  if (CSEL_P) { say('נבחרה פסקה בחברותא — זה קטע רגיל: "הוספת הקטע".', 1); return; }
+  var i0 = Math.min(GSEL.a.i, GSEL.b.i), i1 = Math.max(GSEL.a.i, GSEL.b.i);
+  var xa = GSEL.a.i <= GSEL.b.i ? GSEL.a.x : GSEL.b.x;
+  var xb = GSEL.a.i <= GSEL.b.i ? GSEL.b.x : GSEL.a.x;
+  var last = STEPS[STEPS.length - 1];
+  if (last && last.cn) { say('הקטע האחרון בעמוד הזה כבר ממתין לחברותא מהעמוד הבא.', 1); return; }
+  if (last && pos({ line: i0, x: xa }) < pos(last.g.from) + 1e-6) {
+    say('קטע שהחברותא שלו בעמוד הבא חייב להיות האחרון בעמוד.', 1); return;
+  }
+  var nk = pageNext_(PKEY);
+  if (!nk) { say('אין עמוד אחרי העמוד הזה — אין לאן לחבר.', 1); return; }
+  var nr = BOOK[nk], n0 = nr && nr.steps && nr.steps[0];
+  if (n0 && n0.cont) {
+    say('הקטע האחרון כאן כבר ממשיך בראש העמוד הבא. כדי לסמן אחריו קטע חדש — קודם מוחקים את ההמשך שם.', 1);
+    return;
+  }
+  var step = { g: { from: { line: i0, x: +xa.toFixed(3) }, to: { line: i1, x: +xb.toFixed(3) } },
+               c: cnEmpty_(), cn: 1 };
+  STEPS.push(step);
+  seal();
+  if (step.id) NEW_IDS[step.id] = 1;
+  touched();
+  GSEL = null; CSEL_P = null;
+  paintChav(1); markDraw(); markPanel();
+  say('⏳ הקטע נוסף כממתין לחברותא. בראש העמוד הבא: מסמנים גמרא וחברותא ולוחצים "↩ חיבור לקטע הממתין". ' +
+      'נשמר במכשיר — "שמירה" מעלה לגיליון.');
+}
+/* בעמוד הבא כבר סומן קטע ראשון (רגיל) — מחברים אותו לקטע הממתין.
+   הוא נעשה המשך, והפסקאות שלו הן הביאור של שניהם. המזהה שלו נרשם
+   אצל השורש ב-`also` (כמו באיחוד), כך שמה ששויך לו נשאר ומוצג. */
+function cnJoinFirst_() {
+  var pv = prevStep(), st = STEPS[0];
+  if (!pv || !pv.cn || !st || st.cont) return;
+  if (!cnPend_(pv)) { say('הקטע בעמוד הקודם כבר מחובר.', 1); return; }
+  if (!st.c || st.c.from == null || !st.c.h) {
+    say('לקטע הראשון כאן אין ביאור שמור — אין מה לחבר.', 1); return;
+  }
+  var go = function () {
+    pv = prevStep(); st = STEPS[0];
+    if (!pv || !pv.cn || !st || st.cont || !cnPend_(pv)) { say('הקטעים השתנו בינתיים — לא חובר.', 1); return; }
+    var cj = { from: st.c.from, to: st.c.to, text: st.c.text, h: st.c.h };
+    var also = (pv.also || []).slice();
+    if (!pv.id) pv.id = SidNew(studioTaken_());
+    [st.id].concat(st.also || []).forEach(function (a) {
+      if (a && a !== pv.id && also.indexOf(a) < 0) also.push(a);
+    });
+    if (also.length) pv.also = also;
+    setRootC_(pv, { from: null, to: null, text: cj.text, h: cj.h });
+    st.cont = 1; st.cj = cj;
+    delete st.id; delete st.also;
+    seal();
+    touched();
+    paintChav(1); markDraw(); markPanel();
+    say('✓ חובר: הקטע הראשון כאן הוא המשך של הקטע הממתין, והביאור שלו הוא הביאור של שניהם. ' +
+        'נשמר במכשיר — "שמירה" מעלה לגיליון.');
+  };
+  SureThen(go, function () { say('לא חובר.'); },
+    'לחבר את הקטע הראשון בעמוד הזה לקטע שממתין בסוף העמוד הקודם?\n\n' +
+    'שניהם יוצגו כקטע אחד, עם הביאור שבעמוד הזה. מה ששויך לקטע הראשון (פירוש, שאלות, שקף) יוצג יחד עם של הקטע הממתין.');
+}
+
+/* ============================================================
    "↩ חיבור" — המשך שמביא איתו גם פסקה מהחברותא.
    ============================================================
    "החברותא מראה לי רק את העמוד שאני עומד בו. סימנתי את הקטע
@@ -3028,6 +3270,8 @@ function canContinue() {
    ============================================================ */
 function crossDaf_() { return (+selVal('pg') || 1) === 1; }
 function joinedC_(pv, cj) {
+  /* הכיוון ההפוך: לשורש אין ביאור משלו — הביאור הוא כולו `cj` */
+  if (pv.cn) return { from: null, to: null, text: cj.text, h: cj.h };
   if (!crossDaf_()) {
     var r = chavRange(pv.c.from, cj.to);
     return r ? { from: pv.c.from, to: cj.to, text: r.text, h: r.h } : null;
@@ -3037,6 +3281,7 @@ function joinedC_(pv, cj) {
            text: (pv.c.text || '') + ' ' + cj.text, h: ph + cj.h };
 }
 function joinHas_(pv, cj) {
+  if (pv.cn) return !!pv.c && pv.c.h === cj.h && pv.c.text === cj.text;
   return crossDaf_() ? String(pv.c.h || '').slice(-cj.h.length) === cj.h
                      : pv.c.to >= cj.to;
 }
@@ -3049,7 +3294,10 @@ function setRootC_(pv, c) {
 function unjoin_(st) {
   if (!st || !st.cont || !st.cj) return;
   var pv = prevStep(), cj = st.cj;
-  if (!pv || pv === st || pv.cont || !joinHas_(pv, cj)) return;
+  if (!pv || pv === st || pv.cont) return;
+  /* הכיוון ההפוך: השורש חוזר להיות ממתין */
+  if (pv.cn) { setRootC_(pv, cnEmpty_()); return; }
+  if (!joinHas_(pv, cj)) return;
   var c;
   if (crossDaf_()) {
     var t = String(pv.c.text || ''), tt = ' ' + cj.text;
@@ -3070,11 +3318,16 @@ function addStep(cont, join) {
   var prev = cont ? prevStep() : null;
   if (!GSEL || (cont ? !prev : !CSEL_P)) return;
   var cj = null, jc = null;
+  /* קטע שממתין לחברותא: המשך בלי פסקה לא נותן לו ביאור. */
+  if (cont && !join && prev.cn) {
+    say('הקטע בעמוד הקודם ממתין לחברותא מכאן — בחרו פסקה בחברותא ולחצו "↩ חיבור לקטע הממתין".', 1);
+    return;
+  }
   if (cont && join) {
     if (!CSEL_P) return;
     if (!CHV) { say('החברותא עוד לא נטענה — נסו שוב בעוד רגע.', 1); return; }
     if (prev.cont) { say('הקטע בעמוד הקודם הוא עצמו המשך — אי אפשר לצרף אליו פסקה מכאן.', 1); return; }
-    if (!crossDaf_() && CSEL_P.a <= prev.c.to) {
+    if (prev.cn ? CSEL_P.a <= USED_C : (!crossDaf_() && CSEL_P.a <= prev.c.to)) {
       say('הפסקה הזו כבר שייכת לקטע בעמוד הקודם.', 1); return;
     }
     var r = chavRange(CSEL_P.a, CSEL_P.b);
@@ -3104,13 +3357,21 @@ function addStep(cont, join) {
     var f = STEPS[i].g.from;
     if (f.line > i0 || (f.line === i0 && f.x >= xa)) { at = i; break; }
   }
+  /* אחרי קטע שהחברותא שלו בעמוד הבא אין קטע נוסף בעמוד — ההמשך
+     בעמוד הבא היה נעשה המשך של הקטע החדש. */
+  if (STEPS[at - 1] && STEPS[at - 1].cn) {
+    say('הקטע האחרון בעמוד ממתין לחברותא מהעמוד הבא — אחריו אין קטע נוסף כאן.', 1);
+    return;
+  }
   STEPS.splice(at, 0, step);
   seal();                       /* הרצף נאטם מיד, לפני כל דבר אחר */
   if (step.id) NEW_IDS[step.id] = 1;
   touched();
   GSEL = null; CSEL_P = null;
   paintChav(1); markDraw();
-  if (cj) say('✓ המשך הקטע נוסף, והפסקה צורפה לביאור שלו — גם בעמוד הקודם. ' +
+  if (cj && prev.cn) say('✓ חובר: הגמרא מכאן היא המשך של הקטע הממתין, והחברותא שנבחרה היא הביאור של שניהם. ' +
+              'נשמר במכשיר — "שמירה" מעלה לגיליון.');
+  else if (cj) say('✓ המשך הקטע נוסף, והפסקה צורפה לביאור שלו — גם בעמוד הקודם. ' +
               'נשמר במכשיר — "שמירה" מעלה לגיליון.');
 }
 /* ---------- רשימת הקטעים, בטלפון ----------
@@ -3240,8 +3501,7 @@ function showSteps() {
     var st = r.st, rk = rowKey_(st);
     html += '<div class="row">' +
       '<button class="go" data-go="' + r.i + '"><b>' + (r.i + 1) + '.</b> שורות ' +
-      (st.g.from.line + 1) + '–' + (st.g.to.line + 1) + ' · פסקה ' +
-      (st.c.from + 1) + (st.c.to > st.c.from ? '–' + (st.c.to + 1) : '') +
+      (st.g.from.line + 1) + '–' + (st.g.to.line + 1) + ' · ' + stepParaTxt_(st) +
       '<i>' + esc((st.c.text || '').slice(0, 60)) + '</i></button>' +
       '<button class="mrg" id="stm' + rk + '" data-mrg="' + r.i + '" title="איחוד עם הקטע הבא">🔗</button>' +
       '<button class="del" id="std' + rk + '" data-del="' + r.i + '" title="מחיקה">✕</button></div>';
@@ -3385,6 +3645,10 @@ function mergeStep(i) {
     say('הקטע הראשון שייך ללימוד של הדף הקודם, והשני לדף הזה — כל אחד על חברותא אחרת. אי אפשר לאחד אותם.', 1);
     return;
   }
+  if (st.cn || nx.cn) {
+    say('החברותא של הקטע האחרון בעמוד הזה בעמוד הבא — אי אפשר לאחד אותו כאן.', 1);
+    return;
+  }
   var root = st;
   if (st.cont) {
     if (pg === 1) { say('זה המשך של קטע מהדף הקודם, על החברותא של הדף ההוא — אי אפשר לאחד אותו עם קטע של הדף הזה.', 1); return; }
@@ -3401,7 +3665,8 @@ function mergeStep(i) {
     SureThen(function () {
     i = STEPS.indexOf(st);
     if (i < 0 || STEPS[i + 1] !== nx) { say('הקטעים השתנו בינתיים — לא אוחד.', 1); return; }
-    var from = root.c.from, to = nx.c.to;
+    /* שורש שהחברותא שלו מכאן (`cn`): הפסקאות הן של ההמשך (`cj`) */
+    var from = root.cn && st.cj ? st.cj.from : root.c.from, to = nx.c.to;
     var r = chavRange(from, to);
     var c = r ? { from: from, to: to, text: r.text, h: r.h }
               : { from: from, to: to, text: (root.c.text || '') + ' ' + (nx.c.text || ''),
@@ -3415,6 +3680,12 @@ function mergeStep(i) {
       if (a && a !== root.id && also.indexOf(a) < 0) also.push(a);
     });
     if (also.length) root.also = also;
+    if (root.cn && st.cj) {
+      /* ההמשך צורך עכשיו גם את הפסקאות של השני; לשורש — הביאור בלבד */
+      st.cj = cp();
+      c = { from: null, to: null, text: c.text, h: c.h };
+      st.c = cp();
+    }
     if (root !== st) {
       root.c = cp();
       var rk = keyOfStep_(root);
@@ -3452,7 +3723,8 @@ function deleteStep(i) {
   if (SPL) splitCancel(1);
   var rec = BOOK[PKEY] || {};
   if (i === STEPS.length - 1) {
-    var nr = BOOK[nextPageKey_()], n0 = nr && nr.steps && nr.steps[0];
+    /* גם כשהעמוד הבא הוא ראש הדף הבא */
+    var nr = BOOK[pageNext_(PKEY)], n0 = nr && nr.steps && nr.steps[0];
     if (n0 && n0.cont) {
       say('הקטע הזה ממשיך בראש העמוד הבא. מחקו קודם את ההמשך שם, ואז אותו.', 1);
       return;
@@ -3691,6 +3963,8 @@ function loadLocal() {
 }
 /* נקרא אחרי כל שינוי אמיתי, ורק אחריו */
 function touched() {
+  /* שורש שהחברותא שלו מהעמוד הבא והמשכו — יחד, גם אחרי פעולה על פסקה */
+  try { cnSyncDaf_(); } catch (e) {}
   DIRTY[PKEY] = 1;
   keepPageState();
   /* מתי שונה העמוד — כדי שמכשיר אחר ידע מי מהשניים חדש יותר.
@@ -4887,6 +5161,7 @@ function doFix(i, runs) {
     var hit = false;
     (BOOK[k].steps || []).forEach(function (st) {
       var c = st.c;
+      if (revRebuild_(st, i)) { hit = true; return; }
       if (!c || c.from == null || i < c.from || i > (c.to == null ? c.from : c.to)) return;
       var got = chavRange(c.from, c.to == null ? c.from : c.to);
       if (got) { c.text = got.text; c.h = got.h; hit = true; }
@@ -4984,6 +5259,7 @@ function refreshHolders_(i) {
     var hit = false;
     (BOOK[k].steps || []).forEach(function (st) {
       var c = st.c;
+      if (revRebuild_(st, i)) { hit = true; return; }
       if (st.cj || !holds_(c, i)) return;
       var got = chavRange(c.from, c.to == null ? c.from : c.to);
       if (got) { c.text = got.text; c.h = got.h; hit = true; }
@@ -5450,8 +5726,8 @@ function seal(report) {
       if ((+k0.slice(pre.length) || 1) >= pgn) continue;
       var pst = BOOK[k0].steps || [];
       for (var j0 = 0; j0 < pst.length; j0++) {
-        if (!pst[j0].cont) best = Math.max(best, pst[j0].c.to);
-        else if (pst[j0].cj) best = Math.max(best, pst[j0].cj.to);
+        var o0 = ownTo_(pst[j0]);
+        if (o0 != null) best = Math.max(best, o0);
       }
     }
     baseC = best + 1;
@@ -5468,6 +5744,9 @@ function seal(report) {
      own0 = 0, וההתנהגות זהה לקודם. */
   var own0 = (rec0.prev > 0 && STEPS[rec0.prev - 1]) ? rec0.prev : 0;
   var out = [];
+  /* עד איזו פסקה נצרך בקובץ של העמוד הזה — קטע `cn` אינו צורך דבר,
+     והקטע שאחריו (אם בכלל) ממשיך ממה שנצרך לפניו. */
+  var run = baseC - 1;
   STEPS.forEach(function (st, si) {
     if (si < own0) { out.push(st); return; }
     var prev = out[out.length - 1];
@@ -5504,6 +5783,12 @@ function seal(report) {
           fixed++;
           CONT_FIXED = true;
         }
+      } else if (st.cn) {
+        /* החברותא שלו בעמוד הבא — אין כאן פסקה לאטום */
+        if (st.c.from != null || st.c.to != null) {
+          st.c = { from: null, to: null, text: st.c.text || '', h: st.c.h || '' };
+          fixed++;
+        }
       } else if (st.c.from !== baseC) {
         st.c.from = baseC;
         if (st.c.to < st.c.from) st.c.to = st.c.from;
@@ -5525,8 +5810,13 @@ function seal(report) {
          פסקאות שנשארו יתומות בין השניים נכנסות לקטע הזה. */
       /* אחרי קטע המשך — ממשיכים מנקודת האפס של העמוד, לא ממנו:
          הפסקאות שלו שייכות לעמוד הקודם (או לקובץ של הדף הקודם). */
-      var nextC = prev.cont ? (prev.cj ? prev.cj.to + 1 : baseC) : prev.c.to + 1;
-      if (st.c.from !== nextC) {
+      var nextC = run + 1;
+      if (st.cn) {
+        if (st.c.from != null || st.c.to != null) {
+          st.c = { from: null, to: null, text: st.c.text || '', h: st.c.h || '' };
+          fixed++;
+        }
+      } else if (st.c.from !== nextC) {
         st.c.from = nextC;
         if (st.c.to < st.c.from) st.c.to = st.c.from;
         fixed++;
@@ -5534,6 +5824,8 @@ function seal(report) {
         if (got) { st.c.text = got.text; st.c.h = got.h; }
       }
     }
+    var ot = ownTo_(st);
+    if (ot != null) run = ot;
     out.push(st);
   });
 
@@ -5542,6 +5834,8 @@ function seal(report) {
   ensureIds_();
   /* `BOOK` מחזיק את אותה רשומה, ולכן היא מתעדכנת יחד. */
   if (BOOK[PKEY]) BOOK[PKEY].steps = STEPS;
+  /* שורש `cn` והמשכו — אותו ביאור משני הצדדים (ראו cnSync_) */
+  if (cnSyncDaf_()) { fixed++; CONT_FIXED = true; }
   var last = STEPS[STEPS.length - 1];
   USED_G = last ? { line: last.g.to.line, x: last.g.to.x } : null;
   USED_C = lastChav();
@@ -5661,7 +5955,10 @@ document.getElementById('addstep').onclick = function () { addStep(); };
 document.getElementById('addstep2').onclick = function () {
   addStep(this.dataset.cont === '1');
 };
-document.getElementById('contjoin').onclick = function () { addStep(true, true); };
+document.getElementById('contjoin').onclick = function () {
+  if (this.dataset.first === '1') cnJoinFirst_(); else addStep(true, true);
+};
+document.getElementById('waitadd').onclick = function () { addWait_(); };
 
 /* נקודת העצירה ("עד היכן נמשך הדף הקודם") עברה לדף האינטראקטיבי —
    "כאן נגמר השבוע", במצב עריכה. שם רואים את הקטעים ברצף, כפי
@@ -5728,6 +6025,11 @@ window.addEventListener('beforeunload', function (e) {
 document.getElementById('undo').onclick = function unStep() {
   if (!STEPS.length) return;
   var last = STEPS[STEPS.length - 1];
+  var nr0 = BOOK[pageNext_(PKEY)], h0 = nr0 && nr0.steps && nr0.steps[0];
+  if (h0 && h0.cont) {
+    say('הקטע האחרון ממשיך בראש העמוד הבא. מבטלים קודם את ההמשך שם.', 1);
+    return;
+  }
   /* ביטול של מה שסומן עכשיו — כמו תמיד. קטע שכבר נשמר נושא אולי
      פירוש, הקלטות ושאלות, והמחיקה שלו תנתק אותם: שואלים. */
   if (last.id && !NEW_IDS[last.id] && !SureLater(unStep, this, arguments, null,
