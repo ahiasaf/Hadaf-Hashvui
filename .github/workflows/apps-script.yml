@@ -285,6 +285,11 @@ jobs:
             curl -sL -m 60 -o ast.txt "$U?raffle=autost&key=$READ_KEY&fill=1&t=$(date +%s)" || true
             echo "הגרלות אוטומטיות: $(head -c 400 ast.txt)"
           fi
+          # צמאה (SCRIPT_VERSION 261): תווית "הדף השבועי" — מספרים בלבד, בלי שמות.
+          if [ -n "${READ_KEY:-}" ]; then
+            curl -sL -m 120 -o tzb.txt "$U?tzm=bdn&key=$READ_KEY&t=$(date +%s)" || true
+            echo "צמאה — תווית: $(head -c 600 tzb.txt)"
+          fi
           C=$(ask "raffle=autost"); echo "autost בלי סיסמה → $(head -c 80 out.txt)"
           grep -q '"status":"denied"' out.txt || { echo "::error::autost בלי סיסמה לא נדחה"; FAIL=1; }
           # המאגר הציבורי (8.99.465): רשימה בלי זיהוי, וכתיבה בלי סיסמה נדחית.

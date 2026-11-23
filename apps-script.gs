@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 260;
+var SCRIPT_VERSION = 261;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -20530,6 +20530,54 @@ function tzmPut_(d) {
     return { status: 'error' };
   } finally { lock.releaseLock(); }
 }
+/* ============================================================
+   תווית "הדף השבועי" בעמוד צמאה (SCRIPT_VERSION 261, אחיאסף 23.11).
+   תלמיד של לפיד שיש לו סימון מסוג "דף" בעמדת הלימוד ב-3 שבועות שונים
+   לפחות (עמודת `שבוע`, כל השורות מתחילת המסלול). שבוע — פעם אחת גם עם
+   כמה סימונים. "שיעור" — לא; לימוד באפליקציה — לא. אותו מפתח כמו בשיוך
+   הנוכחות (amdaSync_): ישיבה · שכבה · כיתה · שם מנורמל (amdaNorm_).
+   תצוגה בלבד — לא כותב דבר. מחזיר { 'שכבה|כיתה|שם': [שבועות] }.
+   ============================================================ */
+var TZM_BD_MIN_ = 3;
+function tzmBdKey_(g, c, n) { return chnGr_(g) + '|' + clsK_(c) + '|' + amdaNorm_(n); }
+function tzmWeeks_() {
+  var at = amdaTable_(AMDA_TAB_), m = {}, nowk = 0;
+  for (var r = 1; r < at.rows.length; r++) {
+    var x = at.rows[r];
+    if (at.c(x, 'סוג') !== 'דף' || at.c(x, 'קוד ישיבה') !== TZM_INST_) continue;
+    var w = at.c(x, 'שבוע'), n = at.c(x, 'שם');
+    if (!n) continue;
+    if (!w) { nowk++; continue; }
+    var k = tzmBdKey_(at.c(x, 'שכבה'), at.c(x, 'כיתה'), n);
+    (m[k] = m[k] || {})[w] = 1;
+  }
+  var out = {};
+  for (var k2 in m) out[k2] = Object.keys(m[k2]);
+  return { m: out, nowk: nowk };
+}
+function tzmBadge_() {
+  var W = tzmWeeks_().m, out = [];
+  for (var k in W) if (W[k].length >= TZM_BD_MIN_) out.push(k);
+  return out;
+}
+/* בדיקה בלבד — מספרים, בלי שמות. ?tzm=bdn&key= */
+function tzmBdStat_() {
+  var T = tzmWeeks_(), W = T.m, cur = String(progWeek_()), R = tzmRoster_(), inR = {};
+  for (var rk in R) R[rk].forEach(function (n) { inR[rk + '|' + amdaNorm_(n)] = 1; });
+  var o = { wk: cur, nowk: T.nowk, ex45: {}, all: {}, noCur: {}, curOnly: 0, notInRoster: 0, dist: {} };
+  for (var k in W) {
+    var p = k.split('|'), g = p[0], c = p[1], n = W[k].length;
+    o.dist[n] = (o.dist[n] || 0) + 1;
+    if (n < TZM_BD_MIN_) continue;
+    o.all[g] = (o.all[g] || 0) + 1;
+    if (!inR[k]) o.notInRoster++;
+    if (c === '4' || c === '5') continue;
+    o.ex45[g] = (o.ex45[g] || 0) + 1;
+    var nc = W[k].filter(function (w) { return w !== cur; }).length;
+    if (nc >= TZM_BD_MIN_) o.noCur[g] = (o.noCur[g] || 0) + 1; else o.curOnly++;
+  }
+  return o;
+}
 function tzmRoute_(P) {
   var op = String(P.tzm || '');
   if (op === 'cls') {
@@ -20539,5 +20587,6 @@ function tzmRoute_(P) {
   }
   if (!READ_KEY || String(P.key || '') !== READ_KEY) return { status: 'denied' };
   if (op === 'adm') return { status: 'ok', k: tzmKeyOf_(true), reg: tzmReg_() };
+  if (op === 'bdn') return { status: 'ok', s: tzmBdStat_() };
   return { status: 'error' };
 }
