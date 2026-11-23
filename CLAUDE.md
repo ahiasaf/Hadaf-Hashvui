@@ -2190,3 +2190,12 @@ node scratchpad/smoke.js     # כל המסכים, שתי רזולוציות
 * **מתג אחד — כבוי עד שאחיאסף מדליק** (SCRIPT_VERSION 263): ניהול ← עוד ← אירוע צמאה (`TZM_INV` = '1', `?tzm=inv`). **ההתראה:** `?tzm=push&key=&go=1` — פעם אחת לכל
   קהל (`TZM_PUSHED`), מופעלת מ-`.github/workflows/tzama-push.yml` (ידני). בלי go — מניין.
 * בדיקה: `node tools/tzmtest/badge.js` (21) · `NODE_PATH=$(npm root -g) node tools/tzmtest/inv.js` (7).
+
+## השלמת דף ישן נספרת ונשמרת (8.99.579)
+
+* **דף של שבוע שעבר מתנהג כמו דף השבוע** (learn.html): `posWeek()` מחזיר את `S.week` לכל דף בלוח עד השבוע
+  הנוכחי — שמירת מקום, ציוני דרך, שורת התקדמות ביציאה, סימון שקט ב-80%, ו-markThisDaf בסוף. כל השורות יוצאות עם
+  השבוע והדף **של הדף עצמו** (LDoneRow/LPosSend כבר מקבלים `wk`). דף של שבוע שעוד לא הגיע — לא.
+* **לא זז:** "עם מי למדת" (PAIR_UI.line) ו"קפיצה למקום" (spotJump) — רק בדף השבוע (`isWeekDaf()`). השרת לא שונה.
+* בדיקה: `node tools/learntest/olddaf.js` (31) — learn.html האמיתי, לחיצות "הבא" עד הסוף, מול apps-script.gs ב-vm;
+  סימוני הדף מדומים (docs.google חסום).
