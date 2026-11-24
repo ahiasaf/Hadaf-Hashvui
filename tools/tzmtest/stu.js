@@ -127,6 +127,19 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     ok(G(W, { tzm: 'sst', s: adm.sk, g: 'ז', c: '3', n: 'גימל דלת', tk: 'zzz' }).status === 'denied', 'status needs the token');
     ok(G(W, { tzm: 'sst', s: 'bad', g: 'ז', c: '3', n: 'גימל דלת' }).status === 'denied', 'status needs the student key');
     ok(G(W, { tzm: 'sst', s: adm.sk, g: 'ז', c: '4', n: 'אין כזה' }).st === 'off', 'unknown → off');
+    // הרב כבר רשם — תלמיד בטלפון אחר לוחץ על השם: "הרב שלך כבר אישר", וביטול מנקה רק את הטלפון.
+    var reg0 = G(W, { tzm: 'adm', key: 'k' }).reg.map(function (x) { return x.join('|'); }).sort().join(';');
+    var p3 = await page(b, port, W, '/tzama?s=' + adm.sk);
+    await p3.waitForSelector('#grs [data-g="ז"]');
+    await p3.click('#grs [data-g="ז"]'); await p3.click('#clsBox [data-c="3"]');
+    await p3.click('#stuBox [data-n="אלף בית"]');
+    await p3.waitForFunction(function () { var e = document.querySelector('.sok'); return e && /כבר אישר/.test(e.textContent); }, null, { timeout: 20000 });
+    ok(true, 'already approved message');
+    if (SHOT) await p3.screenshot({ path: SHOT + '/stu-pre.png' });
+    await p3.click('#schg'); await p3.waitForTimeout(5500);
+    await p3.waitForSelector('#grs [data-g="ז"]', { timeout: 20000 });
+    var reg1 = G(W, { tzm: 'adm', key: 'k' }).reg.map(function (x) { return x.join('|'); }).sort().join(';');
+    ok(reg0 === reg1, 'cancel on this phone does not touch the rav registration', [reg0, reg1]);
   } catch (e) { fails++; console.log('ERR', e && e.stack); }
   await b.close(); s.close();
   console.log((n - fails) + '/' + n + ' passed');

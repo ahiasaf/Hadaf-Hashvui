@@ -345,7 +345,10 @@ function paintMe() {
     /* "שינוי" (8.99.584) — מבטל את הבקשה מהטלפון הזה ("ביטול · 4"), ואפשר לבחור מחדש. */
     /* מצב הבקשה מהגיליון (8.99.585): מחכה לאישור · נרשם · לא אושרה. בלי תשובה — רק "נשלחה", כמו קודם. */
     if (S.st === undefined) { S.st = ''; stMe(); }
-    var st = S.st, top = st === 'reg' && UI.tzmStReg ? tp(UI.tzmStReg, { n: S.sent }) : tp(UI.tzmStOk, { n: S.sent });
+    /* 8.99.591: לחץ על שם שהרב כבר סימן — "הרב שלך כבר אישר" (MINE.pre). */
+    var pre = MINE && MINE.pre && UI.tzmStRegNow;
+    var st = S.st, top = st === 'reg' && pre ? tp(UI.tzmStRegNow, { n: S.sent }) :
+      st === 'reg' && UI.tzmStReg ? tp(UI.tzmStReg, { n: S.sent }) : tp(UI.tzmStOk, { n: S.sent });
     var sub = st === 'pend' ? UI.tzmStPend : st === 'off' ? UI.tzmStNo : '';
     var back = st === 'pend' ? UI.tzmStBack : '';
     $('stuBox').innerHTML = '<div class="sok">' + esc(top) +
@@ -394,8 +397,15 @@ function stMe() {
 function undoMe() {
   if (S.busy || !S.sent) return;
   if (!SureLater(undoMe, this, arguments)) return;
-  S.busy = true; S.err = 0; paintMe();
   var m = MINE || {};
+  /* הרב רשם אותו — מהטלפון לא נשלחה בקשה, ולכן אין מה לבטל בשרת: רק מנקים את הטלפון. */
+  if (m.pre && !m.tk) {
+    try { localStorage.removeItem(MINE_K); } catch (e) {}
+    MINE = null; S.sent = ''; S.st = undefined; S.me = ''; S.err = 0;
+    $('grs').parentNode.hidden = false;
+    return paint();
+  }
+  S.busy = true; S.err = 0; paintMe();
   get('tzm=scan&s=' + encodeURIComponent(SKEY) + '&g=' + encodeURIComponent(m.g || S.g) + '&c=' + encodeURIComponent(m.c || S.c) +
       '&n=' + encodeURIComponent(m.n || S.sent) + '&tk=' + encodeURIComponent(m.tk || ''))
     .then(function (d) {
@@ -420,7 +430,8 @@ function sendMe(n, again) {
     .then(function (d) {
       if (d && d.status === 'ok') {
         S.busy = false;
-        S.sent = n; S.st = 'pend'; MINE = { n: n, g: S.g, c: S.c, tk: d.tk || '' };
+        var y = d.st === 'y';
+        S.sent = n; S.st = y ? 'reg' : 'pend'; MINE = { n: n, g: S.g, c: S.c, tk: d.tk || '', pre: y && !d.tk ? 1 : 0 };
         lset(MINE_K, JSON.stringify(MINE));
         S.me = '';
         $('grs').parentNode.hidden = true;
