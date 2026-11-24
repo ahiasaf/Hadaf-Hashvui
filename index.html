@@ -3184,7 +3184,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.581';
+var APP_VERSION = '8.99.582';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -18194,6 +18194,16 @@ function tzmLoad() {
     tzmPaint();
   }, function () { TZM.busy = false; TZM.msg = UI.tzmAdmFail; tzmPaint(); });
 }
+function tzmSOkGo(g, c) {
+  if (!SureLater(tzmSOkGo, this, arguments)) return;
+  var k = (CFG.readKey || '').trim();
+  if (!k) return;
+  scriptGet({ tzm: 'sok', key: k, g: g, c: c }).then(function (d) {
+    if (d && d.status === 'ok' && TZM.d) { TZM.d.pq = d.pq || []; TZM.d.rq = d.rq || []; TZM.msg = ''; }
+    else TZM.msg = UI.tzmAdmFail;
+    tzmPaint();
+  }, function () { TZM.msg = UI.tzmAdmFail; tzmPaint(); });
+}
 function tzmInvSet(on) {
   if (!SureLater(tzmInvSet, this, arguments)) return;
   var k = (CFG.readKey || '').trim();
@@ -18244,6 +18254,23 @@ function tzmPaint() {
   h += '<p class="h"><b>' + esc(UI.tzmAdmLink) + '</b></p><div style="margin-bottom:14px">' +
     '<input readonly dir="ltr" style="display:block;width:100%;box-sizing:border-box;padding:8px;margin-bottom:6px;border:1px solid #ddd;border-radius:8px" value="' + esc(url) + '" onfocus="this.select()">' +
     '<button class="btn g" type="button" onclick="copyText(\'' + esc(url) + '\', UI.tzmAdmCopied)">' + esc(UI.tzmAdmCopy) + '</button></div>';
+  /* קישור התלמידים ובקשותיהם — האישור לפי כיתה, ורק אז הן מגיעות לר"מים (8.99.582). */
+  var surl = location.origin + '/tzama?s=' + encodeURIComponent(d.sk || '');
+  h += '<p class="h"><b>' + esc(UI.tzmAdmSLink) + '</b></p><div style="margin-bottom:14px">' +
+    '<input readonly dir="ltr" style="display:block;width:100%;box-sizing:border-box;padding:8px;margin-bottom:6px;border:1px solid #ddd;border-radius:8px" value="' + esc(surl) + '" onfocus="this.select()">' +
+    '<button class="btn g" type="button" onclick="copyText(\'' + esc(surl) + '\', UI.tzmAdmCopied)">' + esc(UI.tzmAdmCopy) + '</button></div>';
+  var pq = d.pq || [], pg = {}, pk = [];
+  pq.forEach(function (x) { var k = x[0] + '|' + x[1]; if (!pg[k]) { pg[k] = []; pk.push(k); } pg[k].push(x[2]); });
+  var GO = ['ז', 'ח', 'ט', 'י', 'יא', 'יב'];
+  pk.sort(function (a, b) { var p = a.split('|'), q = b.split('|'); return (GO.indexOf(p[0]) - GO.indexOf(q[0])) || ((+p[1] || 99) - (+q[1] || 99)); });
+  h += '<div style="margin-bottom:14px;padding:12px;border-radius:14px;background:' + (pq.length ? '#FFF4E0' : '#F4F4F4') + '">' +
+    '<p class="h" style="margin:0 0 6px"><b>' + esc(pq.length ? fill(UI.tzmAdmPq, { n: pq.length }) : UI.tzmAdmPqNone) + '</b></p>' +
+    pk.map(function (k) {
+      var p = k.split('|');
+      return '<div class="prow2"><div style="flex:1"><b>' + esc(tzmCls(p[0], p[1])) + '</b>' +
+        pg[k].map(function (n) { return '<span>' + esc(n) + '</span>'; }).join('') + '</div>' +
+        '<button class="btn" type="button" onclick="tzmSOkGo(\'' + esc(p[0]) + '\',\'' + esc(p[1]) + '\')">' + esc(fill(UI.tzmAdmPqGo, { n: pg[k].length })) + '</button></div>';
+    }).join('') + '</div>';
   /* ההזמנה לבעלי התווית — מתג אחד (8.99.578). */
   h += '<p class="h"><b>' + esc(UI.tzmAdmInv) + '</b></p><div style="margin-bottom:14px">' +
     '<button class="btn' + (d.on ? '' : ' g') + '" type="button" id="tzm-inv" onclick="tzmInvSet(' + (d.on ? 0 : 1) + ')">' +

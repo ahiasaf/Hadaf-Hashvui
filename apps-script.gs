@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 265;
+var SCRIPT_VERSION = 266;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -20779,8 +20779,80 @@ function tzmBdStat_() {
   o.sample = sample;
   return o;
 }
+/* ============================================================
+   קישור לתלמידים (8.99.582 · SCRIPT_VERSION 266, אחיאסף 24.11).
+   ============================================================
+   התלמיד פותח tzama?s=<מפתח תלמידים> (TZM_SKEY, נפרד ממפתח הרכזים), בוחר שכבה וכיתה ולוחץ
+   על השם שלו (או כותב אותו). הבקשה נשמרת במצב "בקשה ממתינה" — **רק אחיאסף רואה אותה** (?tzm=adm, pq).
+   אחיאסף מאשר **לפי כיתה** (?tzm=sok&g=&c=) → "בקשה", ורק אז היא מופיעה לר"מים בעמוד הצמאה
+   (tzmRq_, "ביקש להירשם") והר"ם מאשר בסימון (tzmPut_ → "רשום"). שורה קיימת במצב בקשה/רשום — לא זזה.
+   ============================================================ */
+var TZM_PEND_ = 'בקשה ממתינה';
+function tzmSKeyOf_(make) {
+  var P = PropertiesService.getScriptProperties(), k = P.getProperty('TZM_SKEY') || '';
+  if (!k && make) { k = Utilities.getUuid().replace(/-/g, '').slice(0, 20); P.setProperty('TZM_SKEY', k); }
+  return k;
+}
+function tzmSOk_(P) { var k = tzmSKeyOf_(false); return !!k && String(P.s || '') === k; }
+/* בקשות שממתינות לאחיאסף: [שכבה, כיתה, שם]. */
+function tzmPq_() {
+  var out = [];
+  tzmRows_(tzmSheet_()).forEach(function (o) { if (o['מצב'] === TZM_PEND_) out.push([o['שכבה'], o['כיתה'], o['שם']]); });
+  return out;
+}
+/* ?tzm=sreq&s=&g=&c=&n= — בקשת תלמיד מהקישור. מחזיר את המצב שנקרא אחרי הכתיבה. */
+function tzmSReq_(P) {
+  var g = chnGr_(P.g), c = clsK_(P.c), n = tzmNm_(String(P.n || '').replace(/[|]/g, ' '));
+  if (TZM_GR_.indexOf(g) < 0 || !c || c.length > 4 || !n) return { status: 'error' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(15000)) return { status: 'busy' };
+  try {
+    var sh = tzmSheet_(), key = g + '|' + c + '|' + n, row = null, now = chnNow_();
+    tzmRows_(sh).forEach(function (o) { if (o['מפתח'] === key) row = o; });
+    if (row && row['מצב'] !== 'בוטל') return { status: 'ok', st: row['מצב'] === 'רשום' ? 'y' : 'q' };
+    var R = tzmRoster_(), man = (R[g + '|' + c] || []).indexOf(n) < 0;
+    if (row) {
+      sh.getRange(row.r, TZM_COLS_.indexOf('מצב') + 1).setValue(TZM_PEND_);
+      sh.getRange(row.r, TZM_COLS_.indexOf('נרשם ע"י') + 1).setValue('קישור תלמידים');
+      sh.getRange(row.r, TZM_COLS_.indexOf('עודכן') + 1).setValue(now);
+    } else {
+      var rg = sh.getRange(Math.max(sh.getLastRow(), 1) + 1, 1, 1, TZM_COLS_.length);
+      rg.setNumberFormat('@');
+      rg.setValues([[key, TZM_PEND_, TZM_INST_, g, c, n, man ? 'כן' : '', 'קישור תלמידים', now, now]]);
+    }
+    SpreadsheetApp.flush();
+    var st = '';
+    tzmRows_(sh).forEach(function (o) { if (o['מפתח'] === key) st = o['מצב']; });
+    return st === TZM_PEND_ || st === 'בקשה' || st === 'רשום' ? { status: 'ok', st: st === 'רשום' ? 'y' : 'q' } : { status: 'error' };
+  } catch (e) {
+    return { status: 'error' };
+  } finally { lock.releaseLock(); }
+}
+/* ?tzm=sok&key=&g=&c= — אחיאסף מאשר את כל הבקשות הממתינות של כיתה → הן עוברות לר"מים. */
+function tzmSApprove_(P) {
+  var g = chnGr_(P.g), c = clsK_(P.c);
+  if (TZM_GR_.indexOf(g) < 0 || !c) return { status: 'error' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(15000)) return { status: 'busy' };
+  try {
+    var sh = tzmSheet_(), stC = TZM_COLS_.indexOf('מצב') + 1, upC = TZM_COLS_.indexOf('עודכן') + 1, now = chnNow_(), n = 0;
+    tzmRows_(sh).forEach(function (o) {
+      if (o['מצב'] !== TZM_PEND_ || chnGr_(o['שכבה']) !== g || clsK_(o['כיתה']) !== c) return;
+      sh.getRange(o.r, stC).setValue('בקשה');
+      sh.getRange(o.r, upC).setValue(now);
+      n++;
+    });
+    SpreadsheetApp.flush();
+    var left = tzmPq_().filter(function (x) { return chnGr_(x[0]) === g && clsK_(x[1]) === c; }).length;
+    return left ? { status: 'error' } : { status: 'ok', n: n, pq: tzmPq_(), rq: tzmRq_() };
+  } catch (e) {
+    return { status: 'error' };
+  } finally { lock.releaseLock(); }
+}
 function tzmRoute_(P) {
   var op = String(P.tzm || '');
+  if (op === 'scls') return tzmSOk_(P) ? { status: 'ok', cls: tzmRoster_() } : { status: 'denied' };
+  if (op === 'sreq') return tzmSOk_(P) ? tzmSReq_(P) : { status: 'denied' };
   if (op === 'cls') {
     var k = tzmKeyOf_(false);
     if (!k || String(P.k || '') !== k) return { status: 'denied' };
@@ -20789,7 +20861,8 @@ function tzmRoute_(P) {
   if (op === 'me') return tzmMe_(P.id);
   if (op === 'req') return tzmReq_(P.id);
   if (!READ_KEY || String(P.key || '') !== READ_KEY) return { status: 'denied' };
-  if (op === 'adm') return { status: 'ok', k: tzmKeyOf_(true), reg: tzmReg_(), rq: tzmRq_(), on: tzmOn_() };
+  if (op === 'adm') return { status: 'ok', k: tzmKeyOf_(true), sk: tzmSKeyOf_(true), reg: tzmReg_(), rq: tzmRq_(), pq: tzmPq_(), on: tzmOn_() };
+  if (op === 'sok') return tzmSApprove_(P);
   if (op === 'bdn') return { status: 'ok', s: tzmBdStat_() };
   if (op === 'inv') {
     PropertiesService.getScriptProperties().setProperty('TZM_INV', String(P.on) === '1' ? '1' : '0');

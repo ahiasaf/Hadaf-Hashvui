@@ -84,6 +84,11 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 .bar .s{text-align:center;font-weight:800;font-size:.92rem;margin-top:6px}
 .bar .s.bad{color:var(--stop)}
 .bar .s.ok{color:var(--green-d)}
+.info{display:block;width:100%;height:auto;border-radius:18px;margin-bottom:14px}
+.row.me{background:var(--green-l);outline:2px solid var(--green-d)}
+.sgo{display:block;width:100%;margin-top:12px;border:0;border-radius:14px;background:var(--green-d);color:#fff;font:inherit;font-weight:900;font-size:1.05rem;padding:13px;cursor:pointer}
+.sgo[disabled]{opacity:.7}
+.sok{text-align:center;font-weight:900;font-size:1.1rem;color:var(--green-d);padding:18px 8px}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -92,6 +97,8 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 <header class="poster"><img src="tzama-logo.jpg" alt="" width="600" height="656"></header>
 <main class="wrap">
   <div class="hero"><div><h2 id="ttl"></h2><p id="sub"></p></div></div>
+  <!-- קישור התלמידים (8.99.582): פרטי האירוע — התמונה שאחיאסף שלח. -->
+  <img class="info" id="info" src="tzama-info.jpg" alt="" width="880" height="3344" hidden>
   <div class="msg" id="msg" hidden></div>
   <div class="st" id="lerr" hidden><p id="lerrT"></p><button class="btn g" id="lre" type="button"></button></div>
   <div id="f" hidden>
@@ -155,6 +162,15 @@ $('byGo').onclick = byGo;
 $('by').onkeydown = function (ev) { if (ev.keyCode === 13) { ev.preventDefault(); byGo(); } };
 
 var KEY = (location.search.match(/[?&]k=([0-9a-zA-Z]+)/) || [])[1] || '';
+/* קישור התלמידים (?s=): בלי שם בהתחלה — שכבה, כיתה, לחיצה על השם, "להרשמה". הבקשה מגיעה קודם לאחיאסף. */
+var SKEY = KEY ? '' : ((location.search.match(/[?&]s=([0-9a-zA-Z]+)/) || [])[1] || '');
+var STU = !!SKEY;
+if (STU) {
+  $('sub').textContent = UI.tzmStSub;
+  $('info').hidden = false;
+  $('byCard').hidden = true; $('main2').hidden = false;
+  $('addN').placeholder = UI.tzmStAddPh;
+}
 var GRADES = ['ז', 'ח', 'ט', 'י', 'יא', 'יב'];
 /* הכיתות של לפיד (מספרים בלבד) — מופיעות גם כשאין להן רשימת תלמידים. */
 var KNOWN = { 'ז': 7, 'ח': 8, 'ט': 6, 'י': 7, 'יא': 6 };
@@ -200,14 +216,14 @@ function take2(d) {
   S.BD = b; S.RQ = q;
 }
 function fetchCls() {
-  return get('tzm=cls&k=' + encodeURIComponent(KEY)).then(function (d) {
+  return get(STU ? 'tzm=scls&s=' + encodeURIComponent(SKEY) : 'tzm=cls&k=' + encodeURIComponent(KEY)).then(function (d) {
     if (d && d.status === 'denied') throw new Error('denied');
     if (!d || d.status !== 'ok') throw new Error('bad');
     return d;
   });
 }
 function load() {
-  if (!KEY) return say(UI.tzmDenied);
+  if (!KEY && !SKEY) return say(UI.tzmDenied);
   say(UI.tzmLoad);
   fetchCls().then(function (d) { take2(d); show('f'); paint(); }, function (e) {
     if (e && e.message === 'denied') return say(UI.tzmDenied);
@@ -252,7 +268,7 @@ function paint() {
     return '<button type="button" data-g="' + g + '"' + (S.g === g ? ' class="on"' : '') + '>' + grD(g) + '</button>';
   }).join('');
   Array.prototype.forEach.call($('grs').querySelectorAll('[data-g]'), function (el) {
-    el.onclick = function () { var g = this.getAttribute('data-g'); if (S.g !== g) { S.g = g; S.c = ''; } paint(); };
+    el.onclick = function () { var g = this.getAttribute('data-g'); if (S.g !== g) { S.g = g; S.c = ''; S.me = ''; } paint(); };
   });
   $('clsStep').hidden = !S.g;
   var L = S.g ? clsOf(S.g) : [], h = '';
@@ -268,7 +284,7 @@ function paint() {
   }
   $('clsBox').innerHTML = h;
   Array.prototype.forEach.call($('clsBox').querySelectorAll('[data-c]'), function (el) {
-    el.onclick = function () { S.c = this.getAttribute('data-c'); paint(); $('stuCard').scrollIntoView({ block: 'start', behavior: 'smooth' }); };
+    el.onclick = function () { if (S.c !== this.getAttribute('data-c')) S.me = ''; S.c = this.getAttribute('data-c'); paint(); $('stuCard').scrollIntoView({ block: 'start', behavior: 'smooth' }); };
   });
   if ($('cnGo')) $('cnGo').onclick = function () {
     var c = String($('cn').value || '').replace(/\D/g, '');
@@ -280,6 +296,7 @@ function paint() {
 function paintStu() {
   $('stuCard').hidden = !(S.g && S.c);
   if (!S.g || !S.c) { paintBar(); return; }
+  if (STU) return paintMe();
   $('clsH').textContent = tp(UI.tzmCls, { cls: clsD(S.g, S.c) });
   var g = S.g, c = S.c, L = namesOf(g, c);
   var h = (S.R[g + '|' + c] || []).length ? '' : '<p class="note">' + esc(UI.tzmNoList) + '</p>';
@@ -303,9 +320,45 @@ function paintStu() {
   });
   paintBar();
 }
+/* ---- קישור התלמידים: בחירת השם ובקשה אחת ---- */
+function paintMe() {
+  var g = S.g, c = S.c, L = (S.R[g + '|' + c] || []).slice();
+  $('clsH').textContent = tp(UI.tzmCls, { cls: clsD(g, c) });
+  if (S.sent) {
+    $('stuBox').innerHTML = '<div class="sok">' + esc(tp(UI.tzmStOk, { n: S.sent })) + '</div>';
+    $('stuCard').querySelector('.add').hidden = true;
+    return;
+  }
+  $('stuCard').querySelector('.add').hidden = false;
+  if (S.me && L.indexOf(S.me) < 0) L.push(S.me);
+  var h = '<p class="note">' + esc(UI.tzmStPick) + '</p>';
+  if (L.length) h += '<div class="list">' + L.map(function (n) {
+    return '<div class="row' + (S.me === n ? ' me' : '') + '" data-n="' + esc(n) + '"><span class="t"><b>' + esc(n) + '</b></span></div>';
+  }).join('') + '</div>';
+  if (S.me) h += '<button class="sgo" type="button" id="sgo"' + (S.busy ? ' disabled' : '') + '>' +
+    esc(S.busy ? UI.tzmSaving : tp(UI.tzmStGo, { n: S.me })) + '</button>' +
+    (S.err ? '<p class="note" style="color:var(--stop);margin-top:8px">' + esc(UI.tzmInvErr) + '</p>' : '');
+  $('stuBox').innerHTML = h;
+  Array.prototype.forEach.call($('stuBox').querySelectorAll('[data-n]'), function (el) {
+    el.onclick = function () { if (S.busy) return; S.me = this.getAttribute('data-n'); S.err = 0; paintMe(); };
+  });
+  if ($('sgo')) $('sgo').onclick = sendMe;
+}
+function sendMe() {
+  if (S.busy || !S.me) return;
+  S.busy = true; S.err = 0; paintMe();
+  var n = S.me;
+  get('tzm=sreq&s=' + encodeURIComponent(SKEY) + '&g=' + encodeURIComponent(S.g) + '&c=' + encodeURIComponent(S.c) + '&n=' + encodeURIComponent(n))
+    .then(function (d) {
+      S.busy = false;
+      if (d && d.status === 'ok') S.sent = n; else S.err = 1;
+      paintMe();
+    }, function () { S.busy = false; S.err = 1; paintMe(); });
+}
 function addName() {
   var n = String($('addN').value || '').replace(/[|]/g, ' ').replace(/\s+/g, ' ').trim();
   if (!n || !S.g || !S.c) return;
+  if (STU) { S.me = n; S.err = 0; $('addN').value = ''; paintMe(); return; }
   var k = S.g + '|' + S.c + '|' + n;
   if (!S.REG[k]) S.P[k] = { g: S.g, c: S.c, n: n, on: true };
   else delete S.P[k];
