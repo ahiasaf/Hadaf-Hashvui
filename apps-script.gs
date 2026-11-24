@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 267;
+var SCRIPT_VERSION = 268;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -20861,6 +20861,22 @@ function tzmSCancel_(P) {
     return { status: 'error' };
   } finally { lock.releaseLock(); }
 }
+/* ?tzm=sst&s=&g=&c=&n=&tk= — מצב הבקשה של הטלפון הזה (8.99.585): pend · reg · off. קריאה בלבד. */
+function tzmSStat_(P) {
+  var g = chnGr_(P.g), c = clsK_(P.c), n = tzmNm_(String(P.n || '').replace(/[|]/g, ' ')), t = String(P.tk || '');
+  if (TZM_GR_.indexOf(g) < 0 || !c || !n) return { status: 'error' };
+  try {
+    var sh = tzmSheet_(), key = g + '|' + c + '|' + n, row = null;
+    tzmRows_(sh).forEach(function (o) { if (o['מפתח'] === key) row = o; });
+    if (!row) return { status: 'ok', st: 'off' };
+    var have = tzmTkOf_(sh, row.r);
+    if (have && have !== t) return { status: 'denied' };
+    var m = row['מצב'];
+    return { status: 'ok', st: m === 'רשום' ? 'reg' : (m === 'בקשה' || m === TZM_PEND_) ? 'pend' : 'off' };
+  } catch (e) {
+    return { status: 'error' };
+  }
+}
 /* ?tzm=sok&key=&g=&c= — אחיאסף מאשר את כל הבקשות הממתינות של כיתה → הן עוברות לר"מים. */
 function tzmSApprove_(P) {
   var g = chnGr_(P.g), c = clsK_(P.c);
@@ -20887,6 +20903,7 @@ function tzmRoute_(P) {
   if (op === 'scls') return tzmSOk_(P) ? { status: 'ok', cls: tzmRoster_() } : { status: 'denied' };
   if (op === 'sreq') return tzmSOk_(P) ? tzmSReq_(P) : { status: 'denied' };
   if (op === 'scan') return tzmSOk_(P) ? tzmSCancel_(P) : { status: 'denied' };
+  if (op === 'sst') return tzmSOk_(P) ? tzmSStat_(P) : { status: 'denied' };
   if (op === 'cls') {
     var k = tzmKeyOf_(false);
     if (!k || String(P.k || '') !== k) return { status: 'denied' };

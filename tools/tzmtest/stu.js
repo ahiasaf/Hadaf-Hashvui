@@ -92,6 +92,7 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     await p.click('#stuBox [data-n="גימל דלת"]'); await p.click('#sgo');
     await p.waitForSelector('.sok', { timeout: 20000 });
     ok(/גימל דלת/.test(await p.textContent('.sok')), 'new pick after change');
+    ok(/מחכה לאישור/.test(await p.textContent('.sok')) && /להיכנס שוב/.test(await p.textContent('.sok')), 'pending status shown', await p.textContent('.sok'));
     ok(rows(W).filter(function (x) { return x[5] === 'גימל דלת'; })[0][1] === 'בקשה ממתינה', 'new pending');
     // ביטול חזרה של אלף בית לפני שעוברים הלאה — שהבדיקות שאחר כך יעבדו על אותה כיתה
     G(W, { tzm: 'sreq', s: adm.sk, g: 'ז', c: '3', n: 'אלף בית' });
@@ -120,9 +121,17 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     await c.click('#grs [data-g="ז"]'); await c.click('#clsBox [data-c="3"]');
     var t = await c.textContent('#stuBox');
     ok(/ביקש להירשם/.test(t), 'coordinator page shows request', t);
-    await c.click('#stuBox .row:nth-child(1)'); await c.click('#go');
+    await p.reload(); await p.waitForSelector('.sok .sst', { timeout: 20000 });
+    ok(/מחכה לאישור/.test(await p.textContent('.sok')), 'after class approval — still waiting for the rav');
+    await c.click('#stuBox .row:nth-child(1)'); await c.click('#stuBox .row:nth-child(2)'); await c.click('#go');
     await c.waitForSelector('#bs.ok', { timeout: 20000 });
-    ok(G(W, { tzm: 'adm', key: 'k' }).reg.length === 1, 'coordinator registered');
+    ok(G(W, { tzm: 'adm', key: 'k' }).reg.length === 2, 'coordinator registered');
+    await p.reload(); await p.waitForFunction(function () { var e = document.querySelector('.sok'); return e && /רשום לצמאה/.test(e.textContent); }, null, { timeout: 20000 });
+    ok(!/מחכה/.test(await p.textContent('.sok')), 'student sees registered', await p.textContent('.sok'));
+    if (SHOT) await p.screenshot({ path: SHOT + '/stu-reg.png' });
+    ok(G(W, { tzm: 'sst', s: adm.sk, g: 'ז', c: '3', n: 'גימל דלת', tk: 'zzz' }).status === 'denied', 'status needs the token');
+    ok(G(W, { tzm: 'sst', s: 'bad', g: 'ז', c: '3', n: 'גימל דלת' }).status === 'denied', 'status needs the student key');
+    ok(G(W, { tzm: 'sst', s: adm.sk, g: 'ז', c: '4', n: 'אין כזה' }).st === 'off', 'unknown → off');
   } catch (e) { fails++; console.log('ERR', e && e.stack); }
   await b.close(); s.close();
   console.log((n - fails) + '/' + n + ' passed');

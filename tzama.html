@@ -89,6 +89,10 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 .sgo{display:block;width:100%;margin-top:12px;border:0;border-radius:14px;background:var(--green-d);color:#fff;font:inherit;font-weight:900;font-size:1.05rem;padding:13px;cursor:pointer}
 .sgo[disabled]{opacity:.7}
 .sok{text-align:center;font-weight:900;font-size:1.1rem;color:var(--green-d);padding:18px 8px}
+.sok small{display:block;font-size:.95rem;margin-top:6px}
+.sok .sst{color:var(--ink)}
+.sok .sst.no{color:var(--stop)}
+.sok .sbk{font-weight:600;color:var(--ink-2)}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -335,7 +339,14 @@ function paintMe() {
   $('clsH').textContent = tp(UI.tzmCls, { cls: clsD(g, c) });
   if (S.sent) {
     /* "שינוי" (8.99.584) — מבטל את הבקשה מהטלפון הזה ("ביטול · 4"), ואפשר לבחור מחדש. */
-    $('stuBox').innerHTML = '<div class="sok">' + esc(tp(UI.tzmStOk, { n: S.sent })) + '</div>' +
+    /* מצב הבקשה מהגיליון (8.99.585): מחכה לאישור · נרשם · לא אושרה. בלי תשובה — רק "נשלחה", כמו קודם. */
+    if (S.st === undefined) { S.st = ''; stMe(); }
+    var st = S.st, top = st === 'reg' && UI.tzmStReg ? tp(UI.tzmStReg, { n: S.sent }) : tp(UI.tzmStOk, { n: S.sent });
+    var sub = st === 'pend' ? UI.tzmStPend : st === 'off' ? UI.tzmStNo : '';
+    var back = st === 'pend' ? UI.tzmStBack : '';
+    $('stuBox').innerHTML = '<div class="sok">' + esc(top) +
+      (sub ? '<small class="sst' + (st === 'off' ? ' no' : '') + '">' + esc(sub) + '</small>' : '') +
+      (back ? '<small class="sbk">' + esc(back) + '</small>' : '') + '</div>' +
       '<button class="btn g" type="button" id="schg" style="display:block;width:100%"' + (S.busy ? ' disabled' : '') + '>' +
       esc(S.busy ? UI.tzmSaving : UI.tzmStChg) + '</button>' +
       (S.err ? '<p class="note" style="color:var(--stop);margin-top:8px">' + esc(UI.tzmStChgErr) + '</p>' : '');
@@ -358,6 +369,15 @@ function paintMe() {
   });
   if ($('sgo')) $('sgo').onclick = sendMe;
 }
+function stMe() {
+  var m = MINE || {};
+  get('tzm=sst&s=' + encodeURIComponent(SKEY) + '&g=' + encodeURIComponent(m.g || S.g) + '&c=' + encodeURIComponent(m.c || S.c) +
+      '&n=' + encodeURIComponent(m.n || S.sent) + '&tk=' + encodeURIComponent(m.tk || ''))
+    .then(function (d) {
+      if (!S.sent || !d || d.status !== 'ok' || !d.st) return;
+      S.st = d.st; paintMe();
+    }, function () {});
+}
 function undoMe() {
   if (S.busy || !S.sent) return;
   if (!SureLater(undoMe, this, arguments)) return;
@@ -369,7 +389,7 @@ function undoMe() {
       S.busy = false;
       if (d && d.status === 'ok') {
         try { localStorage.removeItem(MINE_K); } catch (e) {}
-        MINE = null; S.sent = ''; S.me = ''; S.err = 0;
+        MINE = null; S.sent = ''; S.st = undefined; S.me = ''; S.err = 0;
         $('grs').parentNode.hidden = false;
         paint();
       } else { S.err = 1; paintMe(); }
@@ -387,7 +407,7 @@ function sendMe() {
     .then(function (d) {
       S.busy = false;
       if (d && d.status === 'ok') {
-        S.sent = n; MINE = { n: n, g: S.g, c: S.c, tk: d.tk || '' };
+        S.sent = n; S.st = 'pend'; MINE = { n: n, g: S.g, c: S.c, tk: d.tk || '' };
         lset(MINE_K, JSON.stringify(MINE));
         S.me = '';
         $('grs').parentNode.hidden = true;
