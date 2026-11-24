@@ -63,9 +63,22 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     await p.click('#stuBox [data-n="אלף בית"]');
     ok(/להרשמה/.test(await p.textContent('#sgo')), 'register button after tapping name');
     if (SHOT) await p.screenshot({ path: SHOT + '/stu1.png', fullPage: false });
+    // ביטול בתוך ארבע השניות — שום דבר לא נשלח
+    await p.click('#sgo');
+    await p.waitForTimeout(500);
+    ok(/ביטול/.test(await p.textContent('#sgo')), 'countdown on button', await p.textContent('#sgo'));
+    await p.click('#sgo');
+    await p.waitForTimeout(5000);
+    ok(rows(W).length === 0 && !(await p.$('.sok')), 'cancel — nothing sent');
+    await p.click('#stuBox [data-n="אלף בית"]');
     await p.click('#sgo');
     await p.waitForSelector('.sok', { timeout: 20000 });
     ok(/אלף בית/.test(await p.textContent('.sok')), 'sent confirmation');
+    ok(await p.isHidden('#grs'), 'grade choice hidden after sending');
+    // אותו טלפון — כניסה חוזרת: רק ה-✓
+    await p.reload();
+    await p.waitForSelector('.sok', { timeout: 20000 });
+    ok(/אלף בית/.test(await p.textContent('.sok')) && await p.isHidden('#grs') && !(await p.$('[data-n]')), 'same phone — only the ✓');
     // שם שלא ברשימה
     var p2 = await page(b, port, W, '/tzama?s=' + adm.sk);
     await p2.waitForSelector('#grs [data-g="ח"]');

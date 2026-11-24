@@ -171,6 +171,9 @@ if (STU) {
   $('byCard').hidden = true; $('main2').hidden = false;
   $('addN').placeholder = UI.tzmStAddPh;
 }
+/* שם אחד לטלפון (8.99.583): אחרי שבקשה נשלחה מהטלפון הזה — רק ה-✓ שלה, בלי בחירה נוספת. */
+var MINE_K = 'df:tzmMine:' + SKEY;
+var MINE = STU ? jget(MINE_K) : null;
 var GRADES = ['ז', 'ח', 'ט', 'י', 'יא', 'יב'];
 /* הכיתות של לפיד (מספרים בלבד) — מופיעות גם כשאין להן רשימת תלמידים. */
 var KNOWN = { 'ז': 7, 'ח': 8, 'ט': 6, 'י': 7, 'יא': 6 };
@@ -264,6 +267,12 @@ function namesOf(g, c) {
 function nP() { return Object.keys(S.P).length; }
 
 function paint() {
+  if (STU && MINE && MINE.n) {
+    S.g = MINE.g; S.c = MINE.c; S.sent = MINE.n;
+    $('grs').parentNode.hidden = true;
+    $('stuCard').hidden = false;
+    return paintMe();
+  }
   $('grs').innerHTML = GRADES.map(function (g) {
     return '<button type="button" data-g="' + g + '"' + (S.g === g ? ' class="on"' : '') + '>' + grD(g) + '</button>';
   }).join('');
@@ -340,25 +349,33 @@ function paintMe() {
     (S.err ? '<p class="note" style="color:var(--stop);margin-top:8px">' + esc(UI.tzmInvErr) + '</p>' : '');
   $('stuBox').innerHTML = h;
   Array.prototype.forEach.call($('stuBox').querySelectorAll('[data-n]'), function (el) {
-    el.onclick = function () { if (S.busy) return; S.me = this.getAttribute('data-n'); S.err = 0; paintMe(); };
+    el.onclick = function () { if (S.busy || S.wait) return; S.me = this.getAttribute('data-n'); S.err = 0; paintMe(); };
   });
   if ($('sgo')) $('sgo').onclick = sendMe;
 }
 function sendMe() {
-  if (S.busy || !S.me) return;
+  if (S.busy || !S.me || S.sent) return;
+  /* "ביטול · 4" — טעה בשם? לחיצה על הכפתור ושום דבר לא נשלח. */
+  if (!S.wait) { S.wait = 1; S.err = 0; }
+  if (!SureLater(sendMe, this, arguments, function () { S.wait = 0; paintMe(); })) return;
+  S.wait = 0;
   S.busy = true; S.err = 0; paintMe();
   var n = S.me;
   get('tzm=sreq&s=' + encodeURIComponent(SKEY) + '&g=' + encodeURIComponent(S.g) + '&c=' + encodeURIComponent(S.c) + '&n=' + encodeURIComponent(n))
     .then(function (d) {
       S.busy = false;
-      if (d && d.status === 'ok') S.sent = n; else S.err = 1;
+      if (d && d.status === 'ok') {
+        S.sent = n; MINE = { n: n, g: S.g, c: S.c };
+        lset(MINE_K, JSON.stringify(MINE));
+        $('grs').parentNode.hidden = true;
+      } else S.err = 1;
       paintMe();
     }, function () { S.busy = false; S.err = 1; paintMe(); });
 }
 function addName() {
   var n = String($('addN').value || '').replace(/[|]/g, ' ').replace(/\s+/g, ' ').trim();
   if (!n || !S.g || !S.c) return;
-  if (STU) { S.me = n; S.err = 0; $('addN').value = ''; paintMe(); return; }
+  if (STU) { if (S.wait || S.busy) return; S.me = n; S.err = 0; $('addN').value = ''; paintMe(); return; }
   var k = S.g + '|' + S.c + '|' + n;
   if (!S.REG[k]) S.P[k] = { g: S.g, c: S.c, n: n, on: true };
   else delete S.P[k];
