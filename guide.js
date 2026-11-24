@@ -845,8 +845,6 @@ var GUIDE_UI = (function () {
     setTimeout(function () { olds.forEach(function (o) { if (o.parentNode) o.parentNode.removeChild(o); }); }, 120);
     seqEl('gs-n').textContent = String(SQ.i + 1);
     seqEl('gs-t').textContent = tx(L[SQ.i][0]);
-    var ds = HOST.querySelectorAll('.gs-d');
-    for (var k = 0; k < ds.length; k++) ds[k].setAttribute('aria-current', k === SQ.i ? 'step' : 'false');
     var end = !SQ.run && SQ.i === L.length - 1;
     var ag = seqEl('gs-ag');
     if (ag) ag.className = 'gs-b gs-ag' + (end ? ' on' : '');
@@ -877,20 +875,11 @@ var GUIDE_UI = (function () {
         (g('intro') ? '<p class="gut-sub">' + esc(g('intro')) + '</p>' : '') +
         '<div class="gs-st" id="gs-st" aria-hidden="true"></div>' +
         '<p class="gs-cap" aria-live="polite"><b class="gs-n" id="gs-n">1</b><span id="gs-t"></span></p>' +
-        '<div class="gs-ds">' + L.map(function (s, i) {
-          return '<button type="button" class="gs-d" data-i="' + i + '" aria-label="' + esc((i + 1) + '. ' + tx(s[0])) +
-            '">' + (i + 1) + '</button>';
-        }).join('') + '</div>' +
         '<div class="gs-ct">' +
-          '<button type="button" class="gs-b" id="gs-pv"><i aria-hidden="true">→</i><span>' + esc(g('back')) + '</span></button>' +
           '<button type="button" class="gs-b gs-ag" id="gs-ag"><i>' + IC_AGAIN + '</i><span>' + esc(g('again')) + '</span></button>' +
-          '<button type="button" class="gs-b" id="gs-nx"><i aria-hidden="true">←</i><span>' + esc(g('fwd')) + '</span></button>' +
         '</div>' +
       '</div>';
-    var ds = HOST.querySelectorAll('.gs-d');
-    for (var k = 0; k < ds.length; k++) ds[k].onclick = function () { seqGo(+this.getAttribute('data-i')); };
-    seqEl('gs-pv').onclick = function () { seqGo(SQ.i - 1); };
-    seqEl('gs-nx').onclick = function () { seqGo(SQ.i + 1); };
+    /* רק ברצף (אחיאסף, 24.11) — בלי מספרי שלבים ובלי "הקודם/הבא". "הצג שוב" מתחיל מההתחלה. */
     seqEl('gs-ag').onclick = seqPlay;
     seqShow(0);
     /* מתחיל לרוץ רק כשהטלפון על המסך — מי שגולל אליו מתחיל מהשלב הראשון. */
@@ -1400,10 +1389,6 @@ var GUIDE_UI = (function () {
       '  font-size:1.08rem;font-weight:800;line-height:1.35;color:var(--blue-d,#0B2550);text-align:right}',
       '.gs-n{flex:none;width:32px;height:32px;border-radius:50%;background:var(--blue-d,#0B2550);color:#fff;',
       '  display:flex;align-items:center;justify-content:center;font-size:1rem}',
-      '.gs-ds{display:flex;justify-content:center;gap:7px;margin-top:10px;flex-wrap:wrap}',
-      '.gs-d{width:30px;height:30px;border-radius:50%;border:2px solid var(--rule,#E3DDD0);background:#fff;',
-      '  color:var(--ink-2);font:inherit;font-size:.85rem;font-weight:800;cursor:pointer;padding:0}',
-      '.gs-d[aria-current=step]{background:var(--gold,#C99A2E);border-color:var(--gold,#C99A2E);color:#fff}',
       '.gs-ct{display:flex;justify-content:center;gap:10px;margin-top:12px}',
       '.gs-b{flex:1 1 0;max-width:110px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;',
       '  border-radius:14px;border:2px solid var(--rule,#E3DDD0);background:#fff;color:var(--blue-d,#0B2550);',
