@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 268;
+var SCRIPT_VERSION = 269;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -20797,10 +20797,15 @@ function tzmSOk_(P) { var k = tzmSKeyOf_(false); return !!k && String(P.s || '')
 /* אסימון הבקשה (8.99.584) — עמודה 11 ("אסימון"), מחוץ ל-TZM_COLS_. רק הטלפון ששלח את הבקשה מחזיק אותו,
    ורק הוא יכול לבטל אותה (?tzm=scan). */
 var TZM_TK_COL_ = TZM_COLS_.length + 1;
+/* לשונית עם בדיוק 10 עמודות — כתיבה/קריאה בעמודה 11 זורקת בגיליון האמיתי (8.99.590). מוסיפים עמודה לפני. */
 function tzmTkHead_(sh) {
+  if (sh.getMaxColumns() < TZM_TK_COL_) sh.insertColumnsAfter(sh.getMaxColumns(), TZM_TK_COL_ - sh.getMaxColumns());
   if (String(sh.getRange(1, TZM_TK_COL_).getValue() || '') !== 'אסימון') sh.getRange(1, TZM_TK_COL_).setValue('אסימון');
 }
-function tzmTkOf_(sh, r) { return String(sh.getRange(r, TZM_TK_COL_).getValue() || ''); }
+function tzmTkOf_(sh, r) {
+  if (sh.getMaxColumns() < TZM_TK_COL_) return '';
+  return String(sh.getRange(r, TZM_TK_COL_).getValue() || '');
+}
 /* בקשות שממתינות לאחיאסף: [שכבה, כיתה, שם]. */
 function tzmPq_() {
   var out = [];
@@ -20835,7 +20840,7 @@ function tzmSReq_(P) {
     tzmRows_(sh).forEach(function (o) { if (o['מפתח'] === key) { st = o['מצב']; back = tzmTkOf_(sh, o.r); } });
     return (st === TZM_PEND_ || st === 'בקשה' || st === 'רשום') && back === tk ? { status: 'ok', st: st === 'רשום' ? 'y' : 'q', tk: tk } : { status: 'error' };
   } catch (e) {
-    return { status: 'error' };
+    return { status: 'error', e: String(e && e.message || e).slice(0, 160) };
   } finally { lock.releaseLock(); }
 }
 /* ?tzm=scan&s=&g=&c=&n=&tk= — התלמיד מבטל את הבקשה שלו (לפי האסימון) → "בוטל". בקשה ישנה בלי אסימון — רק
@@ -20858,7 +20863,7 @@ function tzmSCancel_(P) {
     tzmRows_(sh).forEach(function (o) { if (o['מפתח'] === key) st = o['מצב']; });
     return st === 'בוטל' ? { status: 'ok' } : { status: 'error' };
   } catch (e) {
-    return { status: 'error' };
+    return { status: 'error', e: String(e && e.message || e).slice(0, 160) };
   } finally { lock.releaseLock(); }
 }
 /* ?tzm=sst&s=&g=&c=&n=&tk= — מצב הבקשה של הטלפון הזה (8.99.585): pend · reg · off. קריאה בלבד. */
@@ -20874,7 +20879,7 @@ function tzmSStat_(P) {
     var m = row['מצב'];
     return { status: 'ok', st: m === 'רשום' ? 'reg' : (m === 'בקשה' || m === TZM_PEND_) ? 'pend' : 'off' };
   } catch (e) {
-    return { status: 'error' };
+    return { status: 'error', e: String(e && e.message || e).slice(0, 160) };
   }
 }
 /* ?tzm=sok&key=&g=&c= — אחיאסף מאשר את כל הבקשות הממתינות של כיתה → הן עוברות לר"מים. */
