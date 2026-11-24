@@ -3184,7 +3184,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.579';
+var APP_VERSION = '8.99.580';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -18177,6 +18177,8 @@ function ltmPaint() {
 var CHN = { d: null, busy: false, msg: '', tst: false, at: 0, rams: null, ramMsg: '', ramBusy: false };
 /* רישום לאירוע צמאה (8.99.575) — הקישור לרכזי השכבה (עם המפתח) והרשומים. ראו tzmRoute_. */
 var TZM = { d: null, busy: false, msg: '' };
+/* כמה כרטיסים יש לאירוע צמאה (אחיאסף, 24.11). */
+var TZM_CAP = 350;
 function admTzm(body) {
   body.innerHTML = '<div id="tzm"></div>';
   tzmPaint();
@@ -18232,6 +18234,12 @@ function tzmPaint() {
   var d = TZM.d, h = '<div class="adm-card"><h4>' + esc(UI.moreTzm) + '</h4>' +
     (TZM.msg ? '<div class="cond" style="margin-bottom:10px">' + esc(TZM.msg) + '</div>' : '');
   if (!d) { el.innerHTML = h + (TZM.busy ? '<p class="h">' + esc(UI.tzmLoad) + '</p>' : '') + '</div>'; return; }
+  /* תמונת המצב — בניהול בלבד (8.99.580): כמה כרטיסים נשארו מתוך TZM_CAP. */
+  var nReg = (d.reg || []).length, left = TZM_CAP - nReg;
+  h += '<div style="text-align:center;padding:14px 10px;margin-bottom:14px;border-radius:14px;background:' + (left < 0 ? '#FDECEA' : '#EEF6E6') + '">' +
+    '<div style="font-size:2.4rem;font-weight:900;line-height:1.1;color:' + (left < 0 ? '#B3261E' : '#2F5C12') + '">' +
+    esc(left < 0 ? fill(UI.tzmAdmOver, { n: -left }) : fill(UI.tzmAdmLeft, { n: left })) + '</div>' +
+    '<div style="font-weight:700;color:#555;margin-top:4px">' + esc(fill(UI.tzmAdmLeftOf, { t: TZM_CAP, n: nReg })) + '</div></div>';
   var url = location.origin + '/tzama?k=' + encodeURIComponent(d.k || '');
   h += '<p class="h"><b>' + esc(UI.tzmAdmLink) + '</b></p><div style="margin-bottom:14px">' +
     '<input readonly dir="ltr" style="display:block;width:100%;box-sizing:border-box;padding:8px;margin-bottom:6px;border:1px solid #ddd;border-radius:8px" value="' + esc(url) + '" onfocus="this.select()">' +
@@ -18247,8 +18255,16 @@ function tzmPaint() {
   h += '<p class="h"><b>' + esc(n ? fill(UI.tzmAdmTot, { n: n }) : UI.tzmAdmNone) + '</b></p>';
   if (n) {
     h += '<div style="margin:6px 0 10px"><button class="btn g" type="button" onclick="tzmCopyList()">' + esc(UI.tzmAdmList) + '</button></div>' +
-      gr.map(function (o) {
-        return '<div class="prow2"><div style="flex:1"><b>' + esc(tzmCls(o.g, o.c)) + ' · ' + o.l.length + '</b>' +
+      gr.map(function (o, i) {
+        /* כותרת שכבה עם מספר הרשומים בה, לפני הכיתה הראשונה שלה. */
+        var gh = '';
+        if (!i || gr[i - 1].g !== o.g) {
+          var gn = 0;
+          gr.forEach(function (q) { if (q.g === o.g) gn += q.l.length; });
+          gh = '<div style="margin:16px 0 4px;padding:8px 12px;border-radius:10px;background:#EEF2F8;font-weight:900;font-size:1.05rem">' +
+            esc(fill(UI.tzmAdmGr, { g: tzmGrD(o.g), n: gn })) + '</div>';
+        }
+        return gh + '<div class="prow2"><div style="flex:1"><b>' + esc(tzmCls(o.g, o.c)) + ' · ' + o.l.length + '</b>' +
           o.l.map(function (x) {
             return '<span>' + esc(x[2]) + (x[3] ? ' · ' + esc(fill(UI.tzmByLine, { n: x[3] })) : '') + '</span>';
           }).join('') + '</div></div>';

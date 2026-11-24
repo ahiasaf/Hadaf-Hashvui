@@ -105,7 +105,7 @@ function bridge(route) {
   }
 }
 
-var ME = { id: 'Dtstold1', first: 'בדיקה', last: 'דףישן', inst: (C.INSTITUTIONS[0] || {}).code || 'x',
+var ME = { id: 'Dtstold1', first: 'בדיקה', last: 'Tst', inst: (C.INSTITUTIONS[0] || {}).code || 'x',
            grade: 'ח׳', klass: '2', phone: '0000000001', role: 'stu' };
 
 /* ההרשמה — דרך השרת עצמו, כמו ש-join.html שולח. */
