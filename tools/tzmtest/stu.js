@@ -35,7 +35,11 @@ async function page(b, port, W, url, opt) {
       posts++;
       if (opt.dropPost && posts <= opt.dropPost) return rt.abort();
       out = W.ctx.doPost({ postData: { contents: rq.postData() } }).t;
-    } else { var P = {}; u.searchParams.forEach(function (v, k) { P[k] = v; }); out = W.ctx.doGet({ parameter: P }).t; }
+    } else {
+      // כמו בגוגל: פרמטר בשם c / sid / rt — דף שגיאה לפני doGet.
+      if (u.searchParams.has('c') || u.searchParams.has('sid') || u.searchParams.has('rt')) return rt.fulfill({ status: 400, contentType: 'text/html', body: '<html>err</html>' });
+      var P = {}; u.searchParams.forEach(function (v, k) { P[k] = v; }); out = W.ctx.doGet({ parameter: P }).t;
+    }
     rt.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: out });
   });
   await ctx.route(/\/api\/gs/, function (rt) { rt.abort(); });
@@ -55,7 +59,7 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     ok(adm.status === 'ok' && adm.sk && adm.sk !== adm.k && adm.pq.length === 0, 'admin has student key', adm);
     ok(G(W, { tzm: 'scls', s: 'bad' }).status === 'denied' && G(W, { tzm: 'scls', s: adm.k }).status === 'denied', 'wrong key denied');
     ok(G(W, { tzm: 'cls', k: adm.sk }).status === 'denied', 'student key is not coordinator key');
-    ok(G(W, { tzm: 'sok', g: 'ז', c: '3' }).status === 'denied', 'approve needs READ_KEY');
+    ok(G(W, { tzm: 'sok', g: 'ז', cl: '3' }).status === 'denied', 'approve needs READ_KEY');
     var p = await page(b, port, W, '/tzama?s=' + adm.sk);
     await p.waitForSelector('#grs [data-g="ז"]', { timeout: 20000 });
     ok(await p.isHidden('#byCard') && await p.isVisible('#info'), 'no name step, event info shown');
@@ -80,7 +84,7 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     await p.waitForSelector('.sok', { timeout: 20000 });
     ok(/אלף בית/.test(await p.textContent('.sok')) && await p.isHidden('#grs') && !(await p.$('[data-n]')), 'same phone — only the ✓');
     // אחר — לא יכול לבטל בלי האסימון
-    ok(G(W, { tzm: 'scan', s: adm.sk, g: 'ז', c: '3', n: 'אלף בית', tk: 'zzz' }).status === 'denied', 'cancel needs the token');
+    ok(G(W, { tzm: 'scan', s: adm.sk, g: 'ז', cl: '3', n: 'אלף בית', tk: 'zzz' }).status === 'denied', 'cancel needs the token');
     // "שינוי" → ביטול · 4 → בוטל, ואפשר לבחור מחדש
     
     await p.click('#schg');
@@ -95,7 +99,7 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     ok(/מחכה לאישור של הרב/.test(await p.textContent('.sok')) && /יומיים/.test(await p.textContent('.sok')), 'pending status shown', await p.textContent('.sok'));
     ok(rows(W).filter(function (x) { return x[5] === 'גימל דלת'; })[0][1] === 'בקשה ממתינה', 'new pending');
     // ביטול חזרה של אלף בית לפני שעוברים הלאה — שהבדיקות שאחר כך יעבדו על אותה כיתה
-    G(W, { tzm: 'sreq', s: adm.sk, g: 'ז', c: '3', n: 'אלף בית' });
+    G(W, { tzm: 'sreq', s: adm.sk, g: 'ז', cl: '3', n: 'אלף בית' });
     // שם שלא ברשימה
     var p2 = await page(b, port, W, '/tzama?s=' + adm.sk);
     await p2.waitForSelector('#grs [data-g="ח"]');
@@ -109,9 +113,9 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     var a2 = G(W, { tzm: 'adm', key: 'k' });
     ok(a2.pq.length === 3, 'admin sees pending', a2.pq);
     // שליחה חוזרת — אותה שורה
-    ok(G(W, { tzm: 'sreq', s: adm.sk, g: 'ז', c: '3', n: 'אלף בית' }).st === 'q' && rows(W).length === 3, 'repeat request — no new row');
+    ok(G(W, { tzm: 'sreq', s: adm.sk, g: 'ז', cl: '3', n: 'אלף בית' }).st === 'q' && rows(W).length === 3, 'repeat request — no new row');
     // אישור כיתה ז3 בלבד
-    var ap = G(W, { tzm: 'sok', key: 'k', g: 'ז', c: '3' });
+    var ap = G(W, { tzm: 'sok', key: 'k', g: 'ז', cl: '3' });
     ok(ap.status === 'ok' && ap.n === 2 && ap.pq.length === 1 && ap.rq.length === 2, 'approve class', ap);
     var cls2 = G(W, { tzm: 'cls', k: adm.k });
     ok(cls2.rq.length === 2, 'coordinator sees approved class only', cls2.rq);
@@ -129,9 +133,9 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     await p.reload(); await p.waitForFunction(function () { var e = document.querySelector('.sok'); return e && /הבקשה שלך אושרה/.test(e.textContent); }, null, { timeout: 20000 });
     ok(!/מחכה/.test(await p.textContent('.sok')), 'student sees registered', await p.textContent('.sok'));
     if (SHOT) await p.screenshot({ path: SHOT + '/stu-reg.png' });
-    ok(G(W, { tzm: 'sst', s: adm.sk, g: 'ז', c: '3', n: 'גימל דלת', tk: 'zzz' }).status === 'denied', 'status needs the token');
-    ok(G(W, { tzm: 'sst', s: 'bad', g: 'ז', c: '3', n: 'גימל דלת' }).status === 'denied', 'status needs the student key');
-    ok(G(W, { tzm: 'sst', s: adm.sk, g: 'ז', c: '4', n: 'אין כזה' }).st === 'off', 'unknown → off');
+    ok(G(W, { tzm: 'sst', s: adm.sk, g: 'ז', cl: '3', n: 'גימל דלת', tk: 'zzz' }).status === 'denied', 'status needs the token');
+    ok(G(W, { tzm: 'sst', s: 'bad', g: 'ז', cl: '3', n: 'גימל דלת' }).status === 'denied', 'status needs the student key');
+    ok(G(W, { tzm: 'sst', s: adm.sk, g: 'ז', cl: '4', n: 'אין כזה' }).st === 'off', 'unknown → off');
     // הרב כבר רשם — תלמיד בטלפון אחר לוחץ על השם: "הרב שלך כבר אישר", וביטול מנקה רק את הטלפון.
     var reg0 = G(W, { tzm: 'adm', key: 'k' }).reg.map(function (x) { return x.join('|'); }).sort().join(';');
     var p3 = await page(b, port, W, '/tzama?s=' + adm.sk);

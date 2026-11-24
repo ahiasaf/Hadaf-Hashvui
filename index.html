@@ -3184,7 +3184,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.593';
+var APP_VERSION = '8.99.594';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -18198,7 +18198,7 @@ function tzmSOkGo(g, c) {
   if (!SureLater(tzmSOkGo, this, arguments)) return;
   var k = (CFG.readKey || '').trim();
   if (!k) return;
-  scriptGet({ tzm: 'sok', key: k, g: g, c: c }).then(function (d) {
+  scriptGet({ tzm: 'sok', key: k, g: g, cl: c }).then(function (d) {
     if (d && d.status === 'ok' && TZM.d) { TZM.d.pq = d.pq || []; TZM.d.rq = d.rq || []; TZM.msg = ''; }
     else TZM.msg = UI.tzmAdmFail;
     tzmPaint();

@@ -401,7 +401,7 @@ function meTop(on) {
 }
 function stMe() {
   var m = MINE || {};
-  get('tzm=sst&s=' + encodeURIComponent(SKEY) + '&g=' + encodeURIComponent(m.g || S.g) + '&c=' + encodeURIComponent(m.c || S.c) +
+  get('tzm=sst&s=' + encodeURIComponent(SKEY) + '&g=' + encodeURIComponent(m.g || S.g) + '&cl=' + encodeURIComponent(m.c || S.c) +
       '&n=' + encodeURIComponent(m.n || S.sent) + '&tk=' + encodeURIComponent(m.tk || ''))
     .then(function (d) {
       if (!S.sent || !d || d.status !== 'ok' || !d.st) return;
@@ -421,7 +421,7 @@ function undoMe() {
     return paint();
   }
   S.busy = true; S.err = 0; paintMe();
-  get('tzm=scan&s=' + encodeURIComponent(SKEY) + '&g=' + encodeURIComponent(m.g || S.g) + '&c=' + encodeURIComponent(m.c || S.c) +
+  get('tzm=scan&s=' + encodeURIComponent(SKEY) + '&g=' + encodeURIComponent(m.g || S.g) + '&cl=' + encodeURIComponent(m.c || S.c) +
       '&n=' + encodeURIComponent(m.n || S.sent) + '&tk=' + encodeURIComponent(m.tk || ''))
     .then(function (d) {
       S.busy = false;
@@ -442,7 +442,7 @@ function sendMe(n, again) {
     if (!again) return setTimeout(function () { sendMe(n, 1); }, 3000);
     S.busy = false; S.err = 1; S.errN = n; paintMe();
   };
-  get('tzm=sreq&s=' + encodeURIComponent(SKEY) + '&g=' + encodeURIComponent(S.g) + '&c=' + encodeURIComponent(S.c) + '&n=' + encodeURIComponent(n))
+  get('tzm=sreq&s=' + encodeURIComponent(SKEY) + '&g=' + encodeURIComponent(S.g) + '&cl=' + encodeURIComponent(S.c) + '&n=' + encodeURIComponent(n))
     .then(function (d) {
       if (d && d.status === 'ok') {
         S.busy = false;

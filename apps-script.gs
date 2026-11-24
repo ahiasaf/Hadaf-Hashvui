@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 270;
+var SCRIPT_VERSION = 271;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -20814,7 +20814,7 @@ function tzmPq_() {
 }
 /* ?tzm=sreq&s=&g=&c=&n= — בקשת תלמיד מהקישור. מחזיר את המצב שנקרא אחרי הכתיבה. */
 function tzmSReq_(P) {
-  var g = chnGr_(P.g), c = clsK_(P.c), n = tzmNm_(String(P.n || '').replace(/[|]/g, ' '));
+  var g = chnGr_(P.g), c = clsK_(P.cl || P.c), n = tzmNm_(String(P.n || '').replace(/[|]/g, ' '));
   if (TZM_GR_.indexOf(g) < 0 || !c || c.length > 4 || !n) return { status: 'error' };
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(15000)) { tmBump_({ 'tzmerr:busy': 1 }); return { status: 'busy' }; }
@@ -20851,7 +20851,7 @@ function tzmSReq_(P) {
 /* ?tzm=scan&s=&g=&c=&n=&tk= — התלמיד מבטל את הבקשה שלו (לפי האסימון) → "בוטל". בקשה ישנה בלי אסימון — רק
    כשעדיין ממתינה לאחיאסף. השורה נשארת. */
 function tzmSCancel_(P) {
-  var g = chnGr_(P.g), c = clsK_(P.c), n = tzmNm_(String(P.n || '').replace(/[|]/g, ' ')), t = String(P.tk || '');
+  var g = chnGr_(P.g), c = clsK_(P.cl || P.c), n = tzmNm_(String(P.n || '').replace(/[|]/g, ' ')), t = String(P.tk || '');
   if (TZM_GR_.indexOf(g) < 0 || !c || !n) return { status: 'error' };
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(15000)) return { status: 'busy' };
@@ -20873,7 +20873,7 @@ function tzmSCancel_(P) {
 }
 /* ?tzm=sst&s=&g=&c=&n=&tk= — מצב הבקשה של הטלפון הזה (8.99.585): pend · reg · off. קריאה בלבד. */
 function tzmSStat_(P) {
-  var g = chnGr_(P.g), c = clsK_(P.c), n = tzmNm_(String(P.n || '').replace(/[|]/g, ' ')), t = String(P.tk || '');
+  var g = chnGr_(P.g), c = clsK_(P.cl || P.c), n = tzmNm_(String(P.n || '').replace(/[|]/g, ' ')), t = String(P.tk || '');
   if (TZM_GR_.indexOf(g) < 0 || !c || !n) return { status: 'error' };
   try {
     var sh = tzmSheet_(), key = g + '|' + c + '|' + n, row = null;
@@ -20889,7 +20889,7 @@ function tzmSStat_(P) {
 }
 /* ?tzm=sok&key=&g=&c= — אחיאסף מאשר את כל הבקשות הממתינות של כיתה → הן עוברות לר"מים. */
 function tzmSApprove_(P) {
-  var g = chnGr_(P.g), c = clsK_(P.c);
+  var g = chnGr_(P.g), c = clsK_(P.cl || P.c);
   if (TZM_GR_.indexOf(g) < 0 || !c) return { status: 'error' };
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(15000)) return { status: 'busy' };
