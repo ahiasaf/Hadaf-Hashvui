@@ -334,8 +334,13 @@ function paintMe() {
   var g = S.g, c = S.c, L = (S.R[g + '|' + c] || []).slice();
   $('clsH').textContent = tp(UI.tzmCls, { cls: clsD(g, c) });
   if (S.sent) {
-    $('stuBox').innerHTML = '<div class="sok">' + esc(tp(UI.tzmStOk, { n: S.sent })) + '</div>';
+    /* "שינוי" (8.99.584) — מבטל את הבקשה מהטלפון הזה ("ביטול · 4"), ואפשר לבחור מחדש. */
+    $('stuBox').innerHTML = '<div class="sok">' + esc(tp(UI.tzmStOk, { n: S.sent })) + '</div>' +
+      '<button class="btn g" type="button" id="schg" style="display:block;width:100%"' + (S.busy ? ' disabled' : '') + '>' +
+      esc(S.busy ? UI.tzmSaving : UI.tzmStChg) + '</button>' +
+      (S.err ? '<p class="note" style="color:var(--stop);margin-top:8px">' + esc(UI.tzmStChgErr) + '</p>' : '');
     $('stuCard').querySelector('.add').hidden = true;
+    if ($('schg')) $('schg').onclick = undoMe;
     return;
   }
   $('stuCard').querySelector('.add').hidden = false;
@@ -353,6 +358,23 @@ function paintMe() {
   });
   if ($('sgo')) $('sgo').onclick = sendMe;
 }
+function undoMe() {
+  if (S.busy || !S.sent) return;
+  if (!SureLater(undoMe, this, arguments)) return;
+  S.busy = true; S.err = 0; paintMe();
+  var m = MINE || {};
+  get('tzm=scan&s=' + encodeURIComponent(SKEY) + '&g=' + encodeURIComponent(m.g || S.g) + '&c=' + encodeURIComponent(m.c || S.c) +
+      '&n=' + encodeURIComponent(m.n || S.sent) + '&tk=' + encodeURIComponent(m.tk || ''))
+    .then(function (d) {
+      S.busy = false;
+      if (d && d.status === 'ok') {
+        try { localStorage.removeItem(MINE_K); } catch (e) {}
+        MINE = null; S.sent = ''; S.me = ''; S.err = 0;
+        $('grs').parentNode.hidden = false;
+        paint();
+      } else { S.err = 1; paintMe(); }
+    }, function () { S.busy = false; S.err = 1; paintMe(); });
+}
 function sendMe() {
   if (S.busy || !S.me || S.sent) return;
   /* "ביטול · 4" — טעה בשם? לחיצה על הכפתור ושום דבר לא נשלח. */
@@ -365,8 +387,9 @@ function sendMe() {
     .then(function (d) {
       S.busy = false;
       if (d && d.status === 'ok') {
-        S.sent = n; MINE = { n: n, g: S.g, c: S.c };
+        S.sent = n; MINE = { n: n, g: S.g, c: S.c, tk: d.tk || '' };
         lset(MINE_K, JSON.stringify(MINE));
+        S.me = '';
         $('grs').parentNode.hidden = true;
       } else S.err = 1;
       paintMe();

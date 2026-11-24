@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 266;
+var SCRIPT_VERSION = 267;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -20794,6 +20794,13 @@ function tzmSKeyOf_(make) {
   return k;
 }
 function tzmSOk_(P) { var k = tzmSKeyOf_(false); return !!k && String(P.s || '') === k; }
+/* אסימון הבקשה (8.99.584) — עמודה 11 ("אסימון"), מחוץ ל-TZM_COLS_. רק הטלפון ששלח את הבקשה מחזיק אותו,
+   ורק הוא יכול לבטל אותה (?tzm=scan). */
+var TZM_TK_COL_ = TZM_COLS_.length + 1;
+function tzmTkHead_(sh) {
+  if (String(sh.getRange(1, TZM_TK_COL_).getValue() || '') !== 'אסימון') sh.getRange(1, TZM_TK_COL_).setValue('אסימון');
+}
+function tzmTkOf_(sh, r) { return String(sh.getRange(r, TZM_TK_COL_).getValue() || ''); }
 /* בקשות שממתינות לאחיאסף: [שכבה, כיתה, שם]. */
 function tzmPq_() {
   var out = [];
@@ -20807,23 +20814,49 @@ function tzmSReq_(P) {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(15000)) return { status: 'busy' };
   try {
-    var sh = tzmSheet_(), key = g + '|' + c + '|' + n, row = null, now = chnNow_();
+    var sh = tzmSheet_(), key = g + '|' + c + '|' + n, row = null, now = chnNow_(), tk = Utilities.getUuid().replace(/-/g, '').slice(0, 16);
     tzmRows_(sh).forEach(function (o) { if (o['מפתח'] === key) row = o; });
     if (row && row['מצב'] !== 'בוטל') return { status: 'ok', st: row['מצב'] === 'רשום' ? 'y' : 'q' };
+    tzmTkHead_(sh);
     var R = tzmRoster_(), man = (R[g + '|' + c] || []).indexOf(n) < 0;
     if (row) {
       sh.getRange(row.r, TZM_COLS_.indexOf('מצב') + 1).setValue(TZM_PEND_);
       sh.getRange(row.r, TZM_COLS_.indexOf('נרשם ע"י') + 1).setValue('קישור תלמידים');
       sh.getRange(row.r, TZM_COLS_.indexOf('עודכן') + 1).setValue(now);
+      sh.getRange(row.r, TZM_TK_COL_).setValue(tk);
     } else {
-      var rg = sh.getRange(Math.max(sh.getLastRow(), 1) + 1, 1, 1, TZM_COLS_.length);
+      var at = Math.max(sh.getLastRow(), 1) + 1, rg = sh.getRange(at, 1, 1, TZM_COLS_.length);
       rg.setNumberFormat('@');
       rg.setValues([[key, TZM_PEND_, TZM_INST_, g, c, n, man ? 'כן' : '', 'קישור תלמידים', now, now]]);
+      sh.getRange(at, TZM_TK_COL_).setValue(tk);
     }
+    SpreadsheetApp.flush();
+    var st = '', back = '';
+    tzmRows_(sh).forEach(function (o) { if (o['מפתח'] === key) { st = o['מצב']; back = tzmTkOf_(sh, o.r); } });
+    return (st === TZM_PEND_ || st === 'בקשה' || st === 'רשום') && back === tk ? { status: 'ok', st: st === 'רשום' ? 'y' : 'q', tk: tk } : { status: 'error' };
+  } catch (e) {
+    return { status: 'error' };
+  } finally { lock.releaseLock(); }
+}
+/* ?tzm=scan&s=&g=&c=&n=&tk= — התלמיד מבטל את הבקשה שלו (לפי האסימון) → "בוטל". בקשה ישנה בלי אסימון — רק
+   כשעדיין ממתינה לאחיאסף. השורה נשארת. */
+function tzmSCancel_(P) {
+  var g = chnGr_(P.g), c = clsK_(P.c), n = tzmNm_(String(P.n || '').replace(/[|]/g, ' ')), t = String(P.tk || '');
+  if (TZM_GR_.indexOf(g) < 0 || !c || !n) return { status: 'error' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(15000)) return { status: 'busy' };
+  try {
+    var sh = tzmSheet_(), key = g + '|' + c + '|' + n, row = null;
+    tzmRows_(sh).forEach(function (o) { if (o['מפתח'] === key) row = o; });
+    if (!row || row['מצב'] === 'בוטל') return { status: 'ok' };
+    var have = tzmTkOf_(sh, row.r);
+    if (have ? have !== t : !(row['מצב'] === TZM_PEND_ && !t)) return { status: 'denied' };
+    sh.getRange(row.r, TZM_COLS_.indexOf('מצב') + 1).setValue('בוטל');
+    sh.getRange(row.r, TZM_COLS_.indexOf('עודכן') + 1).setValue(chnNow_());
     SpreadsheetApp.flush();
     var st = '';
     tzmRows_(sh).forEach(function (o) { if (o['מפתח'] === key) st = o['מצב']; });
-    return st === TZM_PEND_ || st === 'בקשה' || st === 'רשום' ? { status: 'ok', st: st === 'רשום' ? 'y' : 'q' } : { status: 'error' };
+    return st === 'בוטל' ? { status: 'ok' } : { status: 'error' };
   } catch (e) {
     return { status: 'error' };
   } finally { lock.releaseLock(); }
@@ -20853,6 +20886,7 @@ function tzmRoute_(P) {
   var op = String(P.tzm || '');
   if (op === 'scls') return tzmSOk_(P) ? { status: 'ok', cls: tzmRoster_() } : { status: 'denied' };
   if (op === 'sreq') return tzmSOk_(P) ? tzmSReq_(P) : { status: 'denied' };
+  if (op === 'scan') return tzmSOk_(P) ? tzmSCancel_(P) : { status: 'denied' };
   if (op === 'cls') {
     var k = tzmKeyOf_(false);
     if (!k || String(P.k || '') !== k) return { status: 'denied' };

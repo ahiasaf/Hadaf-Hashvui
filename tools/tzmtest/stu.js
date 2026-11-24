@@ -79,6 +79,22 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     await p.reload();
     await p.waitForSelector('.sok', { timeout: 20000 });
     ok(/אלף בית/.test(await p.textContent('.sok')) && await p.isHidden('#grs') && !(await p.$('[data-n]')), 'same phone — only the ✓');
+    // אחר — לא יכול לבטל בלי האסימון
+    ok(G(W, { tzm: 'scan', s: adm.sk, g: 'ז', c: '3', n: 'אלף בית', tk: 'zzz' }).status === 'denied', 'cancel needs the token');
+    // "שינוי" → ביטול · 4 → בוטל, ואפשר לבחור מחדש
+    
+    await p.click('#schg');
+    await p.waitForTimeout(5500);
+    await p.waitForSelector('#grs [data-g="ז"]', { timeout: 20000 });
+    ok(rows(W).filter(function (x) { return x[5] === 'אלף בית'; })[0][1] === 'בוטל', 'own cancel → בוטל', rows(W));
+    ok(await p.isVisible('#grs') && !(await p.$('.sok')), 'choice open again');
+    await p.click('#clsBox [data-c="3"]').catch(function () {});
+    await p.click('#stuBox [data-n="גימל דלת"]'); await p.click('#sgo');
+    await p.waitForSelector('.sok', { timeout: 20000 });
+    ok(/גימל דלת/.test(await p.textContent('.sok')), 'new pick after change');
+    ok(rows(W).filter(function (x) { return x[5] === 'גימל דלת'; })[0][1] === 'בקשה ממתינה', 'new pending');
+    // ביטול חזרה של אלף בית לפני שעוברים הלאה — שהבדיקות שאחר כך יעבדו על אותה כיתה
+    G(W, { tzm: 'sreq', s: adm.sk, g: 'ז', c: '3', n: 'אלף בית' });
     // שם שלא ברשימה
     var p2 = await page(b, port, W, '/tzama?s=' + adm.sk);
     await p2.waitForSelector('#grs [data-g="ח"]');
@@ -86,18 +102,18 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     await p2.fill('#addN', 'תלמיד חדש'); await p2.click('#addB'); await p2.click('#sgo');
     await p2.waitForSelector('.sok', { timeout: 20000 });
     var r = rows(W);
-    ok(r.length === 2 && r.every(function (x) { return x[1] === 'בקשה ממתינה' && x[7] === 'קישור תלמידים'; }), 'pending rows', r);
+    ok(r.length === 3 && r.every(function (x) { return x[1] === 'בקשה ממתינה' && x[7] === 'קישור תלמידים'; }), 'pending rows', r);
     var cls = G(W, { tzm: 'cls', k: adm.k });
     ok(cls.rq.length === 0 && cls.reg.length === 0, 'coordinator does not see pending', cls.rq);
     var a2 = G(W, { tzm: 'adm', key: 'k' });
-    ok(a2.pq.length === 2, 'admin sees pending', a2.pq);
+    ok(a2.pq.length === 3, 'admin sees pending', a2.pq);
     // שליחה חוזרת — אותה שורה
-    ok(G(W, { tzm: 'sreq', s: adm.sk, g: 'ז', c: '3', n: 'אלף בית' }).st === 'q' && rows(W).length === 2, 'repeat request — no new row');
+    ok(G(W, { tzm: 'sreq', s: adm.sk, g: 'ז', c: '3', n: 'אלף בית' }).st === 'q' && rows(W).length === 3, 'repeat request — no new row');
     // אישור כיתה ז3 בלבד
     var ap = G(W, { tzm: 'sok', key: 'k', g: 'ז', c: '3' });
-    ok(ap.status === 'ok' && ap.n === 1 && ap.pq.length === 1 && ap.rq.length === 1, 'approve class', ap);
+    ok(ap.status === 'ok' && ap.n === 2 && ap.pq.length === 1 && ap.rq.length === 2, 'approve class', ap);
     var cls2 = G(W, { tzm: 'cls', k: adm.k });
-    ok(cls2.rq.length === 1 && cls2.rq[0][2] === 'אלף בית', 'coordinator sees approved class only', cls2.rq);
+    ok(cls2.rq.length === 2, 'coordinator sees approved class only', cls2.rq);
     var c = await page(b, port, W, '/tzama?k=' + adm.k);
     await c.waitForSelector('#byCard:not([hidden])');
     await c.fill('#by', 'רכז'); await c.click('#byGo');
