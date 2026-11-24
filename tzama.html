@@ -91,6 +91,9 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 .gok.on{display:flex}
 .gok i{width:120px;height:120px;border-radius:50%;background:#fff;color:var(--green-d);font-style:normal;font-size:4.4rem;font-weight:800;line-height:120px}
 .gok b{font-size:1.5rem;font-weight:800}
+.gok p{margin:0;max-width:22rem;font-size:1.15rem;font-weight:800}
+.gok small{max-width:22rem;font-size:.95rem;font-weight:600;line-height:1.5;opacity:.92}
+.gok p:empty,.gok small:empty{display:none}
 .sok{text-align:center;font-weight:900;font-size:1.1rem;color:var(--green-d);padding:18px 8px}
 .sok small{display:block;font-size:.95rem;margin-top:6px}
 .sok .sst{color:var(--ink)}
@@ -115,7 +118,7 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
     <div id="main2" hidden>
     <div class="card"><h3 id="stG"></h3><div class="chips" id="grs"></div>
       <div id="clsStep" hidden><h3 id="stC" style="margin-top:16px"></h3><div id="clsBox"></div></div></div>
-    <div class="gok" id="gok"><i>✓</i><b id="gokN"></b></div>
+    <div class="gok" id="gok"><i>✓</i><b id="gokN"></b><p id="gokS"></p><small id="gokB"></small></div>
     <div class="card" id="stuCard" hidden><h3 id="clsH"></h3><div id="stuBox"></div>
       <div class="add"><input id="addN" maxlength="60"><button class="btn" id="addB" type="button"></button></div></div>
     </div>
@@ -279,6 +282,7 @@ function paint() {
     S.g = MINE.g; S.c = MINE.c; S.sent = MINE.n;
     $('grs').parentNode.hidden = true;
     $('stuCard').hidden = false;
+    meTop(1);
     return paintMe();
   }
   $('grs').innerHTML = GRADES.map(function (g) {
@@ -378,12 +382,22 @@ function paintMe() {
   });
 }
 /* המסך הירוק — כמו בעמדת הנוכחות. */
-function gok(n) {
+/* המסך הירוק (8.99.592): השם ומה קורה עכשיו — מחכה לאישור / הרב כבר אישר. נשאר 6 שניות, לחיצה סוגרת. */
+function gok(n, sub, back) {
   var el = $('gok');
   $('gokN').textContent = n;
+  $('gokS').textContent = sub || '';
+  $('gokB').textContent = back || '';
   el.className = 'gok on';
-  setTimeout(function () { el.className = 'gok'; }, 1600);
-  el.onclick = function () { el.className = 'gok'; };
+  var t = setTimeout(function () { el.className = 'gok'; }, sub ? 6000 : 1600);
+  el.onclick = function () { clearTimeout(t); el.className = 'gok'; };
+}
+/* אחרי שנרשם — כרטיס המצב עובר לראש העמוד, במקום שלב הבחירה (מעל פרטי האירוע). ביטול — חוזר למקומו. */
+function meTop(on) {
+  var c = $('stuCard'), home = $('main2'), info = $('info');
+  if (on && c.parentNode !== info.parentNode) info.parentNode.insertBefore(c, info);
+  if (!on && c.parentNode !== home) home.appendChild(c);
+  $('sub').hidden = !!on;
 }
 function stMe() {
   var m = MINE || {};
@@ -403,6 +417,7 @@ function undoMe() {
     try { localStorage.removeItem(MINE_K); } catch (e) {}
     MINE = null; S.sent = ''; S.st = undefined; S.me = ''; S.err = 0;
     $('grs').parentNode.hidden = false;
+    meTop(0);
     return paint();
   }
   S.busy = true; S.err = 0; paintMe();
@@ -414,6 +429,7 @@ function undoMe() {
         try { localStorage.removeItem(MINE_K); } catch (e) {}
         MINE = null; S.sent = ''; S.st = undefined; S.me = ''; S.err = 0;
         $('grs').parentNode.hidden = false;
+        meTop(0);
         paint();
       } else { S.err = 1; paintMe(); }
     }, function () { S.busy = false; S.err = 1; paintMe(); });
@@ -435,7 +451,8 @@ function sendMe(n, again) {
         lset(MINE_K, JSON.stringify(MINE));
         S.me = '';
         $('grs').parentNode.hidden = true;
-        gok(n);
+        meTop(1);
+        gok(n, y ? (MINE.pre ? UI.tzmStRegNow : UI.tzmStReg) : UI.tzmStPend, y ? '' : UI.tzmStBack);
         paintMe();
         try { window.scrollTo(0, 0); } catch (e) {}
       } else fail();

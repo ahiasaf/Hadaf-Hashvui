@@ -65,7 +65,12 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     await p.waitForSelector('#gok.on', { timeout: 20000 });
     ok(/אלף בית/.test(await p.textContent('#gokN')), 'green screen with the name');
     if (SHOT) await p.screenshot({ path: SHOT + '/stu-green.png', fullPage: false });
+    ok(/מחכה לאישור/.test(await p.textContent('#gok')), 'green screen says waiting for the rav', await p.textContent('#gok'));
+    await p.click('#gok');
     await p.waitForSelector('#gok:not(.on)', { state: 'attached', timeout: 5000 });
+    var top = await p.evaluate(function () { var c = document.getElementById('stuCard').getBoundingClientRect(), i = document.getElementById('info').getBoundingClientRect(); return c.top < i.top && c.top < innerHeight; });
+    ok(top, 'status card at the top, above the event info');
+    if (SHOT) await p.screenshot({ path: SHOT + '/stu-top.png' });
     await p.waitForSelector('.sok', { timeout: 20000 });
     ok(rows(W).length === 1, 'tap = one request', rows(W));
     ok(/אלף בית/.test(await p.textContent('.sok')), 'sent confirmation');
