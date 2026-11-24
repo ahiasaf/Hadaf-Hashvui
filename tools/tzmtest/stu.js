@@ -60,19 +60,14 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     await p.waitForSelector('#grs [data-g="ז"]', { timeout: 20000 });
     ok(await p.isHidden('#byCard') && await p.isVisible('#info'), 'no name step, event info shown');
     await p.click('#grs [data-g="ז"]'); await p.click('#clsBox [data-c="3"]');
-    await p.click('#stuBox [data-n="אלף בית"]');
-    ok(/להרשמה/.test(await p.textContent('#sgo')), 'register button after tapping name');
     if (SHOT) await p.screenshot({ path: SHOT + '/stu1.png', fullPage: false });
-    // ביטול בתוך ארבע השניות — שום דבר לא נשלח
-    await p.click('#sgo');
-    await p.waitForTimeout(500);
-    ok(/ביטול/.test(await p.textContent('#sgo')), 'countdown on button', await p.textContent('#sgo'));
-    await p.click('#sgo');
-    await p.waitForTimeout(5000);
-    ok(rows(W).length === 0 && !(await p.$('.sok')), 'cancel — nothing sent');
     await p.click('#stuBox [data-n="אלף בית"]');
-    await p.click('#sgo');
+    await p.waitForSelector('#gok.on', { timeout: 20000 });
+    ok(/אלף בית/.test(await p.textContent('#gokN')), 'green screen with the name');
+    if (SHOT) await p.screenshot({ path: SHOT + '/stu-green.png', fullPage: false });
+    await p.waitForSelector('#gok:not(.on)', { state: 'attached', timeout: 5000 });
     await p.waitForSelector('.sok', { timeout: 20000 });
+    ok(rows(W).length === 1, 'tap = one request', rows(W));
     ok(/אלף בית/.test(await p.textContent('.sok')), 'sent confirmation');
     ok(await p.isHidden('#grs'), 'grade choice hidden after sending');
     // אותו טלפון — כניסה חוזרת: רק ה-✓
@@ -89,10 +84,10 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     ok(rows(W).filter(function (x) { return x[5] === 'אלף בית'; })[0][1] === 'בוטל', 'own cancel → בוטל', rows(W));
     ok(await p.isVisible('#grs') && !(await p.$('.sok')), 'choice open again');
     await p.click('#clsBox [data-c="3"]').catch(function () {});
-    await p.click('#stuBox [data-n="גימל דלת"]'); await p.click('#sgo');
+    await p.click('#stuBox [data-n="גימל דלת"]');
     await p.waitForSelector('.sok', { timeout: 20000 });
     ok(/גימל דלת/.test(await p.textContent('.sok')), 'new pick after change');
-    ok(/מחכה לאישור/.test(await p.textContent('.sok')) && /להיכנס שוב/.test(await p.textContent('.sok')), 'pending status shown', await p.textContent('.sok'));
+    ok(/מחכה לאישור של הרב/.test(await p.textContent('.sok')) && /תלויה באישור/.test(await p.textContent('.sok')), 'pending status shown', await p.textContent('.sok'));
     ok(rows(W).filter(function (x) { return x[5] === 'גימל דלת'; })[0][1] === 'בקשה ממתינה', 'new pending');
     // ביטול חזרה של אלף בית לפני שעוברים הלאה — שהבדיקות שאחר כך יעבדו על אותה כיתה
     G(W, { tzm: 'sreq', s: adm.sk, g: 'ז', c: '3', n: 'אלף בית' });
@@ -100,7 +95,7 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     var p2 = await page(b, port, W, '/tzama?s=' + adm.sk);
     await p2.waitForSelector('#grs [data-g="ח"]');
     await p2.click('#grs [data-g="ח"]'); await p2.click('#clsBox [data-c="2"]');
-    await p2.fill('#addN', 'תלמיד חדש'); await p2.click('#addB'); await p2.click('#sgo');
+    await p2.fill('#addN', 'תלמיד חדש'); await p2.click('#addB');
     await p2.waitForSelector('.sok', { timeout: 20000 });
     var r = rows(W);
     ok(r.length === 3 && r.every(function (x) { return x[1] === 'בקשה ממתינה' && x[7] === 'קישור תלמידים'; }), 'pending rows', r);

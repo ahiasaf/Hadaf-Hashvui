@@ -86,8 +86,11 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 .bar .s.ok{color:var(--green-d)}
 .info{display:block;width:100%;height:auto;border-radius:18px;margin-bottom:14px}
 .row.me{background:var(--green-l);outline:2px solid var(--green-d)}
-.sgo{display:block;width:100%;margin-top:12px;border:0;border-radius:14px;background:var(--green-d);color:#fff;font:inherit;font-weight:900;font-size:1.05rem;padding:13px;cursor:pointer}
-.sgo[disabled]{opacity:.7}
+.gok{position:fixed;inset:0;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  background:var(--green-d);color:#fff;text-align:center;padding:24px}
+.gok.on{display:flex}
+.gok i{width:120px;height:120px;border-radius:50%;background:#fff;color:var(--green-d);font-style:normal;font-size:4.4rem;font-weight:800;line-height:120px}
+.gok b{font-size:1.5rem;font-weight:800}
 .sok{text-align:center;font-weight:900;font-size:1.1rem;color:var(--green-d);padding:18px 8px}
 .sok small{display:block;font-size:.95rem;margin-top:6px}
 .sok .sst{color:var(--ink)}
@@ -112,6 +115,7 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
     <div id="main2" hidden>
     <div class="card"><h3 id="stG"></h3><div class="chips" id="grs"></div>
       <div id="clsStep" hidden><h3 id="stC" style="margin-top:16px"></h3><div id="clsBox"></div></div></div>
+    <div class="gok" id="gok"><i>✓</i><b id="gokN"></b></div>
     <div class="card" id="stuCard" hidden><h3 id="clsH"></h3><div id="stuBox"></div>
       <div class="add"><input id="addN" maxlength="60"><button class="btn" id="addB" type="button"></button></div></div>
     </div>
@@ -355,19 +359,27 @@ function paintMe() {
     return;
   }
   $('stuCard').querySelector('.add').hidden = false;
+  /* 8.99.586 (אחיאסף): לחיצה על השם = נרשם. בלי כפתור אישור; טעה — "שינוי" אחרי ה-✓. */
   if (S.me && L.indexOf(S.me) < 0) L.push(S.me);
   var h = '<p class="note">' + esc(UI.tzmStPick) + '</p>';
+  if (S.err) h += '<p class="note" style="color:var(--stop)">' + esc(UI.tzmInvErr) + '</p>';
   if (L.length) h += '<div class="list">' + L.map(function (n) {
-    return '<div class="row' + (S.me === n ? ' me' : '') + '" data-n="' + esc(n) + '"><span class="t"><b>' + esc(n) + '</b></span></div>';
+    var on = S.busy && S.me === n;
+    return '<div class="row' + (on ? ' me' : '') + '" data-n="' + esc(n) + '"><span class="t"><b>' + esc(n) + '</b>' +
+      (on ? '<small>' + esc(UI.tzmSaving) + '</small>' : '') + '</span></div>';
   }).join('') + '</div>';
-  if (S.me) h += '<button class="sgo" type="button" id="sgo"' + (S.busy ? ' disabled' : '') + '>' +
-    esc(S.busy ? UI.tzmSaving : tp(UI.tzmStGo, { n: S.me })) + '</button>' +
-    (S.err ? '<p class="note" style="color:var(--stop);margin-top:8px">' + esc(UI.tzmInvErr) + '</p>' : '');
   $('stuBox').innerHTML = h;
   Array.prototype.forEach.call($('stuBox').querySelectorAll('[data-n]'), function (el) {
-    el.onclick = function () { if (S.busy || S.wait) return; S.me = this.getAttribute('data-n'); S.err = 0; paintMe(); };
+    el.onclick = function () { if (S.busy) return; sendMe(this.getAttribute('data-n')); };
   });
-  if ($('sgo')) $('sgo').onclick = sendMe;
+}
+/* המסך הירוק — כמו בעמדת הנוכחות. */
+function gok(n) {
+  var el = $('gok');
+  $('gokN').textContent = n;
+  el.className = 'gok on';
+  setTimeout(function () { el.className = 'gok'; }, 1600);
+  el.onclick = function () { el.className = 'gok'; };
 }
 function stMe() {
   var m = MINE || {};
@@ -395,14 +407,9 @@ function undoMe() {
       } else { S.err = 1; paintMe(); }
     }, function () { S.busy = false; S.err = 1; paintMe(); });
 }
-function sendMe() {
-  if (S.busy || !S.me || S.sent) return;
-  /* "ביטול · 4" — טעה בשם? לחיצה על הכפתור ושום דבר לא נשלח. */
-  if (!S.wait) { S.wait = 1; S.err = 0; }
-  if (!SureLater(sendMe, this, arguments, function () { S.wait = 0; paintMe(); })) return;
-  S.wait = 0;
-  S.busy = true; S.err = 0; paintMe();
-  var n = S.me;
+function sendMe(n) {
+  if (S.busy || !n || S.sent) return;
+  S.me = n; S.busy = true; S.err = 0; paintMe();
   get('tzm=sreq&s=' + encodeURIComponent(SKEY) + '&g=' + encodeURIComponent(S.g) + '&c=' + encodeURIComponent(S.c) + '&n=' + encodeURIComponent(n))
     .then(function (d) {
       S.busy = false;
@@ -411,14 +418,15 @@ function sendMe() {
         lset(MINE_K, JSON.stringify(MINE));
         S.me = '';
         $('grs').parentNode.hidden = true;
-      } else S.err = 1;
+        gok(n);
+      } else { S.err = 1; S.me = ''; }
       paintMe();
-    }, function () { S.busy = false; S.err = 1; paintMe(); });
+    }, function () { S.busy = false; S.err = 1; S.me = ''; paintMe(); });
 }
 function addName() {
   var n = String($('addN').value || '').replace(/[|]/g, ' ').replace(/\s+/g, ' ').trim();
   if (!n || !S.g || !S.c) return;
-  if (STU) { if (S.wait || S.busy) return; S.me = n; S.err = 0; $('addN').value = ''; paintMe(); return; }
+  if (STU) { if (S.busy) return; $('addN').value = ''; sendMe(n); return; }
   var k = S.g + '|' + S.c + '|' + n;
   if (!S.REG[k]) S.P[k] = { g: S.g, c: S.c, n: n, on: true };
   else delete S.P[k];
