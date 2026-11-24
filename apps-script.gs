@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 269;
+var SCRIPT_VERSION = 270;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -20817,9 +20817,9 @@ function tzmSReq_(P) {
   var g = chnGr_(P.g), c = clsK_(P.c), n = tzmNm_(String(P.n || '').replace(/[|]/g, ' '));
   if (TZM_GR_.indexOf(g) < 0 || !c || c.length > 4 || !n) return { status: 'error' };
   var lock = LockService.getScriptLock();
-  if (!lock.tryLock(15000)) return { status: 'busy' };
+  if (!lock.tryLock(15000)) { tmBump_({ 'tzmerr:busy': 1 }); return { status: 'busy' }; }
   try {
-    var sh = tzmSheet_(), key = g + '|' + c + '|' + n, row = null, now = chnNow_(), tk = Utilities.getUuid().replace(/-/g, '').slice(0, 16);
+    var sh = tzmSheet_(), key = g + '|' + c + '|' + n, row = null, now = chnNow_(), tk = 't' + Utilities.getUuid().replace(/-/g, '').slice(0, 15);
     tzmRows_(sh).forEach(function (o) { if (o['מפתח'] === key) row = o; });
     if (row && row['מצב'] !== 'בוטל') return { status: 'ok', st: row['מצב'] === 'רשום' ? 'y' : 'q' };
     tzmTkHead_(sh);
@@ -20828,19 +20828,24 @@ function tzmSReq_(P) {
       sh.getRange(row.r, TZM_COLS_.indexOf('מצב') + 1).setValue(TZM_PEND_);
       sh.getRange(row.r, TZM_COLS_.indexOf('נרשם ע"י') + 1).setValue('קישור תלמידים');
       sh.getRange(row.r, TZM_COLS_.indexOf('עודכן') + 1).setValue(now);
-      sh.getRange(row.r, TZM_TK_COL_).setValue(tk);
+      sh.getRange(row.r, TZM_TK_COL_).setNumberFormat('@').setValue(tk);
     } else {
       var at = Math.max(sh.getLastRow(), 1) + 1, rg = sh.getRange(at, 1, 1, TZM_COLS_.length);
       rg.setNumberFormat('@');
       rg.setValues([[key, TZM_PEND_, TZM_INST_, g, c, n, man ? 'כן' : '', 'קישור תלמידים', now, now]]);
-      sh.getRange(at, TZM_TK_COL_).setValue(tk);
+      sh.getRange(at, TZM_TK_COL_).setNumberFormat('@').setValue(tk);
     }
     SpreadsheetApp.flush();
     var st = '', back = '';
     tzmRows_(sh).forEach(function (o) { if (o['מפתח'] === key) { st = o['מצב']; back = tzmTkOf_(sh, o.r); } });
-    return (st === TZM_PEND_ || st === 'בקשה' || st === 'רשום') && back === tk ? { status: 'ok', st: st === 'רשום' ? 'y' : 'q', tk: tk } : { status: 'error' };
+    var okSt = st === TZM_PEND_ || st === 'בקשה' || st === 'רשום';
+    if (okSt && back === tk) return { status: 'ok', st: st === 'רשום' ? 'y' : 'q', tk: tk };
+    var tv = {}; tv['tzmerr:ver:' + (okSt ? 's1' : 's0') + ':b' + String(back).length] = 1; tmBump_(tv);
+    return { status: 'error' };
   } catch (e) {
-    return { status: 'error', e: String(e && e.message || e).slice(0, 160) };
+    var em = String(e && e.message || e);
+    var tx = {}; tx['tzmerr:x:' + em.replace(/[^A-Za-z0-9 ]/g, '').slice(0, 60)] = 1; tmBump_(tx);
+    return { status: 'error', e: em.slice(0, 160) };
   } finally { lock.releaseLock(); }
 }
 /* ?tzm=scan&s=&g=&c=&n=&tk= — התלמיד מבטל את הבקשה שלו (לפי האסימון) → "בוטל". בקשה ישנה בלי אסימון — רק
