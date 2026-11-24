@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 264;
+var SCRIPT_VERSION = 265;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -171,6 +171,8 @@ var PRIVATE_TABS = ['תמונת בית א', 'תמונת בית ב', 'עלוני�
                     'חוברות חנוכה — ר"מים',
                     /* רישום לאירוע צמאה — שמות התלמידים שנרשמו. ראו tzmPut_. */
                     'צמאה — רישום',
+                    /* בקשות למחיקת חשבון (mechika.html) — שם וטלפון. ראו mkPut_. */
+                    'בקשות מחיקה',
                     /* הגרלת הרביעיות — מי בקבוצה עם מי, והזוכות. ראו quadRoute_. */
                     'רביעיות', 'רביעיות-הגרלות',
                     /* שני אנשי קשר שונים נרשמו לאותו מוסד. ראו `flagRegConflict_`. */
@@ -368,7 +370,7 @@ var TM_KEYS_ = ['file', 'help', 'setup', 'fire', 'helpdone', 'conflictdone', 'sa
   'parstat', 'ltime', 'amdaneed', 'test', 'sayCount', 'inbox', 'mark', 'funnel', 'trails', 'arrived', 'push',
   'pairHist', 'pair', 'pairok', 'pairSeen', 'pairFor', 'idFor', 'amdaFor', 'whoIs', 'wid', 'acc', 'accset',
   'netbaks', 'netrun', 'netmarks', 'board', 'ov', 'team', 'recount', 'delrow', 'contactSave', 'archived',
-  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid', 'hasaa', 'hlpq', 'acclim', 'chn', 'tzm'];
+  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid', 'hasaa', 'hlpq', 'acclim', 'chn', 'tzm', 'mechika'];
 /* שם הבקשה — המפתח הראשון ברשימה שקיים, ועם ערכו רק כשהוא מילה קצרה
    באנגלית (op של האתגר/ההגרלה). מזהה או מספר לעולם אינו נכנס. */
 function tmName_(e, post) {
@@ -526,6 +528,8 @@ function doPostMain_(e) {
   if (hd && hd.action === 'chn') return json_(chnPut_(hd));
   /* רישום לאירוע צמאה (tzama.html) — נעילה קצרה משלו. ראו tzmPut_. */
   if (hd && hd.action === 'tzm') return json_(tzmPut_(hd));
+  /* בקשה למחיקת חשבון (mechika.html) — נעילה קצרה משלה. ראו mkPut_. */
+  if (hd && hd.action === 'mechika') return json_(mkPut_(hd));
   /* חוברות חנוכה — רשימת הר"מים לפי כיתה, מודבקת בניהול (בסיסמה). ראו chnRoute_ ramset. */
   if (hd && hd.action === 'chnrams') {
     if (!READ_KEY || String(hd.key || '') !== READ_KEY) return json_({ status: 'denied' });
@@ -1138,6 +1142,10 @@ function doGetMain_(e) {
   if (e && e.parameter && e.parameter.tzm) {
     try { return reply_(e, tzmRoute_(e.parameter)); }
     catch (eTz) { return reply_(e, { status: 'error' }); }
+  }
+  if (e && e.parameter && e.parameter.mechika) {
+    try { return reply_(e, mkChk_(e.parameter.op)); }
+    catch (eMk) { return reply_(e, { status: 'error' }); }
   }
   if (e && e.parameter && e.parameter.chn) {
     try { return reply_(e, chnRoute_(e.parameter)); }
@@ -20789,4 +20797,59 @@ function tzmRoute_(P) {
   }
   if (op === 'push') return tzmPush_(String(P.go) === '1');
   return { status: 'error' };
+}
+
+/* ============================================================
+   בקשה למחיקת חשבון (mechika.html · 8.99.581) — דרישה של Google Play.
+   ============================================================
+   זכות של התלמיד/ההורה למחוק את פרטיו. אין אימות זהות אוטומטי (גוגל
+   אינו מוסר לנו מי האדם), ולכן זו **בקשה** — אחיאסף מוחק ביד.
+   · POST {action:'mechika', op, f:{n, ph, note, id, dev}} — לפני הנעילה
+     הראשית, נעילה קצרה משלה. שורה ללשונית הפרטית "בקשות מחיקה".
+     `id`/`dev` — מה שבמכשיר שממנו נשלחה הבקשה (עוזר לזהות את החשבון).
+   · ?mechika=chk&op= — "נשלחה" רק מקריאה חוזרת של הלשונית.
+   ============================================================ */
+var MK_TAB_ = 'בקשות מחיקה';
+var MK_COLS_ = ['מזהה בקשה', 'נוצר', 'שם', 'טלפון', 'הערה', 'מזהה במכשיר', 'מזהה מכשיר', 'מצב', 'טופל'];
+function mkSheet_() {
+  var sh = sheet_(MK_TAB_);
+  if (sh.getLastRow() < 1) {
+    sh.getRange(1, 1, 1, MK_COLS_.length).setValues([MK_COLS_]);
+    try { sh.setFrozenRows(1); } catch (x) {}
+  }
+  return sh;
+}
+function mkHas_(sh, op) {
+  var n = sh.getLastRow();
+  if (n < 2) return false;
+  var v = sh.getRange(2, 1, n - 1, 1).getDisplayValues();
+  for (var i = 0; i < v.length; i++) if (String(v[i][0]).trim() === op) return true;
+  return false;
+}
+function mkOp_(v) { v = String(v || '').trim(); return /^[0-9a-f]{16,64}$/.test(v) ? v : ''; }
+function mkPut_(d) {
+  var op = mkOp_(d.op), f = d.f || {};
+  var cl = function (v, n) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n); };
+  var nm = cl(f.n, 80), ph = String(f.ph || '').replace(/\D/g, '');
+  if (!op || !nm || ph.length < 9 || ph.length > 12) return { status: 'error', message: 'bad' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(15000)) return { status: 'busy' };
+  try {
+    var sh = mkSheet_();
+    if (mkHas_(sh, op)) return { status: 'ok', saved: true, dup: true };
+    var now = Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'dd.MM.yyyy HH:mm');
+    var o = { 'מזהה בקשה': op, 'נוצר': now, 'שם': nm, 'טלפון': ph, 'הערה': cl(f.note, 400),
+              'מזהה במכשיר': cl(f.id, 60), 'מזהה מכשיר': cl(f.dev, 60), 'מצב': 'ממתין', 'טופל': '' };
+    var r = Math.max(sh.getLastRow(), 1) + 1, rg = sh.getRange(r, 1, 1, MK_COLS_.length);
+    rg.setNumberFormat('@');
+    rg.setValues([MK_COLS_.map(function (h) { return o[h]; })]);
+    SpreadsheetApp.flush();
+    return { status: 'ok', saved: mkHas_(sh, op) };
+  } finally { lock.releaseLock(); }
+}
+function mkChk_(op) {
+  op = mkOp_(op);
+  if (!op) return { status: 'error', message: 'bad' };
+  var sh = sheet_(MK_TAB_);
+  return { status: 'ok', saved: sh.getLastRow() >= 2 && mkHas_(sh, op) };
 }

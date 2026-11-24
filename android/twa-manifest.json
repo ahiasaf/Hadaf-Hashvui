@@ -1,0 +1,40 @@
+{
+  "packageId": "app.vercel.hadaf_hashvui",
+  "host": "hadaf-hashvui.vercel.app",
+  "name": "הדף השבועי של בני עקיבא",
+  "launcherName": "הדף השבועי",
+  "display": "standalone",
+  "themeColor": "#17468F",
+  "themeColorDark": "#17468F",
+  "navigationColor": "#17468F",
+  "navigationColorDark": "#17468F",
+  "navigationDividerColor": "#17468F",
+  "navigationDividerColorDark": "#17468F",
+  "backgroundColor": "#17468F",
+  "enableNotifications": true,
+  "startUrl": "/join?app=1",
+  "iconUrl": "http://localhost:8977/icon-512.png",
+  "maskableIconUrl": "http://localhost:8977/icon-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./upload.keystore",
+    "alias": "upload"
+  },
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-core",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "minSdkVersion": 21,
+  "orientation": "portrait",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "displayOverride": []
+}

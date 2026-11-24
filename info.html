@@ -110,6 +110,7 @@ footer a{color:var(--ink-2)}
 
   <h2 id="h-priv"></h2>
   <p class="body" id="t-priv"></p>
+  <a class="go" href="mechika.html" id="t-delGo"></a>
 
   <h2 id="h-a11y"></h2>
   <p class="body" id="t-a11y"></p>
@@ -165,7 +166,7 @@ document.getElementById('logo').src = window.LOGO_FULL || window.LOGO_MARK || ''
 
 function draw() {
   var I = window.INFO || {};
-  var keys = ['title','lead','priv','a11y','a11yGo','cred',
+  var keys = ['title','lead','priv','delGo','a11y','a11yGo','cred',
               'gemH','gem','gemNote','chavH','chav','chavNote',
               'ownH','own','ownLine','dafH','daf','dafLine','verBy'];
   keys.forEach(function (k) {

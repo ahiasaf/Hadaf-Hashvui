@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="only light">
+<title>הדף השבועי של בני עקיבא</title>
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#17468F">
+<!-- ============================================================
+     בקשה למחיקת חשבון (8.99.581) — דרישה של Google Play.
+     ============================================================
+     זכות של התלמיד/ההורה. שם + טלפון (+ הערה) → POST {action:'mechika'}
+     (no-cors) → ?mechika=chk&op= → "התקבלה" רק מקריאה חוזרת. אחיאסף מוחק
+     ביד (אין אימות זהות אוטומטי). המכשיר מוסיף את המזהים שלו, אם יש —
+     עוזר למצוא את החשבון. op לכל תוכן; ניסיון חוזר — אותו op. השרת: mkPut_.
+     קישור אליו: עמוד הפרטים (info.html, ליד הפרטיות) ובחנות.
+     ============================================================ -->
+<style>
+html,body{touch-action:manipulation;overflow-x:clip}
+:root{--blue:#17468F;--blue-d:#0B2550;--gold-d:#8A6512;--paper:#F6F3EC;--card:#fff;--ink:#1F2430;
+  --ink-2:#5E6472;--rule:#E3DDD0;--stop:#A5382D;--ok:#2F6B2A}
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+img:not([src]){visibility:hidden}
+body{background:var(--paper);color:var(--ink);line-height:1.55;padding-bottom:calc(env(safe-area-inset-bottom) + 32px)}
+header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
+.masthead{display:flex;align-items:center;gap:13px;padding:14px 16px 10px;max-width:32rem;margin:0 auto}
+.masthead .m{width:58px;height:58px;border-radius:50%;background:#fff;flex:none;display:flex;align-items:center;
+  justify-content:center;box-shadow:0 2px 5px rgba(37,29,12,.07),0 8px 22px rgba(37,29,12,.09)}
+.masthead .m img{width:38px;height:38px;display:block;object-fit:contain}
+.masthead h1{font-size:1.24rem;font-weight:800;letter-spacing:-.035em;line-height:1.2;color:var(--blue-d)}
+.masthead .yr{font-size:.76rem;font-weight:800;color:var(--gold-d);letter-spacing:.05em;margin-top:3px}
+.wrap{max-width:32rem;margin:0 auto;padding:0 16px}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:18px;padding:18px 16px;margin-top:10px;
+  box-shadow:0 2px 6px rgba(20,30,60,.05),0 10px 26px rgba(20,30,60,.06)}
+h2{font-size:1.3rem;font-weight:800;color:var(--blue-d);margin-bottom:8px}
+.lead{font-size:.98rem;color:var(--ink)}
+.fl{display:block;margin-top:14px}
+.fl > span{display:block;font-size:.92rem;font-weight:800;color:var(--blue-d);margin-bottom:4px}
+.fl input,.fl textarea{display:block;width:100%;border:1.5px solid var(--rule);border-radius:12px;background:#fff;
+  padding:11px 13px;font:inherit;font-size:16px;color:var(--ink)}
+.fl textarea{min-height:78px;resize:vertical}
+.fl input.need{border-color:var(--stop)}
+.err{color:var(--stop);font-weight:800;font-size:.88rem;margin-top:10px}
+.go{display:block;width:100%;border:0;border-radius:14px;background:var(--blue);color:#fff;font:inherit;
+  font-weight:800;font-size:1.08rem;padding:15px;margin-top:18px;cursor:pointer}
+.go:disabled{opacity:.6}
+.ok h2{color:var(--ok)}
+</style>
+</head>
+<body>
+<header>
+  <div class="masthead">
+    <span class="m"><img id="hdr-mark" alt=""></span>
+    <div><h1 id="brand"></h1><div class="yr" id="yr"></div></div>
+  </div>
+</header>
+<main class="wrap">
+  <form class="card" id="f" autocomplete="on" novalidate>
+    <h2 id="ttl"></h2>
+    <p class="lead" id="lead"></p>
+    <label class="fl"><span id="lN"></span><input id="f-n" maxlength="80" autocomplete="name"></label>
+    <label class="fl"><span id="lP"></span><input id="f-p" maxlength="20" inputmode="tel" autocomplete="tel" dir="ltr"></label>
+    <label class="fl"><span id="lX"></span><textarea id="f-x" maxlength="400"></textarea></label>
+    <p class="err" id="err" hidden></p>
+    <button class="go" id="go" type="submit"></button>
+  </form>
+  <div class="card ok" id="ok" hidden><h2 id="okH"></h2><p class="lead" id="okB"></p></div>
+</main>
+<script src="data.js"></script>
+<script src="learned.js"></script>
+<script src="logo.js"></script>
+<script>
+function $(id) { return document.getElementById(id); }
+function tp(t, v) {
+  return String(t || '').replace(/\{(\w+)\}/g, function (m, k) { return v[k] != null ? v[k] : m; });
+}
+function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function jget(k) { try { return JSON.parse(ls(k) || 'null'); } catch (e) { return null; } }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+/* המלל שנערך בניהול. נוסח שהוחלף בקוד (TEXT_RETIRED) — אינו גובר. */
+function take(map) {
+  for (var k in (map || {})) {
+    var p = k.split('.'), v = map[k];
+    if (p.length !== 2 || p[0] !== 'ui' || typeof v !== 'string' || !v) continue;
+    var old = (typeof TEXT_RETIRED !== 'undefined' && TEXT_RETIRED[k]) || [];
+    if ([].concat(old).indexOf(v) >= 0) continue;
+    UI[p[1]] = v;
+  }
+}
+try { take(jget('df:textCache')); take((jget('df:cfg') || {}).texts); } catch (e) {}
+
+$('hdr-mark').src = window.LOGO_MARK || '';
+$('brand').innerHTML = esc(PROGRAM.short) + '<br>' + esc(PROGRAM.name.slice(PROGRAM.short.length).trim());
+$('yr').textContent = tp(UI.rstYear, { y: PROGRAM.year });
+$('ttl').textContent = UI.mkTitle;
+if (UI.mkTitle) document.title = UI.mkTitle;
+$('lead').textContent = UI.mkLead;
+$('lN').textContent = UI.mkName;
+$('lP').textContent = UI.mkPhone;
+$('lX').textContent = UI.mkNote;
+$('go').textContent = UI.mkGo;
+
+/* מה שכבר במכשיר — ממלא, ועוזר לרכז למצוא את החשבון. */
+var ME = null;
+try { ME = LMe(); } catch (e) {}
+if (ME) {
+  $('f-n').value = [ME.first || ME.name || '', ME.last || ''].join(' ').replace(/\s+/g, ' ').trim();
+  $('f-p').value = ME.phone || '';
+}
+
+function api() {
+  var u = ls('dfApi') || (typeof APPS_SCRIPT_URL !== 'undefined' ? APPS_SCRIPT_URL : '');
+  return String(u || '').trim();
+}
+function get(q) {
+  var u = api();
+  var j = function (r) { if (!r.ok) throw new Error('http'); return r.json(); };
+  return fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + q + '&t=' + Date.now()).then(j)['catch'](function () {
+    if (typeof APPS_SCRIPT_URL === 'undefined' || u !== APPS_SCRIPT_URL) throw new Error('net');
+    return fetch('/api/gs?' + q + '&t=' + Date.now()).then(j);
+  });
+}
+function post(body) {
+  var u = api(), o = { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(body) };
+  /* fetch עטוף ב-data.js — כישלון ישיר עובר לבד דרך /api/gs. */
+  return fetch(u, o);
+}
+function rid(n) {
+  var b = [], i, a;
+  try {
+    a = new Uint8Array(n);
+    (window.crypto || window.msCrypto).getRandomValues(a);
+    for (i = 0; i < a.length; i++) b.push((a[i] < 16 ? '0' : '') + a[i].toString(16));
+  } catch (e) {
+    for (i = 0; i < n * 2; i++) b.push(Math.floor(Math.random() * 16).toString(16));
+  }
+  return b.join('');
+}
+function wait(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
+
+var BUSY = false, OP = '', SIG = '';
+function check(n) {
+  return get('mechika=chk&op=' + OP)
+    .then(function (r) { return !!(r && r.status === 'ok' && r.saved); }, function () { return false; })
+    .then(function (ok) { return ok || n <= 1 ? ok : wait(2500).then(function () { return check(n - 1); }); });
+}
+function attempt(f) {
+  return post({ action: 'mechika', op: OP, f: f })['catch'](function () {})
+    .then(function () { return wait(1500); })
+    .then(function () { return check(4); });
+}
+function err(t) { $('err').textContent = t; $('err').hidden = !t; }
+function send() {
+  if (BUSY) return;
+  var n = $('f-n').value.replace(/\s+/g, ' ').trim(), ph = $('f-p').value.replace(/\D/g, '');
+  $('f-n').className = n ? '' : 'need';
+  $('f-p').className = (ph.length >= 9 && ph.length <= 12) ? '' : 'need';
+  if (!n || ph.length < 9 || ph.length > 12) { err(UI.mkNeed); return; }
+  err('');
+  var dev = '';
+  try { dev = (typeof LDev === 'function') ? LDev() : ''; } catch (e) {}
+  var f = { n: n, ph: ph, note: $('f-x').value.trim(), id: (ME && ME.id) || '', dev: dev };
+  var sig = JSON.stringify(f);
+  if (!OP || sig !== SIG) { OP = rid(16); SIG = sig; }
+  BUSY = true;
+  $('go').disabled = true; $('go').textContent = UI.mkSending;
+  attempt(f).then(function (ok) { return ok || attempt(f); }).then(function (ok) {
+    BUSY = false;
+    if (ok) {
+      $('okH').textContent = UI.mkOkH; $('okB').textContent = UI.mkOkB;
+      $('f').hidden = true; $('ok').hidden = false; window.scrollTo(0, 0);
+      return;
+    }
+    $('go').disabled = false; $('go').textContent = UI.mkRetry; err(UI.mkFail);
+  });
+}
+$('f').onsubmit = function (ev) { ev.preventDefault(); send(); };
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+# בנייה מקומית ומפתחות — לא בריפו (הריפו ציבורי)
+build/
+app/build/
+.gradle/
+local.properties
+*.keystore
+*.jks
+*.aab
+*.apk

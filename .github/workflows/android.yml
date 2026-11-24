@@ -1,0 +1,56 @@
+# ============================================================
+# בניית האפליקציה ל-Google Play (TWA — עוטפת את האתר הקיים).
+#
+# הבנייה כאן, כי כלי אנדרואיד חסומים בסביבת העבודה. התוצאה
+# **לא חתומה** ונדחפת לענף `android-build`; החתימה נעשית מחוץ
+# לריפו, במפתח ששמור בדרייב של אחיאסף — הריפו ציבורי, ומפתח
+# החתימה לעולם לא נכנס אליו או לסודות.
+#
+# האפליקציה עצמה רק פותחת את hadaf-hashvui.vercel.app — כל שינוי
+# באתר מגיע אליה בלי בנייה חדשה. בונים מחדש רק כששינינו את
+# android/ (סמל, שם, צבע, גרסה).
+# ============================================================
+name: בניית אנדרואיד
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['android/**', '.github/workflows/android.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: כלי אנדרואיד
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" >/dev/null
+
+      - name: בנייה (לא חתומה)
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon bundleRelease
+          ls -la app/build/outputs/bundle/release/
+
+      - name: לענף android-build
+        run: |
+          V=$(grep -o 'versionCode [0-9]*' android/app/build.gradle | grep -o '[0-9]*')
+          mkdir /tmp/out && cp android/app/build/outputs/bundle/release/*.aab /tmp/out/app-unsigned-v$V.aab
+          cd /tmp/out
+          git init -q -b android-build
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add . && git commit -q -m "בנייה לא חתומה v$V (${GITHUB_SHA::7})"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" android-build

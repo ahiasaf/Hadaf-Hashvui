@@ -2201,3 +2201,18 @@ node scratchpad/smoke.js     # כל המסכים, שתי רזולוציות
 * **לא זז:** "עם מי למדת" (PAIR_UI.line) ו"קפיצה למקום" (spotJump) — רק בדף השבוע (`isWeekDaf()`). השרת לא שונה.
 * בדיקה: `node tools/learntest/olddaf.js` (31) — learn.html האמיתי, לחיצות "הבא" עד הסוף, מול apps-script.gs ב-vm;
   סימוני הדף מדומים (docs.google חסום).
+
+## Google Play — אפליקציית אנדרואיד (TWA) · בקשת מחיקה (8.99.581 · SCRIPT_VERSION 265)
+
+* **האפליקציה עוטפת את האתר** (Trusted Web Activity, נוצר ב-@bubblewrap/core): `android/`. פותחת את
+  `hadaf-hashvui.vercel.app/join?app=1`; כל שינוי באתר מגיע אליה בלי בנייה. מזהה קבוע: **`app.vercel.hadaf_hashvui`**
+  (אי אפשר לשנות). בונים מחדש רק כשמשנים את android/ — ואז **`versionCode` עולה באחד** (app/build.gradle).
+* **הבנייה בגיטהאב** (`.github/workflows/android.yml`) — **לא חתומה**, נדחפת לענף `android-build`. החתימה — מחוץ לריפו,
+  ב-`jarsigner`, במפתח ההעלאה ששמור בדרייב של אחיאסף (תיקייה "הדף השבועי — אנדרואיד"). **המפתח לעולם לא בריפו או בסודות.**
+  Play App Signing — גוגל מחזיק את מפתח האפליקציה; מפתח העלאה שאבד מוחלף דרך ה-Console.
+* **`.well-known/assetlinks.json`** — טביעת מפתח ההעלאה, ו**צריך להוסיף את טביעת "מפתח חתימת האפליקציה"** מ-Play Console
+  (שלמות האפליקציה). בלעדיה — שורת כתובת בראש האפליקציה. `android/` ב-`.vercelignore`.
+* **בקשת מחיקה** — `/mechika` (mechika.html): שם, טלפון, הערה → POST `action:'mechika'` (mkPut_) → לשונית פרטית
+  `בקשות מחיקה` → `?mechika=chk&op=` מאמת. אחיאסף מוחק ביד (אין אימות זהות; גוגל לא מוסר מי האדם). קישור: עמוד
+  הפרטים (`info.delGo`). נוסח `ui.mk*`. בדיקה: `node tools/mktest/run.js` (9).
+* **חשבון מפתח אישי:** ניסיון סגור — 12 בודקים, 14 ימים ברצף — לפני בקשת פרסום לכולם.
