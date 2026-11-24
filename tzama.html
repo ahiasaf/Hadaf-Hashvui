@@ -362,11 +362,12 @@ function paintMe() {
   /* 8.99.586 (אחיאסף): לחיצה על השם = נרשם. בלי כפתור אישור; טעה — "שינוי" אחרי ה-✓. */
   if (S.me && L.indexOf(S.me) < 0) L.push(S.me);
   var h = '<p class="note">' + esc(UI.tzmStPick) + '</p>';
-  if (S.err) h += '<p class="note" style="color:var(--stop)">' + esc(UI.tzmInvErr) + '</p>';
+  /* 8.99.589: השגיאה על השורה שנלחצה — לא בראש הרשימה, שם היא מחוץ למסך. */
   if (L.length) h += '<div class="list">' + L.map(function (n) {
-    var on = S.busy && S.me === n;
+    var on = S.busy && S.me === n, bad = !S.busy && S.err && S.errN === n;
     return '<div class="row' + (on ? ' me' : '') + '" data-n="' + esc(n) + '"><span class="t"><b>' + esc(n) + '</b>' +
-      (on ? '<small>' + esc(UI.tzmSaving) + '</small>' : '') + '</span></div>';
+      (on ? '<small>' + esc(UI.tzmSaving) + '</small>' : '') +
+      (bad ? '<small style="color:var(--stop);font-weight:800">' + esc(UI.tzmInvErr) + '</small>' : '') + '</span></div>';
   }).join('') + '</div>';
   $('stuBox').innerHTML = h;
   Array.prototype.forEach.call($('stuBox').querySelectorAll('[data-n]'), function (el) {
@@ -407,21 +408,27 @@ function undoMe() {
       } else { S.err = 1; paintMe(); }
     }, function () { S.busy = false; S.err = 1; paintMe(); });
 }
-function sendMe(n) {
-  if (S.busy || !n || S.sent) return;
-  S.me = n; S.busy = true; S.err = 0; paintMe();
+function sendMe(n, again) {
+  if ((S.busy && !again) || !n || S.sent) return;
+  S.me = n; S.busy = true; S.err = 0; S.errN = ''; paintMe();
+  var fail = function () {
+    /* עסוק / רשת — עוד ניסיון אחד אחרי 3 שניות, ורק אז שגיאה על השורה. */
+    if (!again) return setTimeout(function () { sendMe(n, 1); }, 3000);
+    S.busy = false; S.err = 1; S.errN = n; paintMe();
+  };
   get('tzm=sreq&s=' + encodeURIComponent(SKEY) + '&g=' + encodeURIComponent(S.g) + '&c=' + encodeURIComponent(S.c) + '&n=' + encodeURIComponent(n))
     .then(function (d) {
-      S.busy = false;
       if (d && d.status === 'ok') {
+        S.busy = false;
         S.sent = n; S.st = 'pend'; MINE = { n: n, g: S.g, c: S.c, tk: d.tk || '' };
         lset(MINE_K, JSON.stringify(MINE));
         S.me = '';
         $('grs').parentNode.hidden = true;
         gok(n);
-      } else { S.err = 1; S.me = ''; }
-      paintMe();
-    }, function () { S.busy = false; S.err = 1; S.me = ''; paintMe(); });
+        paintMe();
+        try { window.scrollTo(0, 0); } catch (e) {}
+      } else fail();
+    }, fail);
 }
 function addName() {
   var n = String($('addN').value || '').replace(/[|]/g, ' ').replace(/\s+/g, ' ').trim();
