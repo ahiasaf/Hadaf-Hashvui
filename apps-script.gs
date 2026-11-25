@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 273;
+var SCRIPT_VERSION = 274;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -20985,20 +20985,56 @@ function tzmSApprove_(P) {
    התשובה — רק שם וכיתה. השמות לא בריפו. הלשונית נוצרת עם הכותרת אם חסרה. */
 var TZM_RAM_TAB_ = 'צמאה — ר"מים';
 var TZM_RAM_COLS_ = ['שם'].concat(['כיתה']);
+var TZM_RAM_A_ = 'מגיע';
 function tzmRamSheet_() {
   var sh = sheet_(TZM_RAM_TAB_);
   if (sh.getLastRow() < 1) sh.getRange(1, 1, 1, TZM_RAM_COLS_.length).setValues([TZM_RAM_COLS_]);
   return sh;
 }
-function tzmRams_() {
+/* עמודת "מגיע" — השלישית; נוספת לכותרת אם חסרה (גם בלשונית צרה). */
+function tzmRamACol_(sh) {
+  if (sh.getMaxColumns() < 3) sh.insertColumnsAfter(sh.getMaxColumns(), 3 - sh.getMaxColumns());
+  if (String(sh.getRange(1, 3).getDisplayValue() || '').trim() !== TZM_RAM_A_) sh.getRange(1, 3).setValue(TZM_RAM_A_);
+  return 3;
+}
+function tzmRamA1_(v) { v = String(v || '').trim(); return v === 'כן' ? 'y' : v === 'לא' ? 'n' : ''; }
+/* withA — גם מצב ההגעה (לניהול ולשורה של הר"ם עצמו בלבד). */
+function tzmRams_(withA) {
   var sh = tzmRamSheet_(), n = sh.getLastRow(), out = [];
   if (n < 2) return out;
-  var v = sh.getRange(2, 1, n - 1, 2).getDisplayValues();
+  var w = Math.min(3, sh.getMaxColumns());
+  var v = sh.getRange(2, 1, n - 1, w).getDisplayValues();
   for (var i = 0; i < v.length; i++) {
     var nm = tzmNm_(v[i][0]);
-    if (nm) out.push({ n: nm, c: String(v[i][1] || '').replace(/\s+/g, ' ').trim().slice(0, 20) });
+    if (!nm) continue;
+    var o = { n: nm, c: String(v[i][1] || '').replace(/\s+/g, ' ').trim().slice(0, 20) };
+    if (withA) { o.a = w >= 3 ? tzmRamA1_(v[i][2]) : ''; o.r = i + 2; }
+    out.push(o);
   }
   return out;
+}
+function tzmRamOf_(n) {
+  n = tzmNm_(n);
+  var L = tzmRams_(true);
+  for (var i = 0; i < L.length; i++) if (L[i].n === n) return L[i];
+  return null;
+}
+/* סימון הגעה — הר"ם (מפתח הרכזים) או אחיאסף (סיסמה). רק שם שברשימה; האחרון קובע; קריאה חוזרת. */
+function tzmRamSet_(P) {
+  var a = String(P.a || ''), n = tzmNm_(P.n);
+  if ((a !== 'y' && a !== 'n') || !n) return { status: 'error' };
+  var lk = LockService.getScriptLock();
+  if (!lk.tryLock(10000)) return { status: 'busy' };
+  try {
+    var r = tzmRamOf_(n);
+    if (!r) return { status: 'none' };
+    var sh = tzmRamSheet_(), col = tzmRamACol_(sh);
+    sh.getRange(r.r, col).setValue(a === 'y' ? 'כן' : 'לא');
+    SpreadsheetApp.flush();
+    var back = tzmRamOf_(n);
+    if (!back || back.a !== a) return { status: 'error' };
+    return { status: 'ok', a: back.a };
+  } finally { lk.releaseLock(); }
 }
 function tzmRoute_(P) {
   var op = String(P.tzm || '');
@@ -21006,6 +21042,13 @@ function tzmRoute_(P) {
     var k0 = tzmKeyOf_(false);
     if (!k0 || String(P.k || '') !== k0) return { status: 'denied' };
     return { status: 'ok', rams: tzmRams_() };
+  }
+  if (op === 'ramst' || op === 'ramset') {
+    var k1 = tzmKeyOf_(false), adm1 = !!READ_KEY && String(P.key || '') === READ_KEY;
+    if (!adm1 && (!k1 || String(P.k || '') !== k1)) return { status: 'denied' };
+    if (op === 'ramset') return tzmRamSet_(P);
+    var me1 = tzmRamOf_(P.n);
+    return me1 ? { status: 'ok', a: me1.a } : { status: 'none' };
   }
   if (op === 'scls') return tzmSOk_(P) ? { status: 'ok', cls: tzmRoster_() } : { status: 'denied' };
   if (op === 'sreq') return tzmSOk_(P) ? tzmSReq_(P) : { status: 'denied' };
@@ -21020,7 +21063,7 @@ function tzmRoute_(P) {
   if (op === 'me') return tzmMe_(P.id);
   if (op === 'req') return tzmReq_(P.id);
   if (!READ_KEY || String(P.key || '') !== READ_KEY) return { status: 'denied' };
-  if (op === 'adm') return { status: 'ok', k: tzmKeyOf_(true), sk: tzmSKeyOf_(true), reg: tzmReg_(), rq: tzmRq_(), pq: tzmPq_(), on: tzmOn_(),
+  if (op === 'adm') return { status: 'ok', rams: tzmRams_(true).map(function (x) { return { n: x.n, c: x.c, a: x.a }; }), k: tzmKeyOf_(true), sk: tzmSKeyOf_(true), reg: tzmReg_(), rq: tzmRq_(), pq: tzmPq_(), on: tzmOn_(),
     lsOn: tzmLsOn_(), ls: tzmLsOn_() ? tzmLs_().keys : [] };
   if (op === 'lson') {
     PropertiesService.getScriptProperties().setProperty('TZM_LS', String(P.on) === '1' ? '1' : '0');

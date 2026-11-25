@@ -2261,4 +2261,8 @@ node scratchpad/smoke.js     # כל המסכים, שתי רזולוציות
   (tzmRamSheet_), גם ב-`?tzm=bdn` (הבדיקה החיה בפריסה; `rams.n` — כמה שורות).
 * `?tzm=rams&k=` (tzmRams_, מפתח הרכזים) — רק `{ n, c }`. tzama.html (`ramsPaint`): רשימה ריקה/לא נטענה — השדה כמו
   קודם; יש — בחירה (`ui.tzmByPick`) + "השם שלי לא ברשימה" (`ui.tzmByNone`) שפותח את השדה. השם הנבחר נשמר כמו קודם.
-* בדיקה: `NODE_PATH=$(npm root -g) node tools/tzmtest/rams.js` (15).
+* **8.99.598 · SCRIPT_VERSION 274 — "אתה מגיע לצמא"ה?":** עמודה שלישית `מגיע` (כן/לא, נוספת לבד — tzmRamACol_). בקישור הר"מים, אחרי
+  שם **מהרשימה** בלבד (שם ידני — בלי שאלה): "אני מגיע"/"אני לא מגיע" (`ramShow`/`ramSet`, `?tzm=ramst|ramset&k=`). בניהול ← אירוע
+  צמאה — סיכום (`tzmAdmRams`) וכפתורים לכל ר"ם (`tzmRamGo`, `ramset` עם סיסמה). אותה עמודה, האחרון קובע; הר"ם לא רואה מי סימן.
+  `rams` — עדיין רק שם וכיתה; המצב רק בשורה של הר"ם עצמו ובניהול. קריאה חוזרת אחרי כל כתיבה.
+* בדיקה: `NODE_PATH=$(npm root -g) node tools/tzmtest/rams.js` (25).

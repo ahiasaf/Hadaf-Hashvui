@@ -82,6 +82,31 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     ok(await p.isVisible('#by'), 'none → input');
     await p.fill('#by', 'חדש'); await p.click('#byGo');
     ok(await p.isVisible('#main2'), 'manual continue');
+    // הגעה — ר"ם מהרשימה רואה את השאלה ומסמן; אחיאסף מסמן במקומו; האחרון קובע
+    await p.reload(); await p.waitForSelector('#byS:not([hidden])');
+    await p.selectOption('#byS', A); await p.click('#byGo');
+    await p.waitForSelector('#ramCard:not([hidden])');
+    ok((await p.textContent('#ramQ')).indexOf('מגיע') >= 0, 'ram q');
+    await p.click('#ramY'); await p.waitForFunction(function () { return document.getElementById('ramY').textContent.indexOf('✓') === 0; });
+    var rs = JSON.parse(c.doGet({ parameter: { tzm: 'ramst', k: adm.k, n: A } }).t);
+    ok(rs.a === 'y' && sh.d[1][2] === 'כן' && sh.d[0][2] === 'מגיע' && sh.d[1][0] === A && sh.d[1][1] === 'ז׳4', 'saved y', [rs, sh.d[0], sh.d[1]]);
+    var ad = JSON.parse(c.doGet({ parameter: { tzm: 'adm', key: 'k' } }).t);
+    ok(ad.rams.length === 2 && ad.rams[0].a === 'y' && ad.rams[1].a === '' && !ad.rams[0].r, 'adm rams', ad.rams);
+    var st = JSON.parse(c.doGet({ parameter: { tzm: 'ramset', key: 'k', n: A, a: 'n' } }).t);
+    ok(st.status === 'ok' && st.a === 'n', 'adm set', st);
+    await p.reload(); await p.waitForSelector('#byS:not([hidden])'); await p.click('#byGo');
+    await p.waitForFunction(function () { return document.getElementById('ramN').textContent.indexOf('✓') === 0; });
+    ok(true, 'rav sees admin mark');
+    ok(JSON.parse(c.doGet({ parameter: { tzm: 'ramset', n: A, a: 'y' } }).t).status === 'denied', 'set denied');
+    ok(JSON.parse(c.doGet({ parameter: { tzm: 'ramset', k: adm.k, n: 'לא קיים', a: 'y' } }).t).status === 'none', 'unknown none');
+    ok(JSON.parse(c.doGet({ parameter: { tzm: 'ramset', k: adm.k, n: A, a: 'x' } }).t).status === 'error', 'bad a');
+    // שם ידני — בלי שאלה
+    await p.reload(); await p.waitForSelector('#byS:not([hidden])');
+    await p.selectOption('#byS', '\u0001'); await p.fill('#by', 'מישהו'); await p.click('#byGo');
+    ok(await p.isHidden('#ramCard'), 'manual → no q');
+    var rr = JSON.parse(c.doGet({ parameter: { tzm: 'rams', k: adm.k } }).t);
+    ok(rr.rams.every(function (x) { return Object.keys(x).length === 2; }), 'rams still 2 fields');
+    await p.close();
     var bd = JSON.parse(c.doGet({ parameter: { tzm: 'bdn', key: 'k' } }).t);
     ok(bd.rams && bd.rams.n === 2, 'bdn', bd.rams);
   } finally { await b.close(); s.close(); }

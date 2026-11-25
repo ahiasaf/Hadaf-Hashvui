@@ -51,6 +51,7 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
   padding:11px 13px;font:inherit;font-size:16px;color:var(--ink)}
 .fl input.need,.fl select.need{border-color:var(--stop)}
 .fl select+input{margin-top:8px}
+.ramyn{display:flex;gap:8px}.ramyn .btn{flex:1;padding:12px}.ramyn .btn[disabled]{opacity:.6}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chips button{min-width:52px;border:1.5px solid var(--rule);border-radius:999px;background:#fff;color:var(--ink);
   font:inherit;font-weight:800;font-size:1.08rem;padding:9px 14px;cursor:pointer}
@@ -119,6 +120,9 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
       <input id="by" maxlength="60" autocomplete="name"></label>
       <button class="btn" id="byGo" type="button" style="margin-top:12px;width:100%;padding:13px"></button></div>
     <div id="main2" hidden>
+    <div class="card" id="ramCard" hidden><h3 id="ramQ"></h3>
+      <div class="ramyn"><button class="btn g" id="ramY" type="button"></button><button class="btn g" id="ramN" type="button"></button></div>
+      <p class="note" id="ramE" hidden style="margin:10px 0 0;color:var(--stop)"></p></div>
     <div class="card"><h3 id="stG"></h3><div class="chips" id="grs"></div>
       <div id="clsStep" hidden><h3 id="stC" style="margin-top:16px"></h3><div id="clsBox"></div></div></div>
     <div class="gok" id="gok"><i>✓</i><b id="gokN"></b><p id="gokS"></p><small id="gokB"></small></div>
@@ -174,11 +178,44 @@ function byGo() {
     $('by').className = 'need'; $('by').focus(); return;
   }
   $('byCard').hidden = true; $('main2').hidden = false; window.scrollTo(0, 0);
+  ramShow();
 }
 $('byGo').onclick = byGo;
 /* הר"מים מהלשונית הפרטית "צמאה — ר"מים" (8.99.597): בחירה מרשימה. ריקה/לא נטענה — השדה כמו קודם. */
+/* "אתה מגיע לצמא"ה?" (8.99.598) — רק לשם שנבחר מהרשימה; הסימון האחרון קובע, גם אם אחיאסף סימן. */
+var RAMS = {}, RAM_A = '';
+function ramPaint() {
+  $('ramY').className = 'btn' + (RAM_A === 'y' ? '' : ' g');
+  $('ramN').className = 'btn' + (RAM_A === 'n' ? '' : ' g');
+  $('ramY').textContent = (RAM_A === 'y' ? '✓ ' : '') + UI.tzmRamY;
+  $('ramN').textContent = (RAM_A === 'n' ? '✓ ' : '') + UI.tzmRamN;
+}
+function ramShow() {
+  var n = String($('by').value || '').trim();
+  if (!KEY || !RAMS[n] || !UI.tzmRamQ) { $('ramCard').hidden = true; return; }
+  $('ramQ').textContent = UI.tzmRamQ; $('ramE').hidden = true; RAM_A = ''; ramPaint();
+  $('ramCard').hidden = false;
+  get('tzm=ramst&k=' + encodeURIComponent(KEY) + '&n=' + encodeURIComponent(n)).then(function (d) {
+    if (d && d.status === 'ok' && String($('by').value || '').trim() === n) { RAM_A = d.a || ''; ramPaint(); }
+  }, function () {});
+}
+function ramSet(a) {
+  var n = String($('by').value || '').trim();
+  if (!RAMS[n] || $('ramY').disabled) return;
+  $('ramY').disabled = $('ramN').disabled = true; $('ramE').hidden = true;
+  var done = function (d) {
+    $('ramY').disabled = $('ramN').disabled = false;
+    if (d && d.status === 'ok') { RAM_A = d.a || ''; ramPaint(); return; }
+    $('ramE').textContent = UI.tzmRamErr; $('ramE').hidden = false;
+  };
+  get('tzm=ramset&k=' + encodeURIComponent(KEY) + '&n=' + encodeURIComponent(n) + '&a=' + a).then(done, function () { done(null); });
+}
+$('ramY').onclick = function () { ramSet('y'); };
+$('ramN').onclick = function () { ramSet('n'); };
 function ramsPaint(L) {
   if (!L || !L.length) return;
+  RAMS = {};
+  L.forEach(function (r) { RAMS[r.n] = 1; });
   var sl = $('byS'), cur = String($('by').value || '').trim(), hit = false;
   sl.innerHTML = '';
   var o0 = document.createElement('option'); o0.value = ''; o0.textContent = UI.tzmByPick; sl.appendChild(o0);
