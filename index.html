@@ -2163,6 +2163,7 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
   border-bottom:1px solid var(--rule)}
 .prow2 b{display:block;font-size:.93rem;font-weight:800;letter-spacing:-.02em}
 .prow2 span{display:block}
+.tzm-ls,.prow2 .tzm-ls{display:inline-block;margin-inline-start:6px;padding:1px 8px;border-radius:99px;background:#7A4A12;color:#fff;font-size:.74rem;font-weight:800}
 .prow2 > div > span{font-size:.78rem;font-weight:600;color:var(--ink-3);
   margin-top:2px;line-height:1.5}
 .pm{flex:0 0 auto;width:22px;height:22px;border-radius:50%;
@@ -18213,6 +18214,24 @@ function tzmInvSet(on) {
     tzmPaint();
   }, function () { TZM.msg = UI.tzmAdmFail; tzmPaint(); });
 }
+/* "לומד תורה לשמה" (8.99.595) — מתג נפרד, כבוי כברירת מחדל; התווית ליד השם, מהשרת בלבד. */
+function tzmLsSet(on) {
+  if (!SureLater(tzmLsSet, this, arguments)) return;
+  var k = (CFG.readKey || '').trim();
+  if (!k) return;
+  scriptGet({ tzm: 'lson', key: k, on: on ? 1 : 0 }).then(function (d) {
+    if (d && d.status === 'ok') tzmLoad(); else { TZM.msg = UI.tzmAdmFail; tzmPaint(); }
+  }, function () { TZM.msg = UI.tzmAdmFail; tzmPaint(); });
+}
+function tzmLsK(g, c, n) {
+  var cl = String(c || '').replace(/["'׳״`\s]/g, '');
+  return String(g || '').replace(/["'׳״`\s]/g, '') + '|' + (cl.replace(/\D/g, '') || cl) + '|' +
+    String(n || '').replace(/["'׳״`]/g, '').replace(/\s+/g, ' ').trim();
+}
+function tzmLsTag(g, c, n) {
+  var L = (TZM.d && TZM.d.ls) || [];
+  return UI.tzmLsBadge && L.indexOf(tzmLsK(g, c, n)) >= 0 ? ' <span class="tzm-ls">' + esc(UI.tzmLsBadge) + '</span>' : '';
+}
 function tzmGrD(g) { g = String(g || ''); return g.length > 1 ? g.charAt(0) + '״' + g.charAt(1) : g + '׳'; }
 function tzmCls(g, c) { return String(g || '').length > 1 ? tzmGrD(g) + ' ' + c : tzmGrD(g) + c; }
 /* הרשומים לפי כיתה, בסדר שכבות. */
@@ -18268,16 +18287,19 @@ function tzmPaint() {
     pk.map(function (k) {
       var p = k.split('|');
       return '<div class="prow2"><div style="flex:1"><b>' + esc(tzmCls(p[0], p[1])) + '</b>' +
-        pg[k].map(function (n) { return '<span>' + esc(n) + '</span>'; }).join('') + '</div>' +
+        pg[k].map(function (n) { return '<span>' + esc(n) + tzmLsTag(p[0], p[1], n) + '</span>'; }).join('') + '</div>' +
         '<button class="btn" type="button" onclick="tzmSOkGo(\'' + esc(p[0]) + '\',\'' + esc(p[1]) + '\')">' + esc(fill(UI.tzmAdmPqGo, { n: pg[k].length })) + '</button></div>';
     }).join('') + '</div>';
   /* ההזמנה לבעלי התווית — מתג אחד (8.99.578). */
   h += '<p class="h"><b>' + esc(UI.tzmAdmInv) + '</b></p><div style="margin-bottom:14px">' +
     '<button class="btn' + (d.on ? '' : ' g') + '" type="button" id="tzm-inv" onclick="tzmInvSet(' + (d.on ? 0 : 1) + ')">' +
     esc(d.on ? UI.tzmAdmOn : UI.tzmAdmOff) + '</button></div>';
+  h += '<p class="h"><b>' + esc(UI.tzmAdmLs) + '</b></p><div style="margin-bottom:14px">' +
+    '<button class="btn' + (d.lsOn ? '' : ' g') + '" type="button" id="tzm-ls" onclick="tzmLsSet(' + (d.lsOn ? 0 : 1) + ')">' +
+    esc(d.lsOn ? UI.tzmAdmLsOn : UI.tzmAdmLsOff) + '</button></div>';
   var rq = d.rq || [];
   if (rq.length) h += '<p class="h"><b>' + esc(fill(UI.tzmAdmRq, { n: rq.length })) + '</b></p><div class="prow2" style="margin-bottom:14px"><div style="flex:1">' +
-    rq.map(function (x) { return '<span>' + esc(tzmCls(x[0], x[1]) + ' · ' + x[2]) + '</span>'; }).join('') + '</div></div>';
+    rq.map(function (x) { return '<span>' + esc(tzmCls(x[0], x[1]) + ' · ' + x[2]) + tzmLsTag(x[0], x[1], x[2]) + '</span>'; }).join('') + '</div></div>';
   var gr = tzmGroups(), n = (d.reg || []).length;
   h += '<p class="h"><b>' + esc(n ? fill(UI.tzmAdmTot, { n: n }) : UI.tzmAdmNone) + '</b></p>';
   if (n) {
@@ -18293,7 +18315,7 @@ function tzmPaint() {
         }
         return gh + '<div class="prow2"><div style="flex:1"><b>' + esc(tzmCls(o.g, o.c)) + ' · ' + o.l.length + '</b>' +
           o.l.map(function (x) {
-            return '<span>' + esc(x[2]) + (x[3] ? ' · ' + esc(fill(UI.tzmByLine, { n: x[3] })) : '') + '</span>';
+            return '<span>' + esc(x[2]) + tzmLsTag(x[0], x[1], x[2]) + (x[3] ? ' · ' + esc(fill(UI.tzmByLine, { n: x[3] })) : '') + '</span>';
           }).join('') + '</div></div>';
       }).join('');
   }

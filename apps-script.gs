@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 271;
+var SCRIPT_VERSION = 272;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -20733,6 +20733,68 @@ function tzmPush_(go) {
   o.sent = done;
   return o;
 }
+/* ============================================================
+   "לומד תורה לשמה" (8.99.595 · SCRIPT_VERSION 272, אחיאסף 25.11).
+   ============================================================
+   תווית לר"ם בעמוד הצמאה ולאחיאסף בניהול — לא לתלמיד ולא להורה. מחושבת בכל טעינה.
+   לפיד בלבד; מספיק כלל אחד:
+     1. הדף השבועי — tzmHas_ (אותה ספירה של התווית "הדף השבועי": 3 סימוני "דף" שונים לפי המזהה).
+     2. בית מדרש נודד (`קוד עמדה` = Noded) — לפחות 2 ימים שונים, בלי 11.11.2026.
+     3. שיעורים בנושא אחר — `סוג` = שיעור, לא שיעור כיתה (`קוד עמדה` L…) ולא נודד: 10 ומעלה (מזהים שונים).
+   בחוץ: ז5 · ח4 · ח5. לא משנה אישור, מקומות או הודעות. מתג — מאפיין TZM_LS ('1' = מוצג; חסר = כבוי). */
+var TZM_LS_NODED_ = 'Noded';
+var TZM_LS_ND_MIN_ = 2;
+var TZM_LS_OT_MIN_ = 10;
+var TZM_LS_SKIP_DAY_ = '20261111';
+var TZM_LS_NO_ = ['ז|5', 'ח|4', 'ח|5'];
+function tzmLsOn_() { return PropertiesService.getScriptProperties().getProperty('TZM_LS') === '1'; }
+/* היום כ-yyyymmdd — "2026-11-11", "11.11.2026", "11/11/2026". */
+function tzmLsDay_(d) {
+  d = String(d || '').trim();
+  var m = d.match(/^(\d{4})\D(\d{1,2})\D(\d{1,2})/);
+  if (m) return m[1] + ('0' + m[2]).slice(-2) + ('0' + m[3]).slice(-2);
+  m = d.match(/^(\d{1,2})\D(\d{1,2})\D(\d{4})/);
+  if (m) return m[3] + ('0' + m[2]).slice(-2) + ('0' + m[1]).slice(-2);
+  return d;
+}
+/* לפיד בלבד: { 'ישיבה|שכבה|כיתה|שם': { nd:{יום}, ot:{מזהה} } }. */
+function tzmLsMarks_() {
+  var at = amdaTable_(AMDA_TAB_), m = {};
+  for (var r = 1; r < at.rows.length; r++) {
+    var x = at.rows[r];
+    if (at.c(x, 'קוד ישיבה') !== TZM_INST_) continue;
+    var n = at.c(x, 'שם');
+    if (!n) continue;
+    var slot = at.c(x, 'קוד עמדה'), nod = slot === TZM_LS_NODED_;
+    var oth = !nod && slot.charAt(0) !== 'L' && at.c(x, 'סוג') === 'שיעור';
+    if (!nod && !oth) continue;
+    var k = TZM_INST_ + '|' + tzmBdKey_(at.c(x, 'שכבה'), at.c(x, 'כיתה'), n);
+    var o = m[k] = m[k] || { nd: {}, ot: {} };
+    if (nod) {
+      var dy = tzmLsDay_(at.c(x, 'יום'));
+      if (dy && dy !== TZM_LS_SKIP_DAY_) o.nd[dy] = 1;
+    } else o.ot[at.c(x, 'מזהה') || ('#' + r)] = 1;
+  }
+  return m;
+}
+/* { keys: ['שכבה|כיתה|שם'], n1, n2, n3, tot } — אחרי ההחרגות. כלל 2/3 "חדשים" = מי שלא נכנס בכלל קודם. */
+function tzmLs_(M, L) {
+  M = M || tzmMarks_(); L = L || tzmLsMarks_();
+  var pre = TZM_INST_ + '|', all = {}, k;
+  for (k in M) if (k.indexOf(pre) === 0) all[k] = 1;
+  for (k in L) all[k] = 1;
+  var out = { keys: [], n1: 0, n2: 0, n3: 0, tot: 0 };
+  for (k in all) {
+    var p = k.split('|');
+    if (TZM_LS_NO_.indexOf(p[1] + '|' + p[2]) >= 0) continue;
+    var a = !!(M[k] && tzmHas_(k, M[k]));
+    var b = !a && !!(L[k] && Object.keys(L[k].nd).length >= TZM_LS_ND_MIN_);
+    var c = !a && !b && !!(L[k] && Object.keys(L[k].ot).length >= TZM_LS_OT_MIN_);
+    if (a) out.n1++; else if (b) out.n2++; else if (c) out.n3++;
+    if (a || b || c) { out.keys.push(k.slice(pre.length)); out.tot++; }
+  }
+  return out;
+}
 /* בדיקה בלבד — מספרים, בלי שמות. ?tzm=bdn&key= */
 function tzmBdStat_() {
   var M = tzmMarks_(), o = { unit: TZM_UNIT_, min: TZM_BD_MIN_, v: {} };
@@ -20777,6 +20839,15 @@ function tzmBdStat_() {
     sample.no = (dv2 ? JSON.stringify(tzmMe_(dv2)) : 'בלי מכשיר') + ' · סימונים: ' + tzmCnt_(M[nk]);
   }
   o.sample = sample;
+  /* "לומד תורה לשמה" — מספרים בלבד. */
+  var LS = tzmLs_(M), Lm = tzmLsMarks_(), r2 = 0, r3 = 0;
+  for (var lk in Lm) {
+    var lp = lk.split('|');
+    if (TZM_LS_NO_.indexOf(lp[1] + '|' + lp[2]) >= 0) continue;
+    if (Object.keys(Lm[lk].nd).length >= TZM_LS_ND_MIN_) r2++;
+    if (Object.keys(Lm[lk].ot).length >= TZM_LS_OT_MIN_) r3++;
+  }
+  o.ls = { n1: LS.n1, n2new: LS.n2, n3new: LS.n3, tot: LS.tot, r2all: r2, r3all: r3, on: tzmLsOn_() };
   return o;
 }
 /* ============================================================
@@ -20917,12 +20988,18 @@ function tzmRoute_(P) {
   if (op === 'cls') {
     var k = tzmKeyOf_(false);
     if (!k || String(P.k || '') !== k) return { status: 'denied' };
-    return { status: 'ok', cls: tzmRoster_(), reg: tzmReg_(), rq: tzmRq_(), bd: tzmBadge_() };
+    var M0 = tzmMarks_();
+    return { status: 'ok', cls: tzmRoster_(), reg: tzmReg_(), rq: tzmRq_(), bd: tzmBadge_(M0), ls: tzmLsOn_() ? tzmLs_(M0).keys : [] };
   }
   if (op === 'me') return tzmMe_(P.id);
   if (op === 'req') return tzmReq_(P.id);
   if (!READ_KEY || String(P.key || '') !== READ_KEY) return { status: 'denied' };
-  if (op === 'adm') return { status: 'ok', k: tzmKeyOf_(true), sk: tzmSKeyOf_(true), reg: tzmReg_(), rq: tzmRq_(), pq: tzmPq_(), on: tzmOn_() };
+  if (op === 'adm') return { status: 'ok', k: tzmKeyOf_(true), sk: tzmSKeyOf_(true), reg: tzmReg_(), rq: tzmRq_(), pq: tzmPq_(), on: tzmOn_(),
+    lsOn: tzmLsOn_(), ls: tzmLsOn_() ? tzmLs_().keys : [] };
+  if (op === 'lson') {
+    PropertiesService.getScriptProperties().setProperty('TZM_LS', String(P.on) === '1' ? '1' : '0');
+    return { status: 'ok', lsOn: tzmLsOn_() };
+  }
   if (op === 'sok') return tzmSApprove_(P);
   if (op === 'bdn') return { status: 'ok', s: tzmBdStat_() };
   if (op === 'inv') {

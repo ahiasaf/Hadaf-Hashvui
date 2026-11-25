@@ -67,6 +67,7 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 .row .t b{display:block;font-weight:700;font-size:1.02rem}
 .row .t small{display:block;font-size:.78rem;color:var(--ink-2)}
 .row.ch{background:var(--green-l)}
+.row .t .ls{display:inline-block;margin-inline-start:6px;padding:1px 8px;border-radius:99px;background:#7A4A12;color:#fff;font-size:.74rem;font-weight:800;vertical-align:2px}
 .row .t .bd{display:inline-block;margin-inline-start:6px;padding:1px 8px;border-radius:99px;background:#1F4E8C;color:#fff;font-size:.74rem;font-weight:800;vertical-align:2px}
 .row .t small.rq{color:#9A5B00;font-weight:800}
 .note{font-size:.88rem;font-weight:700;color:var(--ink-2);margin-bottom:10px}
@@ -226,6 +227,9 @@ function take2(d) {
   S.REG = m;
   var b = {}, q = {};
   (d.bd || []).forEach(function (k) { b[k] = 1; });
+  var ls = {};
+  (d.ls || []).forEach(function (k) { ls[k] = 1; });
+  S.LS = ls;
   (d.rq || []).forEach(function (x) { q[x[0] + '|' + x[1] + '|' + x[2]] = 1; });
   S.BD = b; S.RQ = q;
 }
@@ -324,6 +328,8 @@ function paintStu() {
   if (L.length) h += '<div class="list">' + L.map(function (n) {
     var k = g + '|' + c + '|' + n, on = isOn(k), by = S.REG[k] && !S.P[k] ? S.REG[k][0] : '';
     var bd = S.BD[g + '|' + c + '|' + nm0(n)] && UI.tzmBadge ? '<span class="bd">' + esc(UI.tzmBadge) + '</span>' : '';
+    /* "לומד תורה לשמה" (8.99.595) — לר"ם בלבד, מהשרת (כשהמתג דלוק). */
+    if (S.LS && S.LS[g + '|' + c + '|' + nm0(n)] && UI.tzmLsBadge) bd += '<span class="ls">' + esc(UI.tzmLsBadge) + '</span>';
     var rq = !on && S.RQ[k] && UI.tzmRqLine ? '<small class="rq">' + esc(UI.tzmRqLine) + '</small>' : '';
     return '<label class="row' + (S.P[k] ? ' ch' : '') + '"><input type="checkbox" data-k="' + esc(k) + '"' + (on ? ' checked' : '') + '>' +
       '<span class="t"><b>' + esc(n) + bd + '</b>' + (on && by ? '<small>' + esc(tp(UI.tzmByLine, { n: by })) + '</small>' : '') + rq + '</span></label>';
