@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 274;
+var SCRIPT_VERSION = 275;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -20986,29 +20986,29 @@ function tzmSApprove_(P) {
 var TZM_RAM_TAB_ = 'צמאה — ר"מים';
 var TZM_RAM_COLS_ = ['שם'].concat(['כיתה']);
 var TZM_RAM_A_ = 'מגיע';
+var TZM_RAM_Z_ = 'צורבא';
+/* שם · כיתה · מגיע · צורבא — הכותרות של 3 ו-4 נוספות לבד אם חסרות (גם בלשונית צרה). */
 function tzmRamSheet_() {
   var sh = sheet_(TZM_RAM_TAB_);
   if (sh.getLastRow() < 1) sh.getRange(1, 1, 1, TZM_RAM_COLS_.length).setValues([TZM_RAM_COLS_]);
+  if (sh.getMaxColumns() < 4) sh.insertColumnsAfter(sh.getMaxColumns(), 4 - sh.getMaxColumns());
+  var hd = sh.getRange(1, 3, 1, 2).getDisplayValues()[0];
+  if (String(hd[0] || '').trim() !== TZM_RAM_A_) sh.getRange(1, 3).setValue(TZM_RAM_A_);
+  if (String(hd[1] || '').trim() !== TZM_RAM_Z_) sh.getRange(1, 4).setValue(TZM_RAM_Z_);
   return sh;
 }
-/* עמודת "מגיע" — השלישית; נוספת לכותרת אם חסרה (גם בלשונית צרה). */
-function tzmRamACol_(sh) {
-  if (sh.getMaxColumns() < 3) sh.insertColumnsAfter(sh.getMaxColumns(), 3 - sh.getMaxColumns());
-  if (String(sh.getRange(1, 3).getDisplayValue() || '').trim() !== TZM_RAM_A_) sh.getRange(1, 3).setValue(TZM_RAM_A_);
-  return 3;
-}
+function tzmRamACol_(sh) { return 3; }
 function tzmRamA1_(v) { v = String(v || '').trim(); return v === 'כן' ? 'y' : v === 'לא' ? 'n' : ''; }
 /* withA — גם מצב ההגעה (לניהול ולשורה של הר"ם עצמו בלבד). */
 function tzmRams_(withA) {
   var sh = tzmRamSheet_(), n = sh.getLastRow(), out = [];
   if (n < 2) return out;
-  var w = Math.min(3, sh.getMaxColumns());
-  var v = sh.getRange(2, 1, n - 1, w).getDisplayValues();
+  var v = sh.getRange(2, 1, n - 1, 4).getDisplayValues();
   for (var i = 0; i < v.length; i++) {
     var nm = tzmNm_(v[i][0]);
     if (!nm) continue;
     var o = { n: nm, c: String(v[i][1] || '').replace(/\s+/g, ' ').trim().slice(0, 20) };
-    if (withA) { o.a = w >= 3 ? tzmRamA1_(v[i][2]) : ''; o.r = i + 2; }
+    if (withA) { o.a = tzmRamA1_(v[i][2]); o.z = tzmRamA1_(v[i][3]) === 'y'; o.r = i + 2; }
     out.push(o);
   }
   return out;
@@ -21027,7 +21027,7 @@ function tzmRamSet_(P) {
   if (!lk.tryLock(10000)) return { status: 'busy' };
   try {
     var r = tzmRamOf_(n);
-    if (!r) return { status: 'none' };
+    if (!r || !r.z) return { status: 'none' };
     var sh = tzmRamSheet_(), col = tzmRamACol_(sh);
     sh.getRange(r.r, col).setValue(a === 'y' ? 'כן' : 'לא');
     SpreadsheetApp.flush();
@@ -21048,7 +21048,7 @@ function tzmRoute_(P) {
     if (!adm1 && (!k1 || String(P.k || '') !== k1)) return { status: 'denied' };
     if (op === 'ramset') return tzmRamSet_(P);
     var me1 = tzmRamOf_(P.n);
-    return me1 ? { status: 'ok', a: me1.a } : { status: 'none' };
+    return me1 && me1.z ? { status: 'ok', a: me1.a, z: 1 } : { status: 'none' };
   }
   if (op === 'scls') return tzmSOk_(P) ? { status: 'ok', cls: tzmRoster_() } : { status: 'denied' };
   if (op === 'sreq') return tzmSOk_(P) ? tzmSReq_(P) : { status: 'denied' };
@@ -21063,7 +21063,7 @@ function tzmRoute_(P) {
   if (op === 'me') return tzmMe_(P.id);
   if (op === 'req') return tzmReq_(P.id);
   if (!READ_KEY || String(P.key || '') !== READ_KEY) return { status: 'denied' };
-  if (op === 'adm') return { status: 'ok', rams: tzmRams_(true).map(function (x) { return { n: x.n, c: x.c, a: x.a }; }), k: tzmKeyOf_(true), sk: tzmSKeyOf_(true), reg: tzmReg_(), rq: tzmRq_(), pq: tzmPq_(), on: tzmOn_(),
+  if (op === 'adm') return { status: 'ok', rams: tzmRams_(true).map(function (x) { return { n: x.n, c: x.c, a: x.a, z: x.z ? 1 : 0 }; }), k: tzmKeyOf_(true), sk: tzmSKeyOf_(true), reg: tzmReg_(), rq: tzmRq_(), pq: tzmPq_(), on: tzmOn_(),
     lsOn: tzmLsOn_(), ls: tzmLsOn_() ? tzmLs_().keys : [] };
   if (op === 'lson') {
     PropertiesService.getScriptProperties().setProperty('TZM_LS', String(P.on) === '1' ? '1' : '0');

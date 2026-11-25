@@ -55,7 +55,7 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     var r0 = JSON.parse(c.doGet({ parameter: { tzm: 'rams', k: adm.k } }).t);
     ok(r0.status === 'ok' && r0.rams.length === 0, 'empty', r0);
     var sh = W.priv.getSheetByName('צמאה — ר"מים');
-    ok(sh && sh.d[0][0] === 'שם' && sh.d[0][1] === 'כיתה', 'tab', sh && sh.d[0]);
+    ok(sh && sh.d[0][0] === 'שם' && sh.d[0][1] === 'כיתה' && sh.d[0][2] === 'מגיע' && sh.d[0][3] === 'צורבא', 'tab', sh && sh.d[0]);
     ok(!W.pub.getSheetByName('צמאה — ר"מים'), 'not public');
     // ריקה — שדה טקסט כמו קודם
     var p = await page(b, port, W, '/tzama?k=' + adm.k);
@@ -63,7 +63,7 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     ok(await p.isHidden('#byS') && await p.isVisible('#by'), 'empty → input');
     await p.close();
     var A = ['אלף', 'רב'].join(' '), B = ['בית', 'רב'].join(' ');
-    sh.getRange(2, 1, 2, 3).setValues([[A, 'ז׳4', 'סוד'], [B, '', 'סוד']]);
+    sh.getRange(2, 1, 2, 5).setValues([[A, 'ז׳4', '', 'כן', 'סוד'], [B, '', '', 'לא', 'סוד']]);
     var r1 = JSON.parse(c.doGet({ parameter: { tzm: 'rams', k: adm.k } }).t);
     ok(r1.rams.length === 2 && r1.rams[0].n === A && r1.rams[0].c === 'ז׳4' && Object.keys(r1.rams[0]).length === 2, 'rows', r1);
     ok(JSON.stringify(r1).indexOf('סוד') < 0, 'only 2 cols');
@@ -91,7 +91,9 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     var rs = JSON.parse(c.doGet({ parameter: { tzm: 'ramst', k: adm.k, n: A } }).t);
     ok(rs.a === 'y' && sh.d[1][2] === 'כן' && sh.d[0][2] === 'מגיע' && sh.d[1][0] === A && sh.d[1][1] === 'ז׳4', 'saved y', [rs, sh.d[0], sh.d[1]]);
     var ad = JSON.parse(c.doGet({ parameter: { tzm: 'adm', key: 'k' } }).t);
-    ok(ad.rams.length === 2 && ad.rams[0].a === 'y' && ad.rams[1].a === '' && !ad.rams[0].r, 'adm rams', ad.rams);
+    ok(ad.rams.length === 2 && ad.rams[0].a === 'y' && ad.rams[0].z === 1 && ad.rams[1].z === 0 && !ad.rams[0].r, 'adm rams', ad.rams);
+    ok(JSON.parse(c.doGet({ parameter: { tzm: 'ramset', key: 'k', n: B, a: 'y' } }).t).status === 'none', 'not tzurba → none');
+    ok(JSON.parse(c.doGet({ parameter: { tzm: 'ramst', k: adm.k, n: B } }).t).status === 'none', 'ramst not tzurba');
     var st = JSON.parse(c.doGet({ parameter: { tzm: 'ramset', key: 'k', n: A, a: 'n' } }).t);
     ok(st.status === 'ok' && st.a === 'n', 'adm set', st);
     await p.reload(); await p.waitForSelector('#byS:not([hidden])'); await p.click('#byGo');
@@ -100,6 +102,10 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     ok(JSON.parse(c.doGet({ parameter: { tzm: 'ramset', n: A, a: 'y' } }).t).status === 'denied', 'set denied');
     ok(JSON.parse(c.doGet({ parameter: { tzm: 'ramset', k: adm.k, n: 'לא קיים', a: 'y' } }).t).status === 'none', 'unknown none');
     ok(JSON.parse(c.doGet({ parameter: { tzm: 'ramset', k: adm.k, n: A, a: 'x' } }).t).status === 'error', 'bad a');
+    // ר"ם שאינו צורבא — בוחר מהרשימה, בלי שאלה
+    await p.reload(); await p.waitForSelector('#byS:not([hidden])');
+    await p.selectOption('#byS', B); await p.click('#byGo'); await p.waitForTimeout(400);
+    ok(await p.isVisible('#main2') && await p.isHidden('#ramCard'), 'non-tzurba no q');
     // שם ידני — בלי שאלה
     await p.reload(); await p.waitForSelector('#byS:not([hidden])');
     await p.selectOption('#byS', '\u0001'); await p.fill('#by', 'מישהו'); await p.click('#byGo');
