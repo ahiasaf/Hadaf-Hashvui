@@ -48,10 +48,10 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
 (async function () {
   var s = await srv(), port = s.address().port, b = await pw.chromium.launch();
   try {
-    var W = world(), c = W.ctx;
+    var W = world(), c = W.ctx, NM = ['גימל', 'דלת'].join(' ');
     ['2026-11-01','2026-11-02'].forEach(function (d, i) {
       c.appendCols_('עמדת לימוד', [['מזהה', 'x' + i], ['שבוע', '5'], ['יום', d], ['קוד עמדה', 'Noded'], ['סוג', 'שיעור'],
-        ['שכבה', 'ז'], ['כיתה', '3'], ['שם', 'גימל דלת'], ['קוד ישיבה', 'lapid']]);
+        ['שכבה', 'ז'], ['כיתה', '3'], ['שם', NM], ['קוד ישיבה', 'lapid']]);
     });
     var adm = JSON.parse(c.doGet({ parameter: { tzm: 'adm', key: 'k' } }).t);
     JSON.parse(c.doGet({ parameter: { tzm: 'lson', key: 'k', on: '1' } }).t);
