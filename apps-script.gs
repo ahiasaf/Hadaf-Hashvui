@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 279;
+var SCRIPT_VERSION = 280;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -21326,7 +21326,7 @@ function prsRoute_(P) {
    **החידון:** בסיום (`end`, או לבד אחרי LIVE_MAX_H_) — לכל משתתף ולכל דף
    שורה "החידון כולו" ב"חידות": ציון = נכונות / החידות שהופעלו בדף.
    ניסיון = "חי" — נספר כאחד משני הניסיונות (quizBest_), כמו כל שליחה.
-   **הנוכחות לא נגעה** (החלטת אחיאסף) — הרשימה כאן בלבד (`adm`).
+   **נוכחות** — מי שענה על כל החידות שהופעלו בדף נוכח בו (liveAtt_, החלטת אחיאסף 25.11).
    לשונית פרטית "שיעור חי": שורה לכל אירוע (פתיחה · חידה · הצטרף · תשובה · סיום).
    ============================================================ */
 var LIVE_TAB_ = 'שיעור חי';
@@ -21548,7 +21548,53 @@ function liveFin_(L) {
       n++;
     });
   });
-  return { n: n, ppl: T.length };
+  var at = 0;
+  try { at = liveAtt_(L, T, byD); } catch (eA) {}
+  return { n: n, ppl: T.length, at: at };
+}
+/* **נוכחות** (החלטת אחיאסף, 25.11): מי שענה על כל החידות שהופעלו בדף — נוכח בדף,
+   בדיוק כמו סימון בעמדה: שורת "דף" ב"עמדת לימוד", השיוך ב"עמדה — שיוך" (מפתח
+   ייחודי למפגש, ישר למזהה — בלי התאמת שם), ושורת סיום ב"לימוד". כך כל מה שנשען
+   על נוכחות (✓, שלושה כרטיסים, "בחבורה") חל עליו. שיוך שכבר קיים — לא שוב. */
+function liveAtt_(L, T, byD) {
+  var jt = joinTable_(), lt = amdaTable_(AMDA_LINK_), had = {};
+  for (var l = 1; l < lt.rows.length; l++) had[lt.c(lt.rows[l], 'מפתח')] = 1;
+  var ash = sheet_(AMDA_TAB_), ah = headers_(ash), lsh = lt.sh, lh = headers_(lsh);
+  var esh = sheet_(LEARN_TAB), eh = headers_(esh), day = Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd');
+  var put = function (sh, head, pairs) {
+    var row = [];
+    put_(row, idx_(sh, head, 'תאריך'), new Date());
+    pairs.forEach(function (p) { put_(row, idx_(sh, head, p[0]), cell_(p[1])); });
+    for (var i = 0; i < row.length; i++) if (row[i] === undefined) row[i] = '';
+    sh.appendRow(row);
+  };
+  var n = 0, wrote = 0;
+  T.forEach(function (p) {
+    var r = rowOfId_(jt, p.id);
+    if (r < 1) return;
+    var row = jt.rows[r], inst = jt.c(row, 'קוד ישיבה'), g = jt.c(row, 'שכבה'), c = jt.c(row, 'כיתה');
+    Object.keys(byD).forEach(function (d) {
+      var ids = byD[d].ids;
+      if (!ids.length || !ids.every(function (id) { return p.a[id] != null; })) return;
+      var tr = String(d).split('|')[0], daf = String(d).split('|')[1] || '';
+      var wk = String(byD[d].w || '').replace(/^.*-/, '');
+      if (!tr || !daf || !/^\d+$/.test(wk)) return;
+      var nm = 'שיעור חי ' + L.s + ' · ' + p.n;
+      var key = [inst, g, c, amdaNorm_(nm), tr, wk].join('|');
+      if (had[key]) return;
+      had[key] = 1;
+      put(ash, ah, [['מזהה', 'Lv' + L.s + p.id], ['שבוע', wk], ['יום', day], ['עמדה', 'שיעור חי'], ['קוד עמדה', 'Live'],
+        ['סוג', 'דף'], ['מסלול', tr], ['דף', daf], ['קוד ישיבה', inst], ['שכבה', g], ['כיתה', c], ['שם', nm],
+        ['מתי', new Date().toISOString()], ['מי סימן', 'שיעור חי · ' + day]]);
+      put(lsh, lh, [['מזהה', p.id], ['מסלול', tr], ['שבוע', wk], ['דף', daf], ['מפתח', key]]);
+      put(esh, eh, [['מזהה', p.id], ['קוד ישיבה', inst], ['מסלול', tr], ['שבוע', wk], ['דף', daf],
+        ['קטע', ''], ['מתוך', ''], ['בדיקה', ''], ['מקור', 'שיעור חי']]);
+      markBump_(wk, esh.getLastRow());
+      n++; wrote++;
+    });
+  });
+  if (wrote) { try { recountLearn_(); } catch (e1) {} try { amdaQzBust_(); } catch (e2) {} try { partSoon_(); } catch (e3) {} }
+  return n;
 }
 function liveEnd_(s) {
   var lk = liveLock_();
@@ -21563,7 +21609,7 @@ function liveEnd_(s) {
       livePut_(L);
       liveRow_({ 'מפגש': s, 'סוג': 'סיום', 'פרטים': R.n });
     }
-    return { status: 'ok', on: 0, ppl: R.ppl, w: R.n };
+    return { status: 'ok', on: 0, ppl: R.ppl, w: R.n, at: R.at };
   } finally { lk.releaseLock(); }
 }
 function liveAutoEnd_() {

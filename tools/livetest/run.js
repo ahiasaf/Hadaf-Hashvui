@@ -34,12 +34,12 @@ async function ctxOf(b, W, init) {
 (async function () {
   var W = M.makeWorld(), c = W.ctx;
   var J = c.sheet_('לומדים');
-  J.getRange(1, 1, 5, 7).setValues([
-    ['מזהה', 'שם', 'משפחה', 'טלפון', 'ישיבה', 'תפקיד', 'בדיקה'],
-    ['U1', 'אלף', 'בית', '0501234567', 'ישיבה א', 'תלמיד', ''],
-    ['U2', 'גימל', 'דלת', '0529999999', 'ישיבה א', 'תלמיד', ''],
-    ['U3', 'הא', 'דלת', '0529999999', 'ישיבה א', 'תלמיד', ''],
-    ['U4', 'זין', 'חית', '0541111111', 'ישיבה ב', 'תלמיד', 'כן']]);
+  J.getRange(1, 1, 5, 10).setValues([
+    ['מזהה', 'שם', 'משפחה', 'טלפון', 'ישיבה', 'תפקיד', 'בדיקה', 'קוד ישיבה', 'שכבה', 'כיתה'],
+    ['U1', 'אלף', 'בית', '0501234567', 'ישיבה א', 'תלמיד', '', 'yesa', 'ט׳', '2'],
+    ['U2', 'גימל', 'דלת', '0529999999', 'ישיבה א', 'תלמיד', '', 'yesa', 'ט׳', '3'],
+    ['U3', 'הא', 'דלת', '0529999999', 'ישיבה א', 'תלמיד', '', 'yesa', 'ט׳', '3'],
+    ['U4', 'זין', 'חית', '0541111111', 'ישיבה ב', 'תלמיד', 'כן', 'yesb', 'ח׳', '1']]);
   // בלי סיסמה — אין פתיחה
   ok(G(W, { live: 'start' }).status === 'denied', 'start no key');
   ok(G(W, { live: 'get', s: 'ABCDEF' }).on === 0, 'get nothing');
@@ -114,10 +114,12 @@ async function ctxOf(b, W, init) {
   await pB.click('#whoGo');
   await pB.waitForSelector('#qc:not([hidden])', { timeout: 8000 });
   ok(await pB.textContent('#qq') === 'שלישית', 'phone path sees q');
+  // U1 עונה גם על השלישית — ענה על הכול
+  ok(G(W, { live: 'ans', s: S, tk: h1.tk, qid: 'Q3', a: 3 }).a === 3, 'U1 ans Q3');
   // סיום
   ok(G(W, { live: 'end', s: S }).status === 'denied', 'end no key');
   var en = G(W, { live: 'end', key: 'k', s: S });
-  ok(en.status === 'ok' && en.ppl === 3, 'end', en);
+  ok(en.status === 'ok' && en.ppl === 3 && en.at === 1, 'end', en);
   await pA.waitForSelector('#msg:not([hidden])', { timeout: 8000 });
   ok((await pA.textContent('#msg')).indexOf('הסתיים') >= 0, 'phone sees end');
   // שורות החידון
@@ -126,7 +128,7 @@ async function ctxOf(b, W, init) {
   var rows = qd.slice(1).filter(function (r) { return String(r[ix['מקור']]).indexOf('שיעור חי') === 0; });
   var by = {}; rows.forEach(function (r) { by[r[ix['מזהה']]] = r; });
   ok(rows.length === 3, 'quiz rows', rows.length);
-  ok(by.U1 && by.U1[ix['ציון']] === '2/3' && by.U1[ix['קטע']] === 'החידון כולו' && by.U1[ix['ניסיון']] === 'חי', 'U1 score', by.U1);
+  ok(by.U1 && by.U1[ix['ציון']] === '3/3' && by.U1[ix['קטע']] === 'החידון כולו' && by.U1[ix['ניסיון']] === 'חי', 'U1 score', by.U1);
   ok(by.U2 && by.U2[ix['ציון']] === '1/3' && by.U2[ix['נכון']] === 'לא נכון', 'U2 score', by.U2);
   ok(by.U3 && by.U3[ix['ציון']] === '0/3', 'U3 score', by.U3);
   ok(by.U1 && by.U1[ix['דף']] === 'taanit|ו' && by.U1[ix['שבוע']] === 'taanit-5', 'daf/week');
@@ -134,16 +136,27 @@ async function ctxOf(b, W, init) {
   G(W, { live: 'end', key: 'k', s: S });
   var rows2 = W.priv.getSheetByName('חידות').d.slice(1).filter(function (r) { return String(r[ix['מקור']]).indexOf('שיעור חי') === 0; });
   ok(rows2.length === 3, 'no dup on second end', rows2.length);
+  ok((W.priv.getSheetByName('עמדה — שיוך') || W.pub.getSheetByName('עמדה — שיוך')).d.length === 2, 'no dup attendance on second end');
   ok(G(W, { live: 'get', s: S }).on === 0, 'get after end');
   ok(G(W, { live: 'ans', s: S, tk: h1.tk, qid: 'Q1', a: 1 }).on === 0, 'ans after end');
   // quizBest_ סופר אותן
   var qb = c.quizBest_({}, {}, null, null);
-  ok(qb.best['U1|taanit|ו'] && qb.best['U1|taanit|ו'].join('/') === '2/3', 'quizBest_ counts', qb.best);
+  ok(qb.best['U1|taanit|ו'] && qb.best['U1|taanit|ו'].join('/') === '3/3', 'quizBest_ counts', qb.best);
+  // נוכחות — רק מי שענה על הכול (U1)
+  var A = c.amdaQz_({}, {});
+  ok(A.ok['U1|taanit|ו'] && !A.ok['U2|taanit|ו'] && !A.ok['U3|taanit|ו'], 'attendance only U1', A.ok);
+  var LR = W.priv.getSheetByName('לימוד') || W.pub.getSheetByName('לימוד'), lh = LR.d[0];
+  var lrs = LR.d.slice(1).filter(function (r) { return r[lh.indexOf('מקור')] === 'שיעור חי'; });
+  ok(lrs.length === 1 && lrs[0][lh.indexOf('מזהה')] === 'U1' && String(lrs[0][lh.indexOf('שבוע')]) === '5', 'learn row U1', lrs);
+  // שיוך העמדה לא מנחש שוב לפי שם
+  c.amdaSync_();
+  var LK = W.priv.getSheetByName('עמדה — שיוך') || W.pub.getSheetByName('עמדה — שיוך');
+  ok(LK.d.length === 2, 'link rows 1', LK.d.length);
   // ניהול
   var ad = G(W, { live: 'adm', key: 'k' });
   ok(ad.status === 'ok' && ad.list.length === 1 && ad.list[0].nq === 3 && ad.list[0].ppl.length === 3, 'adm', ad);
   var a1 = ad.list[0].ppl.filter(function (p) { return p.n === 'אלף בית'; })[0];
-  ok(a1 && a1.k === 2, 'adm U1 answered 2', a1);
+  ok(a1 && a1.k === 3, 'adm U1 answered 3', a1);
   ok(G(W, { live: 'adm' }).status === 'denied', 'adm no key');
   // מפגש חדש — הישן נשאר סגור
   var st2 = G(W, { live: 'start', key: 'k' });
