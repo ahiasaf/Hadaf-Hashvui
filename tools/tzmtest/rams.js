@@ -92,8 +92,7 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     ok(rs.a === 'y' && sh.d[1][2] === 'כן' && sh.d[0][2] === 'מגיע' && sh.d[1][0] === A && sh.d[1][1] === 'ז׳4', 'saved y', [rs, sh.d[0], sh.d[1]]);
     var ad = JSON.parse(c.doGet({ parameter: { tzm: 'adm', key: 'k' } }).t);
     ok(ad.rams.length === 2 && ad.rams[0].a === 'y' && ad.rams[0].z === 1 && ad.rams[1].z === 0 && !ad.rams[0].r, 'adm rams', ad.rams);
-    ok(JSON.parse(c.doGet({ parameter: { tzm: 'ramset', key: 'k', n: B, a: 'y' } }).t).status === 'none', 'not tzurba → none');
-    ok(JSON.parse(c.doGet({ parameter: { tzm: 'ramst', k: adm.k, n: B } }).t).status === 'none', 'ramst not tzurba');
+    ok(JSON.parse(c.doGet({ parameter: { tzm: 'ramst', k: adm.k, n: B } }).t).status === 'ok', 'ramst any rav');
     var st = JSON.parse(c.doGet({ parameter: { tzm: 'ramset', key: 'k', n: A, a: 'n' } }).t);
     ok(st.status === 'ok' && st.a === 'n', 'adm set', st);
     await p.reload(); await p.waitForSelector('#byS:not([hidden])'); await p.click('#byGo');
@@ -102,10 +101,12 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     ok(JSON.parse(c.doGet({ parameter: { tzm: 'ramset', n: A, a: 'y' } }).t).status === 'denied', 'set denied');
     ok(JSON.parse(c.doGet({ parameter: { tzm: 'ramset', k: adm.k, n: 'לא קיים', a: 'y' } }).t).status === 'none', 'unknown none');
     ok(JSON.parse(c.doGet({ parameter: { tzm: 'ramset', k: adm.k, n: A, a: 'x' } }).t).status === 'error', 'bad a');
-    // ר"ם שאינו צורבא — בוחר מהרשימה, בלי שאלה
+    // כל ר"ם מהרשימה — השאלה מיד, גם כשהשרת מתעכב
+    await p.route(/tzm=ramst/, function () {});
     await p.reload(); await p.waitForSelector('#byS:not([hidden])');
-    await p.selectOption('#byS', B); await p.click('#byGo'); await p.waitForTimeout(400);
-    ok(await p.isVisible('#main2') && await p.isHidden('#ramCard'), 'non-tzurba no q');
+    await p.selectOption('#byS', B); await p.click('#byGo');
+    ok(await p.isVisible('#main2') && await p.isVisible('#ramCard'), 'q immediate');
+    await p.unroute(/tzm=ramst/);
     // שם ידני — בלי שאלה
     await p.reload(); await p.waitForSelector('#byS:not([hidden])');
     await p.selectOption('#byS', '\u0001'); await p.fill('#by', 'מישהו'); await p.click('#byGo');

@@ -3185,7 +3185,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.599';
+var APP_VERSION = '8.99.600';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -18239,13 +18239,12 @@ function tzmRamsHtml(d) {
   var L = d.rams;
   if (!L) return '';
   if (!L.length) return '<p class="h" style="margin-bottom:14px">' + esc(UI.tzmAdmRamsNone) + '</p>';
-  /* רק ר"מי צורבא נשאלים (עמודת "צורבא" = כן) — הם בלבד בסיכום ובכפתורים. */
-  var y = 0, n = 0, Z = 0;
-  L.forEach(function (r) { if (!r.z) return; Z++; if (r.a === 'y') y++; else if (r.a === 'n') n++; });
+  /* כל הר"מים נשאלים (8.99.600) — כולם בסיכום ובכפתורים. */
+  var y = 0, n = 0, Z = L.length;
+  L.forEach(function (r) { if (r.a === 'y') y++; else if (r.a === 'n') n++; });
   return '<div style="margin-bottom:14px;padding:12px;border-radius:14px;background:#F4F6FA">' +
     '<p class="h" style="margin:0 0 8px"><b>' + esc(fill(UI.tzmAdmRams, { y: y, n: n, q: Z - y - n })) + '</b></p>' +
     L.map(function (r, i) {
-      if (!r.z) return '';
       var b = TZM.ramBusy === r.n ? ' disabled' : '';
       return '<div class="prow2"><div style="flex:1"><b>' + esc(r.n) + '</b>' + (r.c ? '<span>' + esc(r.c) + '</span>' : '') + '</div>' +
         '<button class="btn' + (r.a === 'y' ? '' : ' g') + '" type="button"' + b + ' onclick="tzmRamGo(' + i + ',\'y\')">' + (r.a === 'y' ? '✓ ' : '') + esc(UI.tzmRamY) + '</button> ' +

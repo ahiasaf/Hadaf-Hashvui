@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 275;
+var SCRIPT_VERSION = 276;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -21027,7 +21027,7 @@ function tzmRamSet_(P) {
   if (!lk.tryLock(10000)) return { status: 'busy' };
   try {
     var r = tzmRamOf_(n);
-    if (!r || !r.z) return { status: 'none' };
+    if (!r) return { status: 'none' };
     var sh = tzmRamSheet_(), col = tzmRamACol_(sh);
     sh.getRange(r.r, col).setValue(a === 'y' ? 'כן' : 'לא');
     SpreadsheetApp.flush();
@@ -21048,7 +21048,7 @@ function tzmRoute_(P) {
     if (!adm1 && (!k1 || String(P.k || '') !== k1)) return { status: 'denied' };
     if (op === 'ramset') return tzmRamSet_(P);
     var me1 = tzmRamOf_(P.n);
-    return me1 && me1.z ? { status: 'ok', a: me1.a, z: 1 } : { status: 'none' };
+    return me1 ? { status: 'ok', a: me1.a, z: 1 } : { status: 'none' };
   }
   if (op === 'scls') return tzmSOk_(P) ? { status: 'ok', cls: tzmRoster_() } : { status: 'denied' };
   if (op === 'sreq') return tzmSOk_(P) ? tzmSReq_(P) : { status: 'denied' };

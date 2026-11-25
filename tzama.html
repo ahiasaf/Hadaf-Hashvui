@@ -193,11 +193,11 @@ function ramPaint() {
 function ramShow() {
   var n = String($('by').value || '').trim();
   if (!KEY || !RAMS[n] || !UI.tzmRamQ) { $('ramCard').hidden = true; return; }
-  /* רק לר"מי צורבא (עמודת "צורבא" = כן) — השרת אומר; בלי תשובה — לא מוצגת. */
+  /* לכל ר"ם שבחר מהרשימה — מיד, בלי לחכות לשרת (8.99.600, אחיאסף). הסימון הקודם מתמלא כשהתשובה מגיעה. */
   $('ramQ').textContent = UI.tzmRamQ; $('ramE').hidden = true; RAM_A = ''; ramPaint();
-  $('ramCard').hidden = true;
+  $('ramCard').hidden = false;
   get('tzm=ramst&k=' + encodeURIComponent(KEY) + '&n=' + encodeURIComponent(n)).then(function (d) {
-    if (d && d.status === 'ok' && d.z && String($('by').value || '').trim() === n) { RAM_A = d.a || ''; ramPaint(); $('ramCard').hidden = false; }
+    if (d && d.status === 'ok' && String($('by').value || '').trim() === n && !$('ramY').disabled) { RAM_A = d.a || ''; ramPaint(); }
   }, function () {});
 }
 function ramSet(a) {
