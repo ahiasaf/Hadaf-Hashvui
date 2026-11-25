@@ -748,6 +748,9 @@ function loadRoster() {
   if (LTester() || ALL) q.test = '1';
   return askScript(q).then(function (d) {
     if (!d) { rosterMsg = 'לא קיבלתי תשובה מהשרת.'; return null; }
+    /* ר"ם שהכיתה שלו לא ידועה — בחירת כיתה (lock.js), בלי למחוק את האישור. */
+    if (d.status === 'denied' && d.lim && !ALL) { boardLim = true; rosterMsg = ''; return null; }
+    boardLim = false;
     if (d.status !== 'ok') {
       /* קוד שגוי אינו נשמר — אחרת הוא היה נדבק למכשיר ומונע
          מהקישור הנכון לעבוד בפעם הבאה. */
@@ -817,7 +820,7 @@ function waitTry() {
    נעול — "אתה איש צוות או תלמיד?" במקום "אנא המתן" (lock.js).
    ============================================================
    וכל רשימת שמות יורדת מהמכשיר ומהזיכרון, ומצויר מחדש. */
-var boardLocked = false;
+var boardLocked = false, boardLim = false;
 function lockNow() {
   if (!boardLocked) LOCK.reset();
   boardLocked = true;
@@ -839,7 +842,9 @@ LOCK.init({
   },
   paint: function () { draw(); },
   /* "איש צוות" — חזרה ל"אנא המתן" הרגיל, שבודק את עצמו. */
-  onWait: function () { boardLocked = false; draw(); }
+  onWait: function () { boardLocked = false; draw(); },
+  /* הכיתה נשמרה — הרשימה נטענת מיד. */
+  onLim: function () { boardLim = false; draw(); loadRoster().then(draw); }
 });
 if (!ALL) {
   setInterval(function () {
@@ -2148,6 +2153,11 @@ function draw() {
     return;
   }
   $('sub').textContent = inst.name;
+  if (boardLim && !ALL) {
+    $('body').innerHTML = LOCK.limHtml();
+    embedSize();
+    return;
+  }
 
   var wk = LWeek(), tr = TRACKS[0].id;
   try { var t = localStorage.getItem('dfHomeTrack');

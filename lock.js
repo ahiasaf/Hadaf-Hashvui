@@ -50,7 +50,9 @@ var LOCK = (function () {
       ".lk-x{background:none;border:0;margin-top:12px;font:inherit;font-size:.9rem;color:#5a6577;" +
       "text-decoration:underline;cursor:pointer}" +
       ".lk-e{margin-top:10px;color:#B3261E;font-weight:700;font-size:.9rem}" +
-      ".lk p{margin:6px 0 0;color:#3d4757}";
+      ".lk p{margin:6px 0 0;color:#3d4757}" +
+      ".lk-2{display:flex;gap:8px}.lk-2 select{flex:1;min-width:0;padding:12px;border:1.5px solid #c9d3e3;" +
+      "border-radius:10px;font:inherit;font-size:1.05rem;background:#fff}";
     (document.head || document.body).appendChild(s);
   }
   /* אייקון המפתח — אותו מפתח של "ממתינים לאימות". */
@@ -168,8 +170,60 @@ var LOCK = (function () {
     return true;
   }
 
+  /* ============================================================
+     ר"ם שהכיתה שלו לא ידועה — בוחר אותה כאן (בקשת אחיאסף, 25.11).
+     ============================================================
+     השרת מחזיר `lim: 1` (limDeny_). במקום "פנו לרכז" — שכבה, כיתה
+     וכפתור. השמירה בשרת (`limme`, limMe_ — רק כשהכיתה לא ידועה), ואז
+     `C.onLim()` טוען מחדש: הגישה לכיתה נפתחת מיד. הכיתה נשמרת גם
+     בפרטים שבמכשיר (df:head / df:ram). המלל — PANEL.lim* ב-data.js. */
+  var lst = '', lerr = '';
+  var LGR = ['ז', 'ח', 'ט', 'י', 'יא', 'יב'];
+  function gName(g) { return g.length > 1 ? g.charAt(0) + '\u05F4' + g.slice(1) : g + '\u05F3'; }
+  function limHtml() {
+    css();
+    var el = function (id) { var x = document.getElementById(id); return x ? x.value : ''; };
+    var g0 = el('lk-g'), c0 = el('lk-c'), i, busy = lst === 'busy' ? ' disabled' : '';
+    var gs = '<option value="">' + esc(P('limG')) + '</option>';
+    for (i = 0; i < LGR.length; i++) {
+      var gn = gName(LGR[i]);
+      gs += '<option' + (gn === g0 ? ' selected' : '') + '>' + esc(gn) + '</option>';
+    }
+    var cs = '<option value="">' + esc(P('limC')) + '</option>';
+    for (i = 1; i <= 12; i++) cs += '<option' + (String(i) === c0 ? ' selected' : '') + '>' + i + '</option>';
+    return '<div class="lk"><h3>' + esc(P('limH')) + '</h3>' +
+      '<div class="lk-2"><select id="lk-g"' + busy + '>' + gs + '</select>' +
+      '<select id="lk-c"' + busy + '>' + cs + '</select></div>' +
+      '<button class="lk-b lk-s"' + busy + ' onclick="LOCK.limGo()">' + esc(P('limGo')) + '</button>' +
+      (lerr ? '<div class="lk-e">' + esc(lerr) + '</div>' : '') + '</div>';
+  }
+  function limSave(g, c) {
+    var keys = ['df:head', 'df:ram'], me = (C && C.me && C.me()) || {};
+    for (var i = 0; i < keys.length; i++) {
+      try {
+        var m = JSON.parse(localStorage.getItem(keys[i]) || 'null');
+        if (m && m.id && m.id === me.id) { m.grade = g; m.klass = c; localStorage.setItem(keys[i], JSON.stringify(m)); }
+      } catch (e) {}
+    }
+  }
+  function limGo() {
+    var gEl = document.getElementById('lk-g'), cEl = document.getElementById('lk-c');
+    var g = gEl ? gEl.value : '', c = cEl ? cEl.value : '';
+    var me = (C && C.me && C.me()) || {};
+    if (!g || !c) { lerr = P('limNeed'); paint(); return; }
+    if (!me.id || !me.inst || !C.get) { lerr = P('limFail'); paint(); return; }
+    lst = 'busy'; lerr = ''; paint();
+    C.get({ limme: me.inst, dev: me.id, g: g, cl: c }).then(function (d) {
+      lst = '';
+      if (!d || d.status !== 'ok') { lerr = P('limFail'); paint(); return; }
+      limSave(d.g || g, d.c || c);
+      if (C.onLim) C.onLim(); else paint();
+    }, function () { lst = ''; lerr = P('limFail'); paint(); });
+  }
+
   return {
     init: function (cfg) { C = cfg; },
+    limHtml: limHtml, limGo: limGo,
     html: html, wipe: wipe, staff: staff, kid: kid, phone: phone, skip: skip,
     kidCode: kidCode, kidGo: kidGo,
     /* חזרה למסך השאלה — כשהשרת אומר שוב "נעול". */
