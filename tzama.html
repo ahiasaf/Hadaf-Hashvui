@@ -350,7 +350,7 @@ function namesOf(g, c) {
 function nP() { return Object.keys(S.P).length; }
 
 function paint() {
-  /* ההרשמה נעולה (8.99.601): לר"ם — רק שאלת ההגעה; לתלמיד — המצב שלו אם נרשם מהטלפון, אחרת הודעה. */
+  /* ההרשמה נעולה (8.99.606): לר"ם — רק שאלת ההגעה; לתלמיד — המצב שלו אם נרשם מהטלפון, אחרת הודעה. */
   if (S.closed && !(STU && MINE && MINE.n)) {
     if (STU) return say(UI.tzmClosed);
     $('grs').parentNode.hidden = true; $('stuCard').hidden = true; $('bar').hidden = true;

@@ -2163,6 +2163,22 @@ footer i{display:block;width:34px;height:1px;background:var(--rule);margin:0 aut
   border-bottom:1px solid var(--rule)}
 .prow2 b{display:block;font-size:.93rem;font-weight:800;letter-spacing:-.02em}
 .prow2 span{display:block}
+.prs-sum{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px}
+.prs-sum div{text-align:center;padding:10px 6px;border-radius:14px;background:#F4F6FA}
+.prs-sum b{display:block;font-size:1.9rem;font-weight:900;line-height:1.1}
+.prs-sum span{font-size:.85rem;font-weight:700;color:#555}
+.prs-q{display:block;width:100%;box-sizing:border-box;padding:12px;margin-bottom:10px;border:1.5px solid #ddd;border-radius:12px;font:inherit;font-size:16px}
+.prs-row{padding:12px 0;border-top:1px solid #eee}
+.prs-row .nm{font-weight:800;font-size:1.05rem;margin-bottom:8px}
+.prs-row .nm span{font-weight:600;color:#666;font-size:.88rem;margin-inline-start:6px}
+.prs-bt{display:flex;gap:6px;flex-wrap:wrap}
+.prs-bt button{flex:1 1 0;min-width:72px;min-height:46px;border:1.5px solid #ddd;border-radius:12px;background:#fff;font:inherit;font-weight:800;font-size:.98rem;cursor:pointer;color:#222}
+.prs-bt button.on{background:#467B1A;border-color:#467B1A;color:#fff}
+.prs-bt button.on.no{background:#A5382D;border-color:#A5382D}
+.prs-bt button.on.q{background:#777;border-color:#777}
+.prs-bt button.hr{flex-basis:100%}
+.prs-bt button.hr.on{background:#0B2550;border-color:#0B2550}
+.prs-bt button[disabled]{opacity:.55}
 .tzm-ls,.prow2 .tzm-ls{display:inline-block;margin-inline-start:6px;padding:1px 8px;border-radius:99px;background:#7A4A12;color:#fff;font-size:.74rem;font-weight:800}
 .prow2 > div > span{font-size:.78rem;font-weight:600;color:var(--ink-3);
   margin-top:2px;line-height:1.5}
@@ -3185,7 +3201,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.601';
+var APP_VERSION = '8.99.606';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4554,6 +4570,8 @@ function codeCheck(code) {
     .then(function (r) { return r.json(); })
     .then(function (d) {
       if (!d || !/^(denied|wait|locked|unknown)$/.test(d.status)) return;   /* תקין, או שלא נענה */
+      /* ר"ם בלי כיתה ידועה — הקוד תקין; בוחר כיתה באזור האישי. */
+      if (d.lim) { limNeed = true; return; }
       var m = Store.get('instCodes', {}) || {};
       delete m[code];
       Store.set('instCodes', m);
@@ -5285,6 +5303,13 @@ LOCK.init({
     ASK.post('רשום', null);
   },
   paint: function () { accRe(); },
+  /* הכיתה נשמרה — מה שנחסם נפתח מיד. */
+  onLim: function () {
+    limNeed = false; attMsg = '';
+    var f = limRetry; limRetry = null;
+    renderMy();
+    if (f) f();
+  },
   onWait: function (d) {
     accSt = 'wait'; accPh = d.phone !== false; accPhSent = false;
     Store.set('attR', null);
@@ -5302,6 +5327,9 @@ LOCK.init({
    הבחירה וההסברים ירדו; המעבר ל"התלמידים מסמנים" במתג שבראש העמדה.
    הרשימה נשמרת במכשיר רק כגיבוי לשיעור בלי רשת. */
 var attView = '', attMsg = '';
+/* ר"ם שהכיתה שלו לא ידועה (`lim` מהשרת) — בחירת כיתה בראש האזור (LOCK.limHtml).
+   `limRetry` — מה שנחסם, ורץ שוב אחרי השמירה. */
+var limNeed = false, limRetry = null;
 /* איש צוות אחראי על כל הישיבה — כל הכיתות של כל השכבות שיש לה ברשימה
    (8.99.433: ז׳–י״ב, כמו AMDA_GRADES; עד אז ז׳/ח׳ בלבד). */
 var ATT_GRADES = ['ז', 'ח', 'ט', 'י', 'יא', 'יב'];
@@ -5372,6 +5400,13 @@ function attOpen(mode) {
       /* האישור בוטל — גם הגיבוי במכשיר יורד, והעמדה שנפתחה ממנו נסגרת. */
       if (d && /^(locked|wait|unknown|denied)$/.test(d.status)) {
         Store.set(rk, null);
+        /* ר"ם שהכיתה שלו לא ידועה — בוחר אותה, והעמדה נפתחת מיד אחרי. */
+        if (d.lim && !view) {
+          limNeed = true; limRetry = function () { attOpen(mode); };
+          attMsg = '';
+          if (onHit()) amdaClose(true);
+          renderMy(); return;
+        }
         if (onHit()) { attMsg = d.message || PANEL.attFail; amdaClose(true); }
       }
       if (hit) return;
@@ -5713,6 +5748,8 @@ function renderMy() {
       : '<div class="my-top"><b>' + esc(PANEL.title) + '</b>' +
         nmHtml + '</div>') +
 
+    /* ר"ם בלי כיתה ידועה — קודם הכיתה. */
+    (stOk && limNeed && !viewing ? '<div class="my-sec bare">' + LOCK.limHtml() + '</div>' : '') +
     /* נוכחות בשיעור — ראשונה: זה מה שעושים בכל שיעור. רק אחרי האישור. */
     (stOk ? attHtml() : '') +
 
@@ -6400,6 +6437,9 @@ function saySend() {
         sayDraft = ''; sayErr = '';
         sayPaint();
         SayMsg(headT('saySent'));
+      } else if (d && d.lim && !view) {
+        /* ר"ם שהכיתה שלו לא ידועה — בחירת כיתה בראש האזור; הטיוטה נשארת. */
+        limNeed = true; renderMy();
       } else {
         sayErr = headT('sayErr') + ' ' + ((d && d.message) || '');
         sayPaint();
@@ -12819,7 +12859,7 @@ var SUB = { daf: [['daf', 'moreDaf'], ['qbank', 'moreQBank'], ['alonim', 'moreAl
    אחת הם רצועה שנגררת בטלפון. */
 var MORE = [
   /* עמדת הלימוד עצמה — בכפתור הקבוע למעלה. כאן רק מה שאין שם. */
-  { g:'moreGSet', items:[['links','moreLinks'], ['amdawa','moreAmdaWa'], ['net','moreNet'], ['lottery','moreLottery'], ['ltime','moreLtime'], ['amdaneed','moreAmdaNeed'], ['tzm','moreTzm'], ['chn','moreChn'],
+  { g:'moreGSet', items:[['links','moreLinks'], ['amdawa','moreAmdaWa'], ['net','moreNet'], ['lottery','moreLottery'], ['ltime','moreLtime'], ['amdaneed','moreAmdaNeed'], ['tzm','moreTzm'], ['prs','morePrs'], ['live','moreLive'], ['chn','moreChn'],
                          ['prz','morePrz'], ['chal','moreChal'], ['quad','moreQuad'], ['hash','moreHash'],
                          ['test','moreTest']] },
   /* מה שנסגר לשנה הזו — במגירה, ולא נמחק: בלי המלל והמערכת אין
@@ -13489,6 +13529,8 @@ function admPane() {
   if (sub === 'hash')    return admHash(body);
   if (sub === 'ltime')   return admLtime(body);
   if (sub === 'tzm')     return admTzm(body);
+  if (sub === 'prs')     return admPrs(body);
+  if (sub === 'live')    return admLvSess(body);
   if (sub === 'chn')     return admChn(body);
   if (sub === 'amdaneed') return admAmdaNeed(body);
   /* השליחה — הרשימה נטענת לבד כשנכנסים, ולא רק ב"רענון". פעם
@@ -18176,6 +18218,118 @@ function ltmPaint() {
    "לבירור" — בקשה נוספת לאותה כיתה, עד שמכריעים. בלי מועד סגירה הקישור סגור
    לר"מים. כישלון משאיר את מה שעל המסך. */
 var CHN = { d: null, busy: false, msg: '', tst: false, at: 0, rams: null, ramMsg: '', ramBusy: false };
+/* חלוקת פרסים (8.99.602) — מי מגיע ומי הגיע. ראו prsRoute_. כל סימון — הסימון האחרון קובע,
+   שלו או של התלמיד; מה שעל המסך מתעדכן רק מתשובת השרת (אחרי קריאה חוזרת). */
+var PRS = { d: null, busy: false, msg: '', q: '', act: '' };
+function admPrs(body) {
+  body.innerHTML = '<div id="prs"></div>';
+  prsPaint();
+  prsLoad();
+}
+function prsLoad() {
+  var k = (CFG.readKey || '').trim();
+  if (!k) { PRS.msg = UI.przNoKey; prsPaint(); return; }
+  PRS.busy = true; PRS.msg = ''; prsPaint();
+  scriptGet({ prs: 'adm', key: k }).then(function (d) {
+    PRS.busy = false;
+    if (d && d.status === 'ok') { PRS.d = d; d.list = (d.list || []).slice().sort(function (a, b) { return a.n < b.n ? -1 : a.n > b.n ? 1 : 0; }); }
+    else PRS.msg = UI.prsAdmFail;
+    prsPaint();
+  }, function () { PRS.busy = false; PRS.msg = UI.prsAdmFail; prsPaint(); });
+}
+/* f: 'a' — מצב התשובה (y · n · '-' לא ענה) · 'h' — הגיע (1/0). */
+function prsGo(i, f, v) {
+  var r = PRS.d && PRS.d.list && PRS.d.list[i], k = (CFG.readKey || '').trim();
+  if (!r || !k || PRS.act) return;
+  PRS.act = i + ':' + f; prsPaint();
+  var q = { prs: f === 'a' ? 'set' : 'here', key: k, n: r.n, cl: r.c || '' };
+  if (f === 'a') q.a = v; else q.h = v;
+  scriptGet(q).then(function (d) {
+    PRS.act = '';
+    if (d && d.status === 'ok') { r.a = d.a || ''; r.h = d.h ? 1 : 0; PRS.msg = ''; } else PRS.msg = UI.prsErr;
+    prsPaint();
+  }, function () { PRS.act = ''; PRS.msg = UI.prsErr; prsPaint(); });
+}
+function prsQ(v) { PRS.q = v; prsListPaint(); }
+function prsN(s) { return String(s || '').replace(/["'׳״`]/g, '').replace(/\s+/g, ' ').trim(); }
+function prsListPaint() {
+  var el = document.getElementById('prs-ls');
+  if (!el || !PRS.d) return;
+  var L = PRS.d.list || [], q = prsN(PRS.q), h = '';
+  L.forEach(function (r, i) {
+    if (q && prsN(r.n).indexOf(q) < 0) return;
+    var b = PRS.act ? ' disabled' : '';
+    var bt = function (v, cls, t) {
+      var on = (r.a || '-') === v;
+      return '<button type="button" class="' + (on ? 'on' + cls : '') + '"' + b + ' onclick="prsGo(' + i + ',\'a\',\'' + v + '\')">' + (on ? '✓ ' : '') + esc(t) + '</button>';
+    };
+    h += '<div class="prs-row"><div class="nm">' + esc(r.n) + (r.c ? '<span>' + esc(r.c) + '</span>' : '') + '</div>' +
+      '<div class="prs-bt">' + bt('y', '', UI.prsStY) + bt('n', ' no', UI.prsStN) + bt('-', ' q', UI.prsStQ) +
+      '<button type="button" class="hr' + (r.h ? ' on' : '') + '"' + b + ' onclick="prsGo(' + i + ',\'h\',' + (r.h ? 0 : 1) + ')">' + (r.h ? '✓ ' : '') + esc(UI.prsHere) + '</button></div></div>';
+  });
+  el.innerHTML = h || (L.length ? '<p class="h">' + esc(UI.prsAdmNoHit) + '</p>' : '');
+}
+function prsPaint() {
+  var el = document.getElementById('prs');
+  if (!el) return;
+  var d = PRS.d, h = '<div class="adm-card"><h4>' + esc(UI.morePrs) + '</h4>' +
+    (PRS.msg ? '<div class="cond" style="margin-bottom:10px">' + esc(PRS.msg) + '</div>' : '');
+  if (!d) { el.innerHTML = h + (PRS.busy ? '<p class="h">' + esc(UI.prsLoad) + '</p>' : '') + '</div>'; return; }
+  var L = d.list || [], y = 0, n = 0, hr = 0;
+  L.forEach(function (r) { if (r.a === 'y') y++; else if (r.a === 'n') n++; if (r.h) hr++; });
+  var tile = function (v, t) { return '<div><b>' + v + '</b><span>' + esc(t) + '</span></div>'; };
+  h += '<div class="prs-sum">' + tile(y, UI.prsAdmY) + tile(n, UI.prsAdmN) + tile(L.length - y - n, UI.prsAdmQ) + tile(hr, UI.prsAdmH) + '</div>';
+  if (!L.length) h += '<p class="h">' + esc(UI.prsAdmNone) + '</p>';
+  else h += '<input class="prs-q" type="search" placeholder="' + esc(UI.prsSearch) + '" value="' + esc(PRS.q) + '" oninput="prsQ(this.value)">' +
+    '<div id="prs-ls"></div>';
+  var url = location.origin + '/prasim?k=' + encodeURIComponent(d.k || '');
+  h += '<p class="h" style="margin-top:16px"><b>' + esc(UI.prsAdmLink) + '</b></p><div>' +
+    '<input readonly dir="ltr" style="display:block;width:100%;box-sizing:border-box;padding:8px;margin-bottom:6px;border:1px solid #ddd;border-radius:8px" value="' + esc(url) + '" onfocus="this.select()">' +
+    '<button class="btn g" type="button" onclick="copyText(\'' + esc(url) + '\', UI.prsAdmCopied)">' + esc(UI.prsAdmCopy) + '</button></div></div>';
+  var keep = document.activeElement && document.activeElement.className === 'prs-q';
+  el.innerHTML = h;
+  prsListPaint();
+  if (keep) { var qi = el.querySelector('.prs-q'); if (qi) { qi.focus(); try { qi.setSelectionRange(qi.value.length, qi.value.length); } catch (x) {} } }
+}
+/* שיעור חי (8.99.605) — המפגשים האחרונים, ולכל משתתף על כמה חידות ענה מתוך
+   כמה שהופעלו. קריאה בלבד (?live=adm). ראו liveRoute_. */
+var LVA = { d: null, busy: false, msg: '' };
+function admLvSess(body) {
+  body.innerHTML = '<div id="lva"></div>';
+  lvaPaint();
+  lvaLoad();
+}
+function lvaLoad() {
+  var k = (CFG.readKey || '').trim();
+  if (!k) { LVA.msg = UI.przNoKey; lvaPaint(); return; }
+  LVA.busy = true; LVA.msg = ''; lvaPaint();
+  scriptGet({ live: 'adm', key: k }).then(function (d) {
+    LVA.busy = false;
+    if (d && d.status === 'ok') LVA.d = d; else LVA.msg = UI.lvAdmFail;
+    lvaPaint();
+  }, function () { LVA.busy = false; LVA.msg = UI.lvAdmFail; lvaPaint(); });
+}
+function lvaPaint() {
+  var el = document.getElementById('lva');
+  if (!el) return;
+  var d = LVA.d, h = '<div class="adm-card"><h4>' + esc(UI.moreLive) + '</h4>' +
+    (LVA.msg ? '<div class="cond" style="margin-bottom:10px">' + esc(LVA.msg) + '</div>' : '');
+  if (!d) { el.innerHTML = h + (LVA.busy ? '<p class="h">' + esc(UI.prsLoad) + '</p>' : '') + '</div>'; return; }
+  var L = d.list || [];
+  if (!L.length) h += '<p class="h">' + esc(UI.lvAdmNone) + '</p>';
+  L.forEach(function (o) {
+    h += '<details style="margin:8px 0;border-top:1px solid #eee;padding-top:8px"><summary><b>' + esc(o.t) + '</b> · ' +
+      esc(fill(UI.lvAdmRow, { n: o.ppl.length, q: o.nq })) + '</summary>';
+    o.ppl.slice().sort(function (a, b) { return b.k - a.k; }).forEach(function (p) {
+      h += '<div class="h" style="display:flex;justify-content:space-between;gap:8px;padding:3px 0"><span>' + esc(p.n) +
+        (p.i ? ' · ' + esc(p.i) : '') + '</span><b>' + esc(fill(UI.lvAdmP, { k: p.k, q: o.nq })) + '</b></div>';
+    });
+    h += '</details>';
+  });
+  h += '<button class="btn g" type="button"' + (LVA.busy ? ' disabled' : '') + ' onclick="lvaLoad()">' +
+    esc(LVA.busy ? UI.chaLoading : UI.chaReload) + '</button></div>';
+  el.innerHTML = h;
+}
 /* רישום לאירוע צמאה (8.99.575) — הקישור לרכזי השכבה (עם המפתח) והרשומים. ראו tzmRoute_. */
 var TZM = { d: null, busy: false, msg: '' };
 /* כמה כרטיסים יש לאירוע צמאה (אחיאסף, 24.11). */
@@ -18239,7 +18393,7 @@ function tzmRamsHtml(d) {
   var L = d.rams;
   if (!L) return '';
   if (!L.length) return '<p class="h" style="margin-bottom:14px">' + esc(UI.tzmAdmRamsNone) + '</p>';
-  /* כל הר"מים נשאלים (8.99.600) — כולם בסיכום ובכפתורים. */
+  /* כל הר"מים נשאלים (8.99.602) — כולם בסיכום ובכפתורים. */
   var y = 0, n = 0, Z = L.length;
   L.forEach(function (r) { if (r.a === 'y') y++; else if (r.a === 'n') n++; });
   return '<div style="margin-bottom:14px;padding:12px;border-radius:14px;background:#F4F6FA">' +

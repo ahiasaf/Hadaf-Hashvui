@@ -1,4 +1,4 @@
-// ההרשמה לצמאה נעולה (8.99.601) — אין רישום/בקשה/ביטול; סימון ההגעה של הר"ם פתוח. נתונים מומצאים.
+// ההרשמה לצמאה נעולה (8.99.606) — אין רישום/בקשה/ביטול; סימון ההגעה של הר"ם פתוח. נתונים מומצאים.
 // NODE_PATH=$(npm root -g) node tools/tzmtest/closed.js
 var M = require('../snaptest/mock.js'), http = require('http'), fs = require('fs'), path = require('path');
 var pw = require('playwright');

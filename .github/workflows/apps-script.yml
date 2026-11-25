@@ -293,6 +293,13 @@ jobs:
             curl -sL -m 120 -o tzp.txt "$U?tzm=push&key=$READ_KEY&t=$(date +%s)" || true
             echo "צמאה — מי יקבל: $(head -c 600 tzp.txt)"
           fi
+          # חלוקת פרסים (8.99.602): בלי מפתח — נדחה; עם סיסמה — מניין בלבד, בלי שמות.
+          C=$(ask "prs=list"); echo "prs=list בלי מפתח → $(head -c 80 out.txt)"
+          grep -q '"status":"denied"' out.txt || { echo "::error::prs=list בלי מפתח לא נדחה"; FAIL=1; }
+          if [ -n "${READ_KEY:-}" ]; then
+            curl -sL -m 60 -o prb.txt "$U?prs=bdn&key=$READ_KEY&t=$(date +%s)" || true
+            echo "חלוקת פרסים: $(head -c 300 prb.txt)"
+          fi
           C=$(ask "raffle=autost"); echo "autost בלי סיסמה → $(head -c 80 out.txt)"
           grep -q '"status":"denied"' out.txt || { echo "::error::autost בלי סיסמה לא נדחה"; FAIL=1; }
           # המאגר הציבורי (8.99.465): רשימה בלי זיהוי, וכתיבה בלי סיסמה נדחית.

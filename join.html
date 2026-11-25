@@ -5244,7 +5244,7 @@ function wzWhere() {
   /* **"המשך בדפדפן" אינו התקנה מדומה.** מצב נפרד (`df:brw`), שנקבע
      רק אחרי פנייה לרכז מתלמיד אנדרואיד — ראו brwOn. האייקון עדיין
      חסר, ולכן `appInstalled()` נשאר שקר וכל מה שתלוי בו לא זז. */
-  if (!appInstalled() && !brwOn()) return 1;
+  if (!appInstalled() && !brwOn() && !deskOn()) return 1;
   if (!get('me', null)) return 2;
   return 4;
 }
@@ -5316,7 +5316,7 @@ function wzDraw() {
   if (!edit) {
     /* ✓ "על מסך הבית" — רק למי שבאמת התקין. תלמיד אנדרואיד
        שממשיך בדפדפן לא התקין, והשורה הייתה משקרת לו. */
-    if (wzStep > 1 && !(isAnd() && !appInstalled())) h += wzRow(jt('wzInstS'));
+    if (wzStep > 1 && !deskOn() && !(isAnd() && !appInstalled())) h += wzRow(jt('wzInstS'));
     if (wzStep > 2) h += wzRow(jt('wzDetS'));
     if (wzStep > 3 && get('me', null)) h += wzRow(jt('wzWayS'));
   }
@@ -5444,6 +5444,18 @@ document.addEventListener('click', function (e) {
   setTimeout(function () { if (wzStep === 1) wzDraw(); }, 400);
 });
 /* ההדגמה עצמה — או הרשימה, אם המדריך לא נטען. */
+/* באנדרואיד הצעת ההתקנה של הדפדפן מגיעה שנייה-שתיים אחרי הטעינה (8.99.604, אחיאסף):
+   עד שתי שניות — "אנא המתן רגע…" במקום המדריך, שלא יהבהב ויתחלף בכפתור. לא הגיעה —
+   המדריך. */
+var BIP_T0 = Date.now(), BIP_WAIT_MS = 2000, BIP_WAIT_T = 0;
+function bipWait() {
+  if (!isAnd() || inApp() || APPX.bip() || !jt('wzWait')) return false;
+  if ((APPX.addPage && APPX.addPage()) || (APPX.firefox && APPX.firefox())) return false;
+  var left = BIP_T0 + BIP_WAIT_MS - Date.now();
+  if (left <= 0) return false;
+  if (!BIP_WAIT_T) BIP_WAIT_T = setTimeout(function () { if (wzStep === 1 && !APPX.bip()) wzDraw(); }, left + 50);
+  return true;
+}
 function wzGuideBox() {
   return window.GUIDE_UI ? '<div class="wz-guide" id="gu-here"></div>' : appHowList();
 }
@@ -5520,6 +5532,7 @@ function wzInstall() {
     ? '<button class="wznext" id="wz-inst">' + esc(jt('appBtn')) + '</button>' +
       /* לא הסבר מתחת לכפתור אלא מה שיתווסף: האייקון עצמו, ושורה. */
       appIcon('add') + '<p class="wz-inote">' + esc(jt('wzInstNote')) + '</p>'
+    : bipWait() ? '<p class="wz-inote">' + esc(jt('wzWait')) + '</p>'
     : wzGuideBox());
   /* הדלת: הכיתוב מסומן, והמחיר נאמר מתחתיו בשקט. שלוש שורות
      מסומנות נראות כמו הכפתור הראשי של המסך, וזה בדיוק מה
@@ -5531,7 +5544,9 @@ function wzInstall() {
      ההדגמה במקומה, גם בדפדפן של סמסונג (שם לא היה מדריך: הוא
      מתאר את מה שעושים בכרום, ועכשיו הוא כבר בדרך לשם). */
   var wa = APPX.waBox ? APPX.waBox(true) : '';
-  if (wa) h = WZ_WENT ? wzGuideBox() : wa;
+  /* בזמן ההמתנה להצעת ההתקנה — גם לא מסגרת "פתיחה בכרום" (היא מוצגת למי שלא הוצעה לו
+     התקנה; ההצעה עוד בדרך). */
+  if (wa && !(!WZ_WENT && !samsungNow && !APPX.bip() && bipWait())) h = WZ_WENT ? wzGuideBox() : wa;
   return h + wzSkipBtn();
 }
 /* דלת העזרה — **בכל** מסך התקנה. היא הוסתרה במסכים שחזרו מוקדם
@@ -5734,6 +5749,11 @@ var BRW_MEM = false;       /* האחסון נכשל — המצב חי רק עד 
 var hlpFail = false, hlpRid = '', hlpPendOk = false, hlpFlushing = false;
 
 function isAnd() { return !isIOS() && /Android/i.test(navigator.userAgent || ''); }
+/* מחשב (8.99.601, אחיאסף): אין "מסך בית" — שלב ההתקנה והמדריך לא מוצגים,
+   והמסע מתחיל בפרטים. טאבלט/טלפון (גם אייפד שמתחזה למק) — כמו קודם. */
+function deskOn() {
+  return !isIOS() && !/Android|Mobi|Tablet|Silk|Kindle|KFAP|PlayBook|BB10/i.test(navigator.userAgent || '');
+}
 /* מי שהמסלול שלו: תלמיד אנדרואיד שעוד לא התקין. */
 function hlpAnd() { return role === 'kid' && isAnd() && !appInstalled(); }
 function brwOn() {

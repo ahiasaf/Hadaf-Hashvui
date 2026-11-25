@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="only light">
+<title>הדף השבועי של בני עקיבא</title>
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#0E2E63">
+<meta name="robots" content="noindex">
+<!-- ============================================================
+     שיעור חי — הטלפון של המשתתף (8.99.605).
+     ============================================================
+     נפתח מהברקוד שהמארח מציג בזום (`?s=<קוד>`). רק רשומים: מזהה מהאפליקציה
+     (df:me), ובלעדיו — הטלפון שבהרשמה (באייפון האפליקציה המותקנת והדפדפן
+     לא חולקים אחסון). השרת מחזיר אסימון למפגש (df:lv:<קוד>), לא את המזהה.
+     כל 3 שניות ?live=get (מהמטמון בשרת) — החידה שהמארח פתח. תשובה —
+     ?live=ans, "נשלח ✓" רק מתשובת השרת; אפשר לשנות עד החידה הבאה.
+     השרת: liveRoute_ ב-apps-script.gs.
+     ============================================================ -->
+<style>
+html,body{touch-action:manipulation;overflow-x:clip}
+:root{
+  --blue:#17468F; --blue-d:#0B2550; --gold-t:#8C681F; --green-d:#467B1A;
+  --paper:#F6F1E6; --surface:#FFFDF8; --ink:#1B2A45; --ink-2:#5A6780;
+  --rule:#E5DAC3; --stop:#A5382D;
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+img:not([src]){visibility:hidden}
+body{background:var(--paper);color:var(--ink);line-height:1.55;padding-bottom:calc(env(safe-area-inset-bottom) + 28px)}
+header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
+.masthead{display:flex;align-items:center;gap:13px;padding:14px 16px 10px;max-width:32rem;margin:0 auto}
+.masthead .m{width:58px;height:58px;border-radius:50%;background:#fff;flex:none;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 5px rgba(37,29,12,.07),0 8px 22px rgba(37,29,12,.09)}
+.masthead .m img{width:38px;height:38px;display:block;object-fit:contain}
+.masthead h1{font-size:1.24rem;font-weight:800;letter-spacing:-.035em;line-height:1.2;color:var(--blue-d)}
+.masthead .yr{font-size:.76rem;font-weight:800;color:var(--gold-t);letter-spacing:.05em;margin-top:3px}
+.wrap{max-width:32rem;margin:0 auto;padding:0 16px}
+.ban{margin:8px 0 16px;padding:16px 18px 18px;border-radius:18px;color:#fff;
+  background:linear-gradient(160deg,var(--blue-d),var(--blue));box-shadow:0 8px 22px rgba(11,37,80,.22)}
+.ban h2{font-size:1.4rem;font-weight:800;line-height:1.3}
+.ban p{font-size:.98rem;font-weight:700;opacity:.92;margin-top:2px}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:18px;padding:16px;margin-bottom:12px}
+.card h3{font-size:1.08rem;font-weight:800;color:var(--blue-d);margin-bottom:10px}
+select{display:block;width:100%;border:1.5px solid var(--rule);border-radius:12px;background:#fff;
+  padding:12px 13px;font:inherit;font-size:16px;color:var(--ink)}
+.yn{display:flex;flex-direction:column;gap:10px}
+.yn button{border:1.5px solid var(--rule);border-radius:14px;background:#fff;color:var(--ink);
+  font:inherit;font-weight:800;font-size:1.15rem;padding:16px;cursor:pointer}
+.yn button.on{border-color:var(--green-d);background:var(--green-d);color:#fff}
+.yn button.on.no{border-color:var(--stop);background:var(--stop)}
+.yn button[disabled]{opacity:.6}
+.err{margin-top:10px;font-weight:800;color:var(--stop);text-align:center}
+.msg{text-align:center;font-size:1.05rem;font-weight:800;padding:24px 8px}
+.btn{border:0;border-radius:12px;background:var(--blue);color:#fff;font:inherit;font-weight:800;padding:10px 16px;cursor:pointer}
+.st{text-align:center}
+[hidden]{display:none!important}
+.qq{font-size:1.15rem;font-weight:800;line-height:1.5;margin-bottom:12px}
+.opts{display:flex;flex-direction:column;gap:10px}
+.opts button{border:1.5px solid var(--rule);border-radius:14px;background:#fff;color:var(--ink);text-align:start;
+  font:inherit;font-weight:700;font-size:1.05rem;padding:14px 16px;cursor:pointer}
+.opts button.on{border-color:var(--blue);background:var(--blue);color:#fff}
+.opts button[disabled]{opacity:.6}
+.ok{margin-top:12px;text-align:center;font-weight:800;color:var(--green-d)}
+.ok small{display:block;font-weight:600;color:var(--ink-2)}
+input[type=tel],input[type=text]{display:block;width:100%;border:1.5px solid var(--rule);border-radius:12px;background:#fff;
+  padding:12px 13px;font:inherit;font-size:16px;color:var(--ink);margin-bottom:10px}
+.wait{text-align:center;padding:30px 8px;font-weight:800;color:var(--ink-2);font-size:1.1rem}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green-d);margin-inline-end:6px;animation:p 1.6s infinite}
+@keyframes p{50%{opacity:.25}}
+</style>
+</head>
+<body>
+<header>
+  <div class="masthead">
+    <span class="m"><img id="hdr-mark" alt=""></span>
+    <div><h1 id="brand"></h1><div class="yr" id="yr"></div></div>
+  </div>
+</header>
+<main class="wrap">
+  <div class="ban"><h2 id="ttl"></h2><p id="sub"></p></div>
+  <div class="msg" id="msg" hidden></div>
+  <div class="card" id="who" hidden>
+    <h3 id="whoH"></h3>
+    <input type="tel" id="ph" autocomplete="tel" dir="ltr">
+    <input type="text" id="fn" hidden>
+    <button class="btn" id="whoGo" type="button"></button>
+    <p class="err" id="whoE" hidden></p>
+    <p class="st" id="joinW" hidden style="margin-top:12px"><a class="btn" id="joinA" href="join"></a></p>
+  </div>
+  <div id="live" hidden>
+    <div class="wait" id="wait"><span class="dot"></span><span id="waitT"></span></div>
+    <div class="card" id="qc" hidden>
+      <div class="qq" id="qq"></div>
+      <div class="opts" id="opts"></div>
+      <div class="ok" id="ok" hidden></div>
+      <p class="err" id="ansE" hidden></p>
+    </div>
+    <p class="err" id="netE" hidden></p>
+  </div>
+</main>
+<script src="data.js"></script>
+<script src="logo.js"></script>
+<script>
+function $(id) { return document.getElementById(id); }
+function tp(t, v) { return String(t || '').replace(/\{(\w+)\}/g, function (m, k) { return v[k] != null ? v[k] : m; }); }
+function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lset(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
+/* המלל שנערך בניהול. נוסח שהוחלף בקוד (TEXT_RETIRED) — אינו גובר. */
+function take(map) {
+  for (var k in (map || {})) {
+    var p = k.split('.'), v = map[k];
+    if (p.length !== 2 || p[0] !== 'ui' || typeof v !== 'string' || !v) continue;
+    var old = (typeof TEXT_RETIRED !== 'undefined' && TEXT_RETIRED[k]) || [];
+    if ([].concat(old).indexOf(v) >= 0) continue;
+    UI[p[1]] = v;
+  }
+}
+try { take(JSON.parse(ls('df:textCache') || 'null')); take((JSON.parse(ls('df:cfg') || '{}')).texts); } catch (e) {}
+
+$('hdr-mark').src = window.LOGO_MARK || '';
+$('brand').innerHTML = PROGRAM.short.replace(/[<>&]/g, '') + '<br>' + PROGRAM.name.slice(PROGRAM.short.length).trim().replace(/[<>&]/g, '');
+$('yr').textContent = tp(UI.rstYear, { y: PROGRAM.year });
+$('ttl').textContent = UI.lvTitle;
+$('sub').textContent = UI.lvSub;
+if (UI.lvTitle) document.title = UI.lvTitle;
+$('waitT').textContent = UI.lvWait;
+$('whoGo').textContent = UI.lvPhGo;
+$('joinA').textContent = UI.lvJoin;
+$('joinA').href = PageUrl('join');
+$('fn').placeholder = UI.lvFirstPh;
+
+var S = '', TK = '', Q = null, MINE = {}, BUSY = false, FAILS = 0, TIMER = 0;
+try { S = String(new URLSearchParams(location.search).get('s') || '').trim().toUpperCase(); } catch (e) {}
+TK = ls('df:lv:' + S) || '';
+try { MINE = JSON.parse(ls('df:lvA:' + S) || '{}') || {}; } catch (e) { MINE = {}; }
+
+function api() { return String(ls('dfApi') || (typeof APPS_SCRIPT_URL !== 'undefined' ? APPS_SCRIPT_URL : '') || '').trim(); }
+function viaOk() { return typeof APPS_SCRIPT_URL !== 'undefined' && api() === APPS_SCRIPT_URL; }
+function get(q) {
+  var u = api();
+  var j = function (r) { if (!r.ok) throw new Error('http'); return r.json(); };
+  return fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + q + '&t=' + Date.now()).then(j)['catch'](function () {
+    if (!viaOk()) throw new Error('net');
+    return fetch('/api/gs?' + q + '&t=' + Date.now()).then(j);
+  });
+}
+function show(id) { ['msg', 'who', 'live'].forEach(function (x) { $(x).hidden = x !== id; }); }
+function say(t) { $('msg').textContent = t; show('msg'); }
+function me() { try { return JSON.parse(ls('df:me') || 'null'); } catch (e) { return null; } }
+
+/* ---- מי אתה ---- */
+function hi(q, byId) {
+  $('whoGo').disabled = true; $('whoE').hidden = true;
+  get('live=hi&s=' + S + '&' + q).then(function (d) {
+    $('whoGo').disabled = false;
+    if (d && d.status === 'ok' && d.on === 0) return say(UI.lvOff);
+    if (d && d.st === 'ok' && d.tk) {
+      TK = d.tk; lset('df:lv:' + S, TK);
+      if (d.first) $('sub').textContent = tp(UI.lvHello, { name: d.first });
+      return start();
+    }
+    if (d && d.st === 'many') { $('fn').hidden = false; $('whoH').textContent = UI.lvFirstH; show('who'); return; }
+    if (d && d.st === 'slow') { $('whoE').textContent = UI.lvSlow; $('whoE').hidden = false; show('who'); return; }
+    if (d && d.st === 'none') { askPh(!byId); return; }
+    throw new Error('bad');
+  })['catch'](function () {
+    $('whoGo').disabled = false;
+    if ($('who').hidden) return say(UI.lvNetErr);
+    $('whoE').textContent = UI.lvNetErr; $('whoE').hidden = false;
+  });
+}
+function askPh(none) {
+  $('whoH').textContent = UI.lvPhH;
+  $('whoE').textContent = none ? UI.lvNone : ''; $('whoE').hidden = !none;
+  $('joinW').hidden = !none;
+  show('who');
+}
+$('whoGo').onclick = function () {
+  var ph = $('ph').value.replace(/\D/g, '');
+  if (ph.length < 9) { $('whoE').textContent = UI.lvPhBad; $('whoE').hidden = false; return; }
+  hi('ph=' + encodeURIComponent(ph) + ($('fn').hidden ? '' : '&first=' + encodeURIComponent($('fn').value.trim())));
+};
+
+/* ---- החידה ---- */
+function paint() {
+  if (!Q) { $('qc').hidden = true; $('wait').hidden = false; return; }
+  $('wait').hidden = true; $('qc').hidden = false;
+  var a = MINE[Q.id];
+  $('qq').textContent = Q.q;
+  var box = $('opts');
+  box.innerHTML = '';
+  Q.a.forEach(function (t, k) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.textContent = t; b.disabled = BUSY;
+    if (a === k) b.className = 'on';
+    b.onclick = function () { answer(k); };
+    box.appendChild(b);
+  });
+  $('ok').hidden = a == null;
+  $('ok').innerHTML = '';
+  if (a != null) {
+    $('ok').appendChild(document.createTextNode(UI.lvSent));
+    var sm = document.createElement('small'); sm.textContent = UI.lvChange; $('ok').appendChild(sm);
+  }
+}
+function answer(k) {
+  if (!Q || BUSY) return;
+  var id = Q.id;
+  BUSY = true; $('ansE').hidden = true; paint();
+  get('live=ans&s=' + S + '&tk=' + encodeURIComponent(TK) + '&qid=' + encodeURIComponent(id) + '&a=' + k).then(function (d) {
+    BUSY = false;
+    if (d && d.status === 'ok' && d.on === 0) return end();
+    if (d && d.status === 'none') { lset('df:lv:' + S, null); TK = ''; return boot(); }
+    if (!d || d.status !== 'ok' || d.a !== k) throw new Error('bad');
+    MINE[id] = k; lset('df:lvA:' + S, JSON.stringify(MINE));
+    paint();
+  })['catch'](function () {
+    BUSY = false; paint();
+    $('ansE').textContent = UI.lvAnsErr; $('ansE').hidden = false;
+  });
+}
+function end() { clearTimeout(TIMER); say(UI.lvOff); }
+function poll() {
+  clearTimeout(TIMER);
+  get('live=get&s=' + S).then(function (d) {
+    if (!d || d.status !== 'ok') throw new Error('bad');
+    FAILS = 0; $('netE').hidden = true;
+    if (d.on === 0) return end();
+    var nq = d.q || null;
+    if ((nq && nq.id) !== (Q && Q.id)) { Q = nq; $('ansE').hidden = true; paint(); }
+    TIMER = setTimeout(poll, document.hidden ? 10000 : 3000);
+  })['catch'](function () {
+    FAILS++;
+    if (FAILS >= 2) { $('netE').textContent = UI.lvNetErr; $('netE').hidden = false; }
+    TIMER = setTimeout(poll, Math.min(15000, 3000 * FAILS));
+  });
+}
+document.addEventListener('visibilitychange', function () { if (!document.hidden && !$('live').hidden) poll(); });
+function start() { show('live'); paint(); poll(); }
+function boot() {
+  if (!/^[A-Z0-9]{6}$/.test(S)) return say(UI.lvBad);
+  if (TK) return start();
+  say(UI.lvLoad);
+  var m = me();
+  if (m && m.id) hi('id=' + encodeURIComponent(m.id), true);
+  else askPh(false);
+}
+boot();
+</script>
+</body>
+</html>
