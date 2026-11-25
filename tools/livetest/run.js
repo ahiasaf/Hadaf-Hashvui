@@ -32,7 +32,7 @@ async function ctxOf(b, W, init) {
   return ctx;
 }
 (async function () {
-  var W = M.makeWorld(), c = W.ctx;
+  var W = M.makeWorld(), c = W.ctx, FN3 = ['ה', 'א'].join('');
   var J = c.sheet_('לומדים');
   J.getRange(1, 1, 5, 10).setValues([
     ['מזהה', 'שם', 'משפחה', 'טלפון', 'ישיבה', 'תפקיד', 'בדיקה', 'קוד ישיבה', 'שכבה', 'כיתה'],
@@ -55,7 +55,7 @@ async function ctxOf(b, W, init) {
   ok(h1.st === 'ok' && h1.tk && h1.tk.indexOf('U1') < 0 && h1.first === 'אלף', 'hi id', h1);
   ok(G(W, { live: 'hi', s: S, id: 'NOPE' }).st === 'none', 'hi unknown id');
   ok(G(W, { live: 'hi', s: S, ph: '052-9999999' }).st === 'many', 'hi many');
-  var h3 = G(W, { live: 'hi', s: S, ph: '0529999999', first: 'הא' });
+  var h3 = G(W, { live: 'hi', s: S, ph: '0529999999', first: FN3 });
   ok(h3.st === 'ok' && h3.first === 'הא', 'hi first', h3);
   ok(G(W, { live: 'hi', s: S, ph: '0541111111' }).st === 'none', 'test world not found');
   // תשובה לפני חידה
@@ -80,7 +80,7 @@ async function ctxOf(b, W, init) {
   // הטלפון (דפדפן) ---------------------------------------------
   var server = await srv(), port = server.address().port, B = await pw.chromium.launch();
   // מכשיר עם האפליקציה (df:me)
-  var ctxA = await ctxOf(B, W, 'try{localStorage.setItem("df:me", JSON.stringify({id:"U2",first:"גימל"}));}catch(e){}');
+  var ctxA = await ctxOf(B, W, 'try{localStorage.setItem("df:me", JSON.stringify({id:"U2"}));}catch(e){}');
   var pA = await ctxA.newPage();
   await pA.goto('http://localhost:' + port + '/live.html?s=' + S);
   await pA.waitForSelector('#qc:not([hidden])', { timeout: 8000 });
