@@ -47,9 +47,10 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
 .card{background:var(--card);border:1px solid var(--rule);border-radius:18px;padding:16px;margin-bottom:12px;
   box-shadow:0 2px 6px rgba(0,0,0,.04)}
 .card h3{font-size:1.08rem;font-weight:800;margin-bottom:10px}
-.fl input,.add input{display:block;width:100%;border:1.5px solid var(--rule);border-radius:12px;background:#fff;
+.fl input,.fl select,.add input{display:block;width:100%;border:1.5px solid var(--rule);border-radius:12px;background:#fff;
   padding:11px 13px;font:inherit;font-size:16px;color:var(--ink)}
-.fl input.need{border-color:var(--stop)}
+.fl input.need,.fl select.need{border-color:var(--stop)}
+.fl select+input{margin-top:8px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chips button{min-width:52px;border:1.5px solid var(--rule);border-radius:999px;background:#fff;color:var(--ink);
   font:inherit;font-weight:800;font-size:1.08rem;padding:9px 14px;cursor:pointer}
@@ -114,6 +115,7 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
   <div class="st" id="lerr" hidden><p id="lerrT"></p><button class="btn g" id="lre" type="button"></button></div>
   <div id="f" hidden>
     <div class="card" id="byCard"><label class="fl"><h3 id="byL"></h3><p class="note" id="byP"></p>
+      <select id="byS" hidden></select>
       <input id="by" maxlength="60" autocomplete="name"></label>
       <button class="btn" id="byGo" type="button" style="margin-top:12px;width:100%;padding:13px"></button></div>
     <div id="main2" hidden>
@@ -167,10 +169,35 @@ $('by').value = ls('df:tzmBy') || '';
 $('by').oninput = function () { lset('df:tzmBy', this.value); this.className = ''; };
 /* קודם השם — ורק אחריו הרשימות (אחיאסף). */
 function byGo() {
-  if (!String($('by').value || '').trim()) { $('by').className = 'need'; $('by').focus(); return; }
+  if (!String($('by').value || '').trim()) {
+    if (!$('byS').hidden && $('by').hidden) { $('byS').className = 'need'; $('byS').focus(); return; }
+    $('by').className = 'need'; $('by').focus(); return;
+  }
   $('byCard').hidden = true; $('main2').hidden = false; window.scrollTo(0, 0);
 }
 $('byGo').onclick = byGo;
+/* הר"מים מהלשונית הפרטית "צמאה — ר"מים" (8.99.597): בחירה מרשימה. ריקה/לא נטענה — השדה כמו קודם. */
+function ramsPaint(L) {
+  if (!L || !L.length) return;
+  var sl = $('byS'), cur = String($('by').value || '').trim(), hit = false;
+  sl.innerHTML = '';
+  var o0 = document.createElement('option'); o0.value = ''; o0.textContent = UI.tzmByPick; sl.appendChild(o0);
+  L.forEach(function (r) {
+    var o = document.createElement('option');
+    o.value = r.n; o.textContent = r.c ? r.n + ' · ' + r.c : r.n;
+    if (r.n === cur) { o.selected = true; hit = true; }
+    sl.appendChild(o);
+  });
+  var on = document.createElement('option'); on.value = '\u0001'; on.textContent = UI.tzmByNone; sl.appendChild(on);
+  if (cur && !hit) on.selected = true;
+  sl.hidden = false;
+  $('by').hidden = !(cur && !hit);
+  sl.onchange = function () {
+    sl.className = '';
+    if (sl.value === '\u0001') { $('by').hidden = false; $('by').value = ''; $('by').focus(); return; }
+    $('by').hidden = true; $('by').value = sl.value; lset('df:tzmBy', sl.value);
+  };
+}
 $('by').onkeydown = function (ev) { if (ev.keyCode === 13) { ev.preventDefault(); byGo(); } };
 
 var KEY = (location.search.match(/[?&]k=([0-9a-zA-Z]+)/) || [])[1] || '';
@@ -243,6 +270,7 @@ function fetchCls() {
 function load() {
   if (!KEY && !SKEY) return say(UI.tzmDenied);
   say(UI.tzmLoad);
+  if (KEY && $('byS').hidden) get('tzm=rams&k=' + encodeURIComponent(KEY)).then(function (d) { if (d && d.status === 'ok') ramsPaint(d.rams); }, function () {});
   fetchCls().then(function (d) { take2(d); show('f'); paint(); }, function (e) {
     if (e && e.message === 'denied') return say(UI.tzmDenied);
     $('lerrT').textContent = UI.tzmLoadErr; show('lerr');

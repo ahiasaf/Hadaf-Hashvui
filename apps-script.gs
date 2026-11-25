@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 272;
+var SCRIPT_VERSION = 273;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -171,6 +171,8 @@ var PRIVATE_TABS = ['תמונת בית א', 'תמונת בית ב', 'עלוני�
                     'חוברות חנוכה — ר"מים',
                     /* רישום לאירוע צמאה — שמות התלמידים שנרשמו. ראו tzmPut_. */
                     'צמאה — רישום',
+                    /* צמאה — הר"מים (שם · כיתה), אחיאסף ממלא. ראו tzmRams_. */
+                    'צמאה — ר"מים',
                     /* בקשות למחיקת חשבון (mechika.html) — שם וטלפון. ראו mkPut_. */
                     'בקשות מחיקה',
                     /* הגרלת הרביעיות — מי בקבוצה עם מי, והזוכות. ראו quadRoute_. */
@@ -20979,8 +20981,32 @@ function tzmSApprove_(P) {
     return { status: 'error' };
   } finally { lock.releaseLock(); }
 }
+/* הר"מים לבחירה בעמוד הצמאה — לשונית פרטית ששמות בה רק אחיאסף (שם · כיתה).
+   התשובה — רק שם וכיתה. השמות לא בריפו. הלשונית נוצרת עם הכותרת אם חסרה. */
+var TZM_RAM_TAB_ = 'צמאה — ר"מים';
+var TZM_RAM_COLS_ = ['שם'].concat(['כיתה']);
+function tzmRamSheet_() {
+  var sh = sheet_(TZM_RAM_TAB_);
+  if (sh.getLastRow() < 1) sh.getRange(1, 1, 1, TZM_RAM_COLS_.length).setValues([TZM_RAM_COLS_]);
+  return sh;
+}
+function tzmRams_() {
+  var sh = tzmRamSheet_(), n = sh.getLastRow(), out = [];
+  if (n < 2) return out;
+  var v = sh.getRange(2, 1, n - 1, 2).getDisplayValues();
+  for (var i = 0; i < v.length; i++) {
+    var nm = tzmNm_(v[i][0]);
+    if (nm) out.push({ n: nm, c: String(v[i][1] || '').replace(/\s+/g, ' ').trim().slice(0, 20) });
+  }
+  return out;
+}
 function tzmRoute_(P) {
   var op = String(P.tzm || '');
+  if (op === 'rams') {
+    var k0 = tzmKeyOf_(false);
+    if (!k0 || String(P.k || '') !== k0) return { status: 'denied' };
+    return { status: 'ok', rams: tzmRams_() };
+  }
   if (op === 'scls') return tzmSOk_(P) ? { status: 'ok', cls: tzmRoster_() } : { status: 'denied' };
   if (op === 'sreq') return tzmSOk_(P) ? tzmSReq_(P) : { status: 'denied' };
   if (op === 'scan') return tzmSOk_(P) ? tzmSCancel_(P) : { status: 'denied' };
@@ -21001,7 +21027,7 @@ function tzmRoute_(P) {
     return { status: 'ok', lsOn: tzmLsOn_() };
   }
   if (op === 'sok') return tzmSApprove_(P);
-  if (op === 'bdn') return { status: 'ok', s: tzmBdStat_() };
+  if (op === 'bdn') { var rmN = tzmRams_().length; return { status: 'ok', s: tzmBdStat_(), rams: { tab: TZM_RAM_TAB_, n: rmN } }; }
   if (op === 'inv') {
     PropertiesService.getScriptProperties().setProperty('TZM_INV', String(P.on) === '1' ? '1' : '0');
     return { status: 'ok', on: tzmOn_() };
