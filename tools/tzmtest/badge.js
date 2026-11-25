@@ -2,6 +2,7 @@
 // node tools/tzmtest/badge.js → קוד 1 אם בדיקה נכשלה. שמות וטלפונים מומצאים.
 var M = require('../snaptest/mock.js');
 var W = M.makeWorld(), c = W.ctx, n = 0, fails = 0;
+c.TZM_CLOSED_ = false; // ההרשמה פתוחה בבדיקות האלה (הנעילה — closed.js)
 function ok(cond, label, x) { n++; if (!cond) { fails++; console.log('FAIL', label, x === undefined ? '' : JSON.stringify(x)); } }
 var fired = [];
 c.ghFire_ = function (t, b, a1, a2, a3, a4, url, role, a5, flt) { fired.push({ t: t, b: b, url: url, flt: JSON.parse(flt) }); return { status: 'ok', sid: 's' + fired.length }; };

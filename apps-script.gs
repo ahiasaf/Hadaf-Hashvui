@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 276;
+var SCRIPT_VERSION = 277;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -20506,9 +20506,13 @@ function tzmRq_() {
   tzmRows_(tzmSheet_()).forEach(function (o) { if (o['מצב'] === 'בקשה') out.push([o['שכבה'], o['כיתה'], o['שם']]); });
   return out;
 }
+/* ההרשמה לצמאה נעולה (8.99.601, אחיאסף 25.11): אין רישום, בקשה או ביטול — לא מהר"מים ולא מהתלמידים.
+   נשאר פתוח רק סימון ההגעה של הר"ם (ramset), והניהול. לפתיחה מחדש — false. */
+var TZM_CLOSED_ = true;
 function tzmPut_(d) {
   var k = tzmKeyOf_(false);
   if (!k || String(d.k || '') !== k) return { status: 'denied' };
+  if (TZM_CLOSED_) return { status: 'closed' };
   var by = tzmNm_(d.by), ch = d.ch;
   if (!by || !ch || !ch.length || ch.length > 120) return { status: 'error', message: 'bad' };
   var lock = LockService.getScriptLock();
@@ -20667,7 +20671,7 @@ function tzmStOf_(bk) {
 function tzmSt1_(st) { return st === 'בקשה' ? 'q' : st === 'רשום' ? 'y' : ''; }
 /* ?tzm=me&id= — { on, r: 'k'|'p'|'', st } */
 function tzmMe_(id) {
-  if (!tzmOn_()) return { status: 'ok', on: false };
+  if (!tzmOn_() || TZM_CLOSED_) return { status: 'ok', on: false };
   id = String(id || '').trim();
   if (!id || id.length > 80) return { status: 'ok', on: true, r: '' };
   var v = tzmDev_()[id] || '';
@@ -20678,6 +20682,7 @@ function tzmMe_(id) {
 /* ?tzm=req&id= — בקשת הרשמה של התלמיד. נעילה קצרה, ואז קריאה חוזרת. */
 function tzmReq_(id) {
   if (!tzmOn_()) return { status: 'off' };
+  if (TZM_CLOSED_) return { status: 'closed' };
   id = String(id || '').trim();
   var v = id ? tzmDev_()[id] || '' : '';
   if (v.indexOf('k:') !== 0) return { status: 'denied' };
@@ -20887,6 +20892,7 @@ function tzmPq_() {
 }
 /* ?tzm=sreq&s=&g=&c=&n= — בקשת תלמיד מהקישור. מחזיר את המצב שנקרא אחרי הכתיבה. */
 function tzmSReq_(P) {
+  if (TZM_CLOSED_) return { status: 'closed' };
   var g = chnGr_(P.g), c = clsK_(P.cl || P.c), n = tzmNm_(String(P.n || '').replace(/[|]/g, ' '));
   if (TZM_GR_.indexOf(g) < 0 || !c || c.length > 4 || !n) return { status: 'error' };
   var lock = LockService.getScriptLock();
@@ -20924,6 +20930,7 @@ function tzmSReq_(P) {
 /* ?tzm=scan&s=&g=&c=&n=&tk= — התלמיד מבטל את הבקשה שלו (לפי האסימון) → "בוטל". בקשה ישנה בלי אסימון — רק
    כשעדיין ממתינה לאחיאסף. השורה נשארת. */
 function tzmSCancel_(P) {
+  if (TZM_CLOSED_) return { status: 'closed' };
   var g = chnGr_(P.g), c = clsK_(P.cl || P.c), n = tzmNm_(String(P.n || '').replace(/[|]/g, ' ')), t = String(P.tk || '');
   if (TZM_GR_.indexOf(g) < 0 || !c || !n) return { status: 'error' };
   var lock = LockService.getScriptLock();
@@ -21050,13 +21057,14 @@ function tzmRoute_(P) {
     var me1 = tzmRamOf_(P.n);
     return me1 ? { status: 'ok', a: me1.a, z: 1 } : { status: 'none' };
   }
-  if (op === 'scls') return tzmSOk_(P) ? { status: 'ok', cls: tzmRoster_() } : { status: 'denied' };
+  if (op === 'scls') return tzmSOk_(P) ? (TZM_CLOSED_ ? { status: 'ok', cls: {}, closed: 1 } : { status: 'ok', cls: tzmRoster_() }) : { status: 'denied' };
   if (op === 'sreq') return tzmSOk_(P) ? tzmSReq_(P) : { status: 'denied' };
   if (op === 'scan') return tzmSOk_(P) ? tzmSCancel_(P) : { status: 'denied' };
   if (op === 'sst') return tzmSOk_(P) ? tzmSStat_(P) : { status: 'denied' };
   if (op === 'cls') {
     var k = tzmKeyOf_(false);
     if (!k || String(P.k || '') !== k) return { status: 'denied' };
+    if (TZM_CLOSED_) return { status: 'ok', cls: {}, reg: [], rq: [], bd: [], ls: [], closed: 1 };
     var M0 = tzmMarks_();
     return { status: 'ok', cls: tzmRoster_(), reg: tzmReg_(), rq: tzmRq_(), bd: tzmBadge_(M0), ls: tzmLsOn_() ? tzmLs_(M0).keys : [] };
   }

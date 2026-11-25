@@ -6,6 +6,7 @@ var ROOT = path.join(__dirname, '..', '..'), n = 0, fails = 0, SHOT = process.en
 function ok(cond, label, x) { n++; if (!cond) { fails++; console.log('FAIL', label, x === undefined ? '' : JSON.stringify(x)); } }
 function world() {
   var W = M.makeWorld(), c = W.ctx;
+  c.TZM_CLOSED_ = false; // ההרשמה פתוחה בבדיקות האלה (הנעילה — closed.js)
   c.sheet_('תלמידי הרשת').getRange(1, 1, 4, 5).setValues([['קוד ישיבה', 'שכבה', 'כיתה', 'משפחה', 'פרטי'],
     ['lapid', 'ז', '3', 'אלף', 'בית'], ['lapid', 'ז', '3', 'גימל', 'דלת'], ['other', 'ז', '3', 'זר', 'זר']]);
   c.sheet_('תלמידי בית הספר').getRange(1, 1, 3, 4).setValues([['קוד ישיבה', 'שכבה', 'כיתה', 'שם'],

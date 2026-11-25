@@ -2,6 +2,7 @@
 // שמות מומצאים (אותיות), בלי טלפונים.
 var M = require('../snaptest/mock.js');
 var W = M.makeWorld(), c = W.ctx, n = 0, fails = 0;
+c.TZM_CLOSED_ = false; // ההרשמה פתוחה בבדיקות האלה (הנעילה — closed.js)
 function ok(cond, label, x) { n++; if (!cond) { fails++; console.log('FAIL', label, x === undefined ? '' : JSON.stringify(x)); } }
 var seq = 0;
 function mark(inst, g, k, name, day, slot, kind, id) {

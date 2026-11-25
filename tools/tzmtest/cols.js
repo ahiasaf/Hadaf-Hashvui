@@ -3,6 +3,7 @@
 var M = require('../snaptest/mock.js'), n = 0, fails = 0;
 function ok(c, l, x) { n++; if (!c) { fails++; console.log('FAIL', l, x === undefined ? '' : JSON.stringify(x)); } }
 var W = M.makeWorld(), c = W.ctx;
+c.TZM_CLOSED_ = false; // ההרשמה פתוחה בבדיקות האלה (הנעילה — closed.js)
 c.sheet_('תלמידי הרשת').getRange(1, 1, 2, 5).setValues([['קוד ישיבה', 'שכבה', 'כיתה', 'משפחה', 'פרטי'], ['lapid', 'ט', '5', 'אלף', 'בית']]);
 function G(P) { return JSON.parse(c.doGet({ parameter: P }).t); }
 var adm = G({ tzm: 'adm', key: 'k' });

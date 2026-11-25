@@ -123,6 +123,7 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
     <div class="card" id="ramCard" hidden><h3 id="ramQ"></h3>
       <div class="ramyn"><button class="btn g" id="ramY" type="button"></button><button class="btn g" id="ramN" type="button"></button></div>
       <p class="note" id="ramE" hidden style="margin:10px 0 0;color:var(--stop)"></p></div>
+    <div class="card" id="clsd" hidden><p class="note" id="clsdT" style="margin:0"></p></div>
     <div class="card"><h3 id="stG"></h3><div class="chips" id="grs"></div>
       <div id="clsStep" hidden><h3 id="stC" style="margin-top:16px"></h3><div id="clsBox"></div></div></div>
     <div class="gok" id="gok"><i>✓</i><b id="gokN"></b><p id="gokS"></p><small id="gokB"></small></div>
@@ -287,6 +288,7 @@ function say(t) { $('msg').textContent = t; show('msg'); }
 /* הרשומים מהשרת → מפה */
 function take2(d) {
   S.R = d.cls || {};
+  S.closed = !!d.closed;
   var m = {};
   (d.reg || []).forEach(function (x) { m[x[0] + '|' + x[1] + '|' + x[2]] = [x[3] || '']; });
   S.REG = m;
@@ -348,6 +350,13 @@ function namesOf(g, c) {
 function nP() { return Object.keys(S.P).length; }
 
 function paint() {
+  /* ההרשמה נעולה (8.99.601): לר"ם — רק שאלת ההגעה; לתלמיד — המצב שלו אם נרשם מהטלפון, אחרת הודעה. */
+  if (S.closed && !(STU && MINE && MINE.n)) {
+    if (STU) return say(UI.tzmClosed);
+    $('grs').parentNode.hidden = true; $('stuCard').hidden = true; $('bar').hidden = true;
+    $('clsdT').textContent = UI.tzmClosed; $('clsd').hidden = !UI.tzmClosed;
+    return;
+  }
   if (STU && MINE && MINE.n) {
     S.g = MINE.g; S.c = MINE.c; S.sent = MINE.n;
     $('grs').parentNode.hidden = true;
@@ -430,8 +439,8 @@ function paintMe() {
     $('stuBox').innerHTML = '<div class="sok">' + esc(top) +
       (sub ? '<small class="sst' + (st === 'off' ? ' no' : '') + '">' + esc(sub) + '</small>' : '') +
       (back ? '<small class="sbk">' + esc(back) + '</small>' : '') + '</div>' +
-      '<button class="btn g" type="button" id="schg" style="display:block;width:100%"' + (S.busy ? ' disabled' : '') + '>' +
-      esc(S.busy ? UI.tzmSaving : UI.tzmStChg) + '</button>' +
+      (S.closed ? '' : '<button class="btn g" type="button" id="schg" style="display:block;width:100%"' + (S.busy ? ' disabled' : '') + '>' +
+      esc(S.busy ? UI.tzmSaving : UI.tzmStChg) + '</button>') +
       (S.err ? '<p class="note" style="color:var(--stop);margin-top:8px">' + esc(UI.tzmStChgErr) + '</p>' : '');
     $('stuCard').querySelector('.add').hidden = true;
     if ($('schg')) $('schg').onclick = undoMe;
