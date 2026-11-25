@@ -1,4 +1,4 @@
-// "לומד תורה לשמה" (8.99.595) — עמוד הר"ם מול apps-script.gs בזיכרון (Playwright, טלפון).
+// "לומד תורה לשמה" (8.99.596) — עמוד הר"ם מול apps-script.gs בזיכרון (Playwright, טלפון).
 // NODE_PATH=$(npm root -g) node tools/tzmtest/page.js → קוד 1 אם בדיקה נכשלה. נתונים מומצאים.
 var M = require('../snaptest/mock.js'), http = require('http'), fs = require('fs'), path = require('path');
 var pw = require('playwright');

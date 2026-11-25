@@ -328,7 +328,7 @@ function paintStu() {
   if (L.length) h += '<div class="list">' + L.map(function (n) {
     var k = g + '|' + c + '|' + n, on = isOn(k), by = S.REG[k] && !S.P[k] ? S.REG[k][0] : '';
     var bd = S.BD[g + '|' + c + '|' + nm0(n)] && UI.tzmBadge ? '<span class="bd">' + esc(UI.tzmBadge) + '</span>' : '';
-    /* "לומד תורה לשמה" (8.99.595) — לר"ם בלבד, מהשרת (כשהמתג דלוק). */
+    /* "לומד תורה לשמה" (8.99.596) — לר"ם בלבד, מהשרת (כשהמתג דלוק). */
     if (S.LS && S.LS[g + '|' + c + '|' + nm0(n)] && UI.tzmLsBadge) bd += '<span class="ls">' + esc(UI.tzmLsBadge) + '</span>';
     var rq = !on && S.RQ[k] && UI.tzmRqLine ? '<small class="rq">' + esc(UI.tzmRqLine) + '</small>' : '';
     return '<label class="row' + (S.P[k] ? ' ch' : '') + '"><input type="checkbox" data-k="' + esc(k) + '"' + (on ? ' checked' : '') + '>' +

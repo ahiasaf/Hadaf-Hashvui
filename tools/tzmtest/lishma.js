@@ -1,4 +1,4 @@
-// "לומד תורה לשמה" (8.99.595) — מול apps-script.gs בזיכרון. node tools/tzmtest/lishma.js → קוד 1 אם נכשל.
+// "לומד תורה לשמה" (8.99.596) — מול apps-script.gs בזיכרון. node tools/tzmtest/lishma.js → קוד 1 אם נכשל.
 // שמות מומצאים (אותיות), בלי טלפונים.
 var M = require('../snaptest/mock.js');
 var W = M.makeWorld(), c = W.ctx, n = 0, fails = 0;
