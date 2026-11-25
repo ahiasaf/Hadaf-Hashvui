@@ -146,6 +146,22 @@ body{margin:0;background:var(--paper);color:var(--ink);overflow:hidden;
 header{background:linear-gradient(150deg,var(--blue-d),var(--blue));color:#fff;
   padding:calc(env(safe-area-inset-top) + 9px) 14px 0;flex:0 0 auto}
 .hrow{display:flex;align-items:center;gap:12px;padding-bottom:9px}
+/* שיעור חי (8.99.605) */
+.lv-b{flex:none;border:1.5px solid rgba(255,255,255,.55);background:transparent;color:inherit;border-radius:999px;
+  font:inherit;font-weight:800;font-size:.8rem;padding:4px 11px;cursor:pointer;white-space:nowrap}
+.lv-b.on{background:#C0392B;border-color:#C0392B;color:#fff}
+.lv-ov{position:fixed;inset:0;z-index:90;background:rgba(11,37,80,.88);display:flex;align-items:center;justify-content:center;padding:16px}
+.lv-qr{background:#fff;border-radius:22px;padding:22px 22px 16px;text-align:center;max-width:min(92vw,560px);width:100%}
+.lv-qr h2{font-size:1.4rem;font-weight:800;color:#0B2550;margin-bottom:10px}
+.lv-qr #lvqr svg{width:min(70vh,80vw,460px);height:auto;display:block;margin:0 auto}
+.lv-qr #lvqn{display:block;font-size:1.6rem;letter-spacing:.2em;color:#0B2550;margin-top:6px;direction:ltr}
+.lv-x{margin-top:12px;border:0;border-radius:12px;background:#17468F;color:#fff;font:inherit;font-weight:800;padding:10px 22px;cursor:pointer}
+.lv-bar{position:fixed;inset-inline-start:10px;bottom:calc(env(safe-area-inset-bottom) + 74px);z-index:60;display:flex;align-items:center;gap:8px;
+  background:#0B2550;color:#fff;border-radius:999px;padding:6px 8px 6px 14px;font-weight:800;font-size:.85rem;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.lv-bar button{border:0;border-radius:999px;background:rgba(255,255,255,.16);color:#fff;font:inherit;font-weight:800;padding:5px 11px;cursor:pointer}
+.lv-bar #lvbe{background:#C0392B}
+.lv-ov[hidden],.lv-bar[hidden],.lv-b[hidden]{display:none!important}
+
 .back{color:#fff;text-decoration:none;font-weight:800;font-size:.82rem;opacity:.85;
   border:1px solid rgba(255,255,255,.32);border-radius:9px;padding:6px 10px;white-space:nowrap}
 .ttl{flex:1;min-width:0;line-height:1.25}
@@ -1371,6 +1387,7 @@ body.alon .qfab,body.alon .qhint,body.alon #chtog,body.alon #dktog,body.alon #si
          את הדף ולא של מי שלומד אותו, ופס ההתקדמות שמתחת אומר
          את אותו דבר בלי מספר. המקום נשמר. -->
     <span id="count"></span>
+    <button class="lv-b" id="lvb" type="button" hidden></button>
   </div>
   <div class="prog"><i id="bar"></i></div>
 </header>
@@ -1424,6 +1441,13 @@ body.alon .qfab,body.alon .qhint,body.alon #chtog,body.alon #dktog,body.alon #si
   <div class="rec-a" id="rec-a"></div>
 </div>
 
+<!-- שיעור חי (8.99.605) — רק למארח (מכשיר עם סיסמת הסקריפט, לא בניהול). ראו lvInit_. -->
+<div class="lv-ov" id="lvov" hidden><div class="lv-qr">
+  <h2 id="lvqh"></h2><div id="lvqr"></div><b id="lvqn"></b>
+  <button class="lv-x" id="lvqx" type="button"></button>
+</div></div>
+<div class="lv-bar" id="lvbar" hidden><span id="lvbt"></span>
+  <button type="button" id="lvbq"></button><button type="button" id="lvbe"></button></div>
 <nav><div class="qbs" id="qbs"></div><div class="nrow">
   <button id="prev">▸ הקודם</button>
   <span class="sp"></span>
@@ -1521,6 +1545,7 @@ body.alon .qfab,body.alon .qhint,body.alon #chtog,body.alon #dktog,body.alon #si
 <script src="trip.js"></script>
 <!-- העלון השבועי — פועל רק ב-alon=1 ובמכשיר של הרכז. ראו alon.js. -->
 <script src="alon.js"></script>
+<script src="qr.js"></script>
 <script type="module">
   import * as pdfjsLib from './vendor/pdfjs/pdf.min.mjs';
   pdfjsLib.GlobalWorkerOptions.workerSrc = './vendor/pdfjs/pdf.worker.min.mjs';
@@ -6227,6 +6252,7 @@ function paintQuiz() {
      הרכז רואה גם את הנכונה — הוא זה שכותב אותן. בניסיון השני (8.99.354)
      שאלה שנענתה נכון נעולה עם התשובה שלה ("ענית נכון"), והשגויות פתוחות
      עם "לנסות שוב". */
+  lvQuiz_(n, qi, q);
   var pick = SIDE_ADM ? -1 : qAns_(n, q), kept = !SIDE_ADM && !qSent_() && qKept_(n, q);
   var lock = !SIDE_ADM && (qSent_() || kept), retry = !kept && qRetry_(n, q);
   /* "שאלה 3 מתוך 5" — המספר של השאלה בדף כולו, אותו מספר כמו בשורת ✓/✗
@@ -6918,6 +6944,133 @@ var DEMO_T = null;
 /* "בלי עקבות ובלי מסכים שממתינים" — נכון לניגון ולהקלטה כאחד,
    ומפסיק לחול ברגע שההדגמה נמסרה לידיים. */
 function quiet() { return DEMO || REC; }
+
+/* ============================================================
+   שיעור חי (8.99.605 · SCRIPT_VERSION 279) — המארח.
+   ============================================================
+   רק במכשיר שיש בו סיסמת הסקריפט, ולא בתצוגת הניהול (SIDE_ADM) — כלומר
+   אחיאסף ב"המסך שלי כתלמיד". "שיעור חי" פותח מפגש (?live=start; מפגש פתוח
+   ממשיך — גם במעבר דף) ומציג ברקוד ל-/live?s=<קוד>. כל חידה שמוצגת במגירה
+   (paintQuiz → lvQuiz_) נשלחת לטלפונים (?live=set). "סיום" (ביטול · 4) —
+   ?live=end: השרת כותב לכל משתתף את החידון שלו. ראו liveRoute_. */
+var LV = { s: '', q: '', want: null, busy: false, st: null, tm: 0 };
+function lvHost_() { return !SIDE_ADM && !quiet() && !!cfgReadKey_() && !!API && typeof LJsonp === 'function'; }
+function lvApi_(q) {
+  return LJsonp(API + (API.indexOf('?') < 0 ? '?' : '&') + q + '&key=' + encodeURIComponent(cfgReadKey_()), 15000);
+}
+function lvSs_(v) {
+  try { if (v === undefined) return sessionStorage.getItem('df:lvS') || ''; if (v) sessionStorage.setItem('df:lvS', v); else sessionStorage.removeItem('df:lvS'); }
+  catch (e) {}
+  return '';
+}
+function lvInit_() {
+  var b = $('lvb');
+  if (!b) return;
+  if (!lvHost_()) { b.hidden = true; return; }
+  b.hidden = false;
+  b.onclick = function () { if (LV.s) lvQrShow_(); else lvStart_(); };
+  $('lvqx').onclick = function () { $('lvov').hidden = true; };
+  $('lvbq').onclick = lvQrShow_;
+  $('lvbe').onclick = lvEnd_;
+  $('lvqh').textContent = UI.lvQrH || '';
+  $('lvqx').textContent = UI.lvQrClose || '';
+  $('lvbq').textContent = UI.lvQr || '';
+  $('lvbe').textContent = UI.lvEnd || '';
+  lvPaint_();
+  /* מפגש שנפתח בלשונית הזו (מעבר לדף אחר) — ממשיכים בו, בלי ברקוד. */
+  if (lvSs_()) lvStart_(true);
+}
+function lvPaint_() {
+  var b = $('lvb');
+  if (!b) return;
+  b.textContent = UI.lvBtn || '';
+  b.className = 'lv-b' + (LV.s ? ' on' : '');
+  $('lvbar').hidden = !LV.s;
+  if (!LV.s) return;
+  var st = LV.st || { n: 0, ans: 0 };
+  $('lvbt').textContent = fillT(UI.lvBar || '', { n: st.n || 0 }) + (LV.q ? ' · ' + fillT(UI.lvAns || '', { a: st.ans || 0 }) : '');
+}
+function lvStart_(quietly) {
+  if (LV.busy) return;
+  LV.busy = true;
+  lvApi_('live=start').then(function (d) {
+    LV.busy = false;
+    if (!d || d.status !== 'ok' || !d.s) { lvSs_(''); if (!quietly) toast(UI.lvStartErr || ''); return; }
+    LV.s = d.s; LV.q = d.q || '';
+    lvSs_(LV.s);
+    lvPaint_();
+    lvStat_();
+    if (!quietly) lvQrShow_();
+    if (LV.want) lvPush_();
+  }, function () { LV.busy = false; if (!quietly) toast(UI.lvStartErr || ''); });
+}
+function lvUrl_() {
+  return location.origin + '/' + PageUrl('live') + '?s=' + LV.s;
+}
+function lvQrShow_() {
+  if (!LV.s) return;
+  var svg = '';
+  try { if (window.QR) svg = QR.svg(lvUrl_(), { color: '#0B2550' }); } catch (e) { svg = ''; }
+  $('lvqr').innerHTML = svg || '';
+  $('lvqn').textContent = LV.s;
+  $('lvov').hidden = false;
+}
+/* החידה שעל המסך — לטלפונים. רק כשהיא אחרת מזו שכבר נשלחה. */
+function lvQuiz_(n, qi, q) {
+  if (!LV.s || !q || !q.a || q.correct == null) return;
+  var id = String(q.qb || (dmKey(S.mas, S.daf) + '|' + n + '|' + qi + '|' + String(q.q).slice(0, 24)));
+  if (id === LV.q && !LV.want) return;
+  LV.want = { id: id, q: q.q, a: q.a, c: q.correct, d: dmKey(S.mas, S.daf), w: S.tr + '-' + (S.week + 1) };
+  clearTimeout(LV.tm);
+  LV.tm = setTimeout(lvPush_, 250);
+}
+function lvPush_(round) {
+  var w = LV.want;
+  if (!w || !LV.s) return;
+  lvApi_('live=set&s=' + LV.s + '&qid=' + encodeURIComponent(w.id) + '&d=' + encodeURIComponent(w.d) +
+    '&w=' + encodeURIComponent(w.w) + '&q=' + encodeURIComponent(w.q) + '&a=' + encodeURIComponent(JSON.stringify(w.a)) +
+    '&cr=' + w.c).then(function (d) {
+    if (LV.want !== w) return;
+    if (d && d.status === 'ok' && d.on === 0) { lvOff_(); return; }
+    if (d && d.status === 'ok' && d.q === w.id) { LV.q = w.id; LV.want = null; if (LV.st) LV.st.ans = 0; lvPaint_(); lvStat_(); return; }
+    throw new Error('bad');
+  })['catch'](function () {
+    if (LV.want !== w) return;
+    round = (round || 0) + 1;
+    if (round === 1) toast(UI.lvSetErr || '');
+    LV.tm = setTimeout(function () { lvPush_(round); }, Math.min(15000, 2000 * round));
+  });
+}
+function lvStat_() {
+  clearTimeout(LV.stt);
+  if (!LV.s) return;
+  var s = LV.s;
+  lvApi_('live=stat&s=' + s).then(function (d) {
+    if (LV.s !== s) return;
+    if (d && d.status === 'ok' && d.on === 0) { lvOff_(); return; }
+    if (d && d.status === 'ok') { LV.st = d; lvPaint_(); }
+  }, function () {}).then(function () {
+    if (LV.s === s) LV.stt = setTimeout(lvStat_, document.hidden ? 20000 : 5000);
+  });
+}
+function lvOff_() {
+  LV.s = ''; LV.q = ''; LV.want = null; LV.st = null;
+  clearTimeout(LV.tm); clearTimeout(LV.stt);
+  lvSs_('');
+  $('lvov').hidden = true;
+  lvPaint_();
+}
+function lvEnd_() {
+  if (!LV.s) return;
+  if (!SureLater(lvEnd_, this, arguments)) return;
+  var s = LV.s;
+  lvApi_('live=end&s=' + s).then(function (d) {
+    if (!d || d.status !== 'ok') throw new Error('bad');
+    lvOff_();
+    toast(fillT(UI.lvEnded || '', { n: d.ppl || 0 }));
+  })['catch'](function () { toast(UI.lvEndErr || ''); });
+}
+
 
 /* ---------- התסריט ----------
    כל צעד: [כמה להמתין לפני שהוא קורה, מה לעשות, ערך].
@@ -7690,6 +7843,7 @@ function boot() {
   if (quiet()) SIDE_ADM = false;
   document.body.classList.toggle('side-adm', SIDE_ADM);
   alonInit_();
+  lvInit_();
 
   /* דף שהרכז עוד לא פתח — ראו "פתיחת דפים" ב-deck.js. הרכז עצמו
      (ומי שמריץ הדגמה) נכנס תמיד: הוא זה שמכין את הדף. */

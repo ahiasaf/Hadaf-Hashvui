@@ -3201,7 +3201,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.604';
+var APP_VERSION = '8.99.605';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -12859,7 +12859,7 @@ var SUB = { daf: [['daf', 'moreDaf'], ['qbank', 'moreQBank'], ['alonim', 'moreAl
    אחת הם רצועה שנגררת בטלפון. */
 var MORE = [
   /* עמדת הלימוד עצמה — בכפתור הקבוע למעלה. כאן רק מה שאין שם. */
-  { g:'moreGSet', items:[['links','moreLinks'], ['amdawa','moreAmdaWa'], ['net','moreNet'], ['lottery','moreLottery'], ['ltime','moreLtime'], ['amdaneed','moreAmdaNeed'], ['tzm','moreTzm'], ['prs','morePrs'], ['chn','moreChn'],
+  { g:'moreGSet', items:[['links','moreLinks'], ['amdawa','moreAmdaWa'], ['net','moreNet'], ['lottery','moreLottery'], ['ltime','moreLtime'], ['amdaneed','moreAmdaNeed'], ['tzm','moreTzm'], ['prs','morePrs'], ['live','moreLive'], ['chn','moreChn'],
                          ['prz','morePrz'], ['chal','moreChal'], ['quad','moreQuad'], ['hash','moreHash'],
                          ['test','moreTest']] },
   /* מה שנסגר לשנה הזו — במגירה, ולא נמחק: בלי המלל והמערכת אין
@@ -13530,6 +13530,7 @@ function admPane() {
   if (sub === 'ltime')   return admLtime(body);
   if (sub === 'tzm')     return admTzm(body);
   if (sub === 'prs')     return admPrs(body);
+  if (sub === 'live')    return admLvSess(body);
   if (sub === 'chn')     return admChn(body);
   if (sub === 'amdaneed') return admAmdaNeed(body);
   /* השליחה — הרשימה נטענת לבד כשנכנסים, ולא רק ב"רענון". פעם
@@ -18289,6 +18290,45 @@ function prsPaint() {
   el.innerHTML = h;
   prsListPaint();
   if (keep) { var qi = el.querySelector('.prs-q'); if (qi) { qi.focus(); try { qi.setSelectionRange(qi.value.length, qi.value.length); } catch (x) {} } }
+}
+/* שיעור חי (8.99.605) — המפגשים האחרונים, ולכל משתתף על כמה חידות ענה מתוך
+   כמה שהופעלו. קריאה בלבד (?live=adm). ראו liveRoute_. */
+var LVA = { d: null, busy: false, msg: '' };
+function admLvSess(body) {
+  body.innerHTML = '<div id="lva"></div>';
+  lvaPaint();
+  lvaLoad();
+}
+function lvaLoad() {
+  var k = (CFG.readKey || '').trim();
+  if (!k) { LVA.msg = UI.przNoKey; lvaPaint(); return; }
+  LVA.busy = true; LVA.msg = ''; lvaPaint();
+  scriptGet({ live: 'adm', key: k }).then(function (d) {
+    LVA.busy = false;
+    if (d && d.status === 'ok') LVA.d = d; else LVA.msg = UI.lvAdmFail;
+    lvaPaint();
+  }, function () { LVA.busy = false; LVA.msg = UI.lvAdmFail; lvaPaint(); });
+}
+function lvaPaint() {
+  var el = document.getElementById('lva');
+  if (!el) return;
+  var d = LVA.d, h = '<div class="adm-card"><h4>' + esc(UI.moreLive) + '</h4>' +
+    (LVA.msg ? '<div class="cond" style="margin-bottom:10px">' + esc(LVA.msg) + '</div>' : '');
+  if (!d) { el.innerHTML = h + (LVA.busy ? '<p class="h">' + esc(UI.prsLoad) + '</p>' : '') + '</div>'; return; }
+  var L = d.list || [];
+  if (!L.length) h += '<p class="h">' + esc(UI.lvAdmNone) + '</p>';
+  L.forEach(function (o) {
+    h += '<details style="margin:8px 0;border-top:1px solid #eee;padding-top:8px"><summary><b>' + esc(o.t) + '</b> · ' +
+      esc(fill(UI.lvAdmRow, { n: o.ppl.length, q: o.nq })) + '</summary>';
+    o.ppl.slice().sort(function (a, b) { return b.k - a.k; }).forEach(function (p) {
+      h += '<div class="h" style="display:flex;justify-content:space-between;gap:8px;padding:3px 0"><span>' + esc(p.n) +
+        (p.i ? ' · ' + esc(p.i) : '') + '</span><b>' + esc(fill(UI.lvAdmP, { k: p.k, q: o.nq })) + '</b></div>';
+    });
+    h += '</details>';
+  });
+  h += '<button class="btn g" type="button"' + (LVA.busy ? ' disabled' : '') + ' onclick="lvaLoad()">' +
+    esc(LVA.busy ? UI.chaLoading : UI.chaReload) + '</button></div>';
+  el.innerHTML = h;
 }
 /* רישום לאירוע צמאה (8.99.575) — הקישור לרכזי השכבה (עם המפתח) והרשומים. ראו tzmRoute_. */
 var TZM = { d: null, busy: false, msg: '' };

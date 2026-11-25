@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 278;
+var SCRIPT_VERSION = 279;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -146,7 +146,7 @@ var PRIVATE_ID_FALLBACK = '';
 /* `נשלחו` — מה שכבר יצא: מפתח אחד לכל שליחה מתוזמנת שהצליחה.
    הוא מה שמונע שליחה כפולה כשהרצה משלימה משבצות שנפספסו, והוא
    נושא מזהי מכשירים — ולכן פרטי כמו השאר. ראו tools/sched.js. */
-var PRIVATE_TABS = ['תמונת בית א', 'תמונת בית ב', 'עלונים להורדה', 'סקירה — אנשי קשר', 'סקירה — קשר', 'סבבים', 'זמני שרת', 'לומדים', 'לימוד', 'זמן יומי', 'הרשמות', 'חידות', 'קודים', 'התראות',
+var PRIVATE_TABS = ['שיעור חי', 'תמונת בית א', 'תמונת בית ב', 'עלונים להורדה', 'סקירה — אנשי קשר', 'סקירה — קשר', 'סבבים', 'זמני שרת', 'לומדים', 'לימוד', 'זמן יומי', 'הרשמות', 'חידות', 'קודים', 'התראות',
                     'הודעות', 'תקועים', 'תזכורות', 'נשלחו',
                     /* הלימוד המשותף — אבא ובן. שמות וטלפונים, ולכן פרטית. */
                     'זוגות',
@@ -374,7 +374,7 @@ var TM_KEYS_ = ['file', 'help', 'setup', 'fire', 'helpdone', 'conflictdone', 'sa
   'parstat', 'ltime', 'amdaneed', 'test', 'sayCount', 'inbox', 'mark', 'funnel', 'trails', 'arrived', 'push',
   'pairHist', 'pair', 'pairok', 'pairSeen', 'pairFor', 'idFor', 'amdaFor', 'whoIs', 'wid', 'acc', 'accset',
   'netbaks', 'netrun', 'netmarks', 'board', 'ov', 'team', 'recount', 'delrow', 'contactSave', 'archived',
-  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid', 'hasaa', 'hlpq', 'acclim', 'chn', 'tzm', 'prs', 'mechika', 'limme'];
+  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid', 'hasaa', 'hlpq', 'acclim', 'chn', 'tzm', 'prs', 'mechika', 'limme', 'live'];
 /* שם הבקשה — המפתח הראשון ברשימה שקיים, ועם ערכו רק כשהוא מילה קצרה
    באנגלית (op של האתגר/ההגרלה). מזהה או מספר לעולם אינו נכנס. */
 function tmName_(e, post) {
@@ -1146,6 +1146,11 @@ function doGetMain_(e) {
   if (e && e.parameter && e.parameter.tzm) {
     try { return reply_(e, tzmRoute_(e.parameter)); }
     catch (eTz) { return reply_(e, { status: 'error' }); }
+  }
+  /* שיעור חי — החידה שהמארח פתח מופיעה בטלפונים. ראו liveRoute_. */
+  if (e && e.parameter && e.parameter.live) {
+    try { return reply_(e, liveRoute_(e.parameter)); }
+    catch (eLv) { return reply_(e, { status: 'error' }); }
   }
   /* חלוקת פרסים — אישור הגעה ונוכחות. ראו prsRoute_. */
   if (e && e.parameter && e.parameter.prs) {
@@ -7943,6 +7948,8 @@ function autoRecount() {
   try { amdaSyncLocked_(); } catch (ae) {}
   /* ההורה והבן למדו שניהם — כרטיס אבא אוטומטי (8.99.512). */
   try { pairAuto_(); } catch (pe) {}
+  /* שיעור חי שלא נסגר — נסגר לבד אחרי LIVE_MAX_H_ שעות, והחידון נכתב. */
+  try { liveAutoEnd_(); } catch (le) {}
   /* הנוסחים שחסרים — מהגיליון/מהאתר (8.99.555). */
   try { autoTxFill_(); } catch (fe) {}
   /* ההגרלות של יום ראשון 16:00 (8.99.552) — השבועית והשולחנות. */
@@ -21304,4 +21311,283 @@ function prsRoute_(P) {
   /* בדיקה חיה בפריסה — מספרים בלבד, בלי שמות. */
   if (op === 'bdn') { var L = prsAll_(); return { status: 'ok', tab: PRS_TAB_, n: L.length, key: !!k }; }
   return { status: 'error' };
+}
+
+
+/* ============================================================
+   שיעור חי — חידות בטלפונים בזמן שיעור בזום (8.99.605 · SCRIPT_VERSION 279).
+   ============================================================
+   המארח (מכשיר עם סיסמת הסקריפט, בדף האינטראקטיבי) פותח מפגש ← ברקוד
+   ל-/live?s=<קוד>. כל חידה שהוא מציג בדף נשלחת לכאן (`set`), והטלפונים
+   שואלים כל כמה שניות (`get`, מהמטמון בלבד) ומציגים אותה.
+   **רק רשומים:** `hi` — לפי מזהה המכשיר, או (אייפון — האפליקציה המותקנת
+   ומסך הדפדפן לא חולקים אחסון) לפי הטלפון שבהרשמה. בתשובה — אסימון למפגש,
+   לא המזהה (מזהה פותח מסכים אישיים).
+   **החידון:** בסיום (`end`, או לבד אחרי LIVE_MAX_H_) — לכל משתתף ולכל דף
+   שורה "החידון כולו" ב"חידות": ציון = נכונות / החידות שהופעלו בדף.
+   ניסיון = "חי" — נספר כאחד משני הניסיונות (quizBest_), כמו כל שליחה.
+   **הנוכחות לא נגעה** (החלטת אחיאסף) — הרשימה כאן בלבד (`adm`).
+   לשונית פרטית "שיעור חי": שורה לכל אירוע (פתיחה · חידה · הצטרף · תשובה · סיום).
+   ============================================================ */
+var LIVE_TAB_ = 'שיעור חי';
+var LIVE_COLS_ = ['תאריך', 'מפגש', 'סוג', 'מזהה', 'שם', 'ישיבה', 'חידה', 'דף', 'שבוע', 'תשובה', 'נכון', 'פרטים'];
+var LIVE_PROP_ = 'LIVE_CUR', LIVE_MAX_H_ = 5;
+function liveSheet_() {
+  var sh = sheet_(LIVE_TAB_);
+  if (sh.getLastRow() < 1) sh.appendRow(LIVE_COLS_);
+  return sh;
+}
+function liveRow_(o) {
+  liveSheet_().appendRow(LIVE_COLS_.map(function (k) { return k === 'תאריך' ? new Date() : (o[k] == null ? '' : o[k]); }));
+}
+function liveCur_() {
+  var rc = CacheService.getScriptCache(), v = rc.get('live:cur');
+  if (!v) { v = PropertiesService.getScriptProperties().getProperty(LIVE_PROP_); if (v) rc.put('live:cur', v, 21600); }
+  try { return v ? JSON.parse(v) : null; } catch (e) { return null; }
+}
+function livePut_(L) {
+  var v = JSON.stringify(L), rc = CacheService.getScriptCache();
+  PropertiesService.getScriptProperties().setProperty(LIVE_PROP_, v);
+  rc.put('live:cur', v, 21600);
+  rc.put('live:pub:' + L.s, JSON.stringify(livePub_(L)), 21600);
+}
+/* מה שהטלפון רואה — בלי התשובה הנכונה. */
+function livePub_(L) {
+  if (!L || L.end) return { status: 'ok', on: 0 };
+  return { status: 'ok', on: 1, q: L.q ? { id: L.q.id, q: L.q.q, a: L.q.a } : null };
+}
+function liveOpen_(L) { return !!(L && !L.end && Date.now() - L.t0 < LIVE_MAX_H_ * 3600000); }
+function liveTok_(s, id) {
+  var b = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, hasaaSalt_() + '|live|' + s + '|' + id, Utilities.Charset.UTF_8);
+  var h = '';
+  for (var i = 0; i < 9; i++) h += ((b[i] + 256) % 256 + 256).toString(16).slice(1);
+  return 'v' + h;
+}
+function liveLock_() {
+  var lk = LockService.getDocumentLock() || LockService.getUserLock();
+  return lk.tryLock(15000) ? lk : null;
+}
+/* השורות של המפגש — מהשורה שבה נפתח. */
+function liveRows_(L) {
+  var sh = liveSheet_(), last = sh.getLastRow(), r0 = Math.max(2, L.r0 || 2);
+  if (last < r0) return [];
+  var v = sh.getRange(r0, 1, last - r0 + 1, LIVE_COLS_.length).getDisplayValues(), out = [];
+  v.forEach(function (r) {
+    if (String(r[1]) !== L.s) return;
+    var o = {};
+    LIVE_COLS_.forEach(function (k, i) { o[k] = String(r[i] || '').trim(); });
+    out.push(o);
+  });
+  return out;
+}
+/* מי הצטרף ומה ענה — התשובה האחרונה לכל חידה. */
+function liveTally_(L) {
+  var P = {}, ord = [];
+  liveRows_(L).forEach(function (o) {
+    var id = o['מזהה'];
+    if (!id) return;
+    if (!P[id]) { P[id] = { id: id, n: o['שם'], i: o['ישיבה'], a: {} }; ord.push(id); }
+    if (o['סוג'] === 'תשובה' && o['חידה']) P[id].a[o['חידה']] = o['נכון'] === 'כן' ? 1 : 0;
+  });
+  return ord.map(function (id) { return P[id]; });
+}
+function liveRoute_(P) {
+  var op = String(P.live || ''), adm = !!READ_KEY && String(P.key || '') === READ_KEY;
+  var s = String(P.s || '').trim().toUpperCase();
+  if (op === 'get') {
+    var rc = CacheService.getScriptCache(), pv = rc.get('live:pub:' + s);
+    if (pv) { try { return JSON.parse(pv); } catch (eP) {} }
+    var Lg = liveCur_();
+    return Lg && Lg.s === s && liveOpen_(Lg) ? livePub_(Lg) : { status: 'ok', on: 0 };
+  }
+  if (op === 'hi') return liveHi_(P, s);
+  if (op === 'ans') return liveAns_(P, s);
+  /* בדיקה חיה בפריסה — בלי פרטים. */
+  if (op === 'bdn') { var Lb = liveCur_(); return { status: 'ok', on: liveOpen_(Lb) ? 1 : 0, key: adm }; }
+  if (!adm) return { status: 'denied' };
+  if (op === 'start') return liveStart_(P);
+  if (op === 'set' || op === 'clr') return liveSet_(P, s, op === 'clr');
+  if (op === 'stat') {
+    var L = liveCur_();
+    if (!L || L.s !== s) return { status: 'ok', on: 0 };
+    var T = liveTally_(L), cur = L.q ? L.q.id : '', nq = Object.keys(L.qs || {}).length;
+    return { status: 'ok', on: liveOpen_(L) ? 1 : 0, n: T.length, nq: nq,
+      ans: cur ? T.filter(function (p) { return p.a[cur] != null; }).length : 0,
+      ppl: T.map(function (p) { return { n: p.n, i: p.i, k: Object.keys(p.a).length }; }) };
+  }
+  if (op === 'end') return liveEnd_(s);
+  if (op === 'adm') return liveAdm_();
+  return { status: 'error' };
+}
+function liveStart_(P) {
+  var lk = liveLock_();
+  if (!lk) return { status: 'busy' };
+  try {
+    var L = liveCur_();
+    if (liveOpen_(L) && String(P.fresh) !== '1') return { status: 'ok', s: L.s, t0: L.t0, q: L.q ? L.q.id : '' };
+    if (L && !L.end) {
+      try { liveFin_(L); } catch (eF) {}
+      CacheService.getScriptCache().put('live:pub:' + L.s, JSON.stringify({ status: 'ok', on: 0 }), 21600);
+    }
+    var AB = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789', s = '';
+    for (var i = 0; i < 6; i++) s += AB.charAt(Math.floor(Math.random() * AB.length));
+    var sh = liveSheet_();
+    L = { s: s, t0: Date.now(), r0: sh.getLastRow() + 1, q: null, qs: {}, end: 0 };
+    liveRow_({ 'מפגש': s, 'סוג': 'פתיחה' });
+    livePut_(L);
+    return { status: 'ok', s: s, t0: L.t0, q: '' };
+  } finally { lk.releaseLock(); }
+}
+function liveSet_(P, s, clr) {
+  var lk = liveLock_();
+  if (!lk) return { status: 'busy' };
+  try {
+    var L = liveCur_();
+    if (!L || L.s !== s || !liveOpen_(L)) return { status: 'ok', on: 0 };
+    if (clr) { L.q = null; livePut_(L); return { status: 'ok', on: 1, q: '' }; }
+    var id = String(P.qid || '').slice(0, 200), d = String(P.d || '').slice(0, 60), w = String(P.w || '').slice(0, 60);
+    var q = String(P.q || '').slice(0, 1000), a = [], c = parseInt(P.cr, 10);
+    try { a = JSON.parse(P.a || '[]'); } catch (eA) { a = []; }
+    a = (a || []).slice(0, 8).map(function (x) { return String(x == null ? '' : x).slice(0, 400); });
+    if (!id || !d || !q || a.length < 2 || !(c >= 0 && c < a.length)) return { status: 'error' };
+    L.qs = L.qs || {};
+    if (!L.qs[id]) {
+      L.qs[id] = { d: d, w: w, c: c };
+      liveRow_({ 'מפגש': s, 'סוג': 'חידה', 'חידה': id, 'דף': d, 'שבוע': w, 'נכון': c, 'פרטים': q });
+    }
+    L.q = { id: id, q: q, a: a };
+    livePut_(L);
+    return { status: 'ok', on: 1, q: id };
+  } finally { lk.releaseLock(); }
+}
+/* המשתתף — רק מי שרשום ב"לומדים". */
+function liveHi_(P, s) {
+  var L = liveCur_();
+  if (!L || L.s !== s || !liveOpen_(L)) return { status: 'ok', on: 0 };
+  var t = joinTable_(), r = -1, id = String(P.id || '').trim();
+  if (id) r = rowOfId_(t, id);
+  else {
+    var ph = phKey_(P.ph), first = String(P.first || '').replace(/\s+/g, ' ').trim();
+    if (!ph) return { status: 'ok', st: 'none' };
+    var rc = CacheService.getScriptCache(), ck = 'lph:' + s, n = parseInt(rc.get(ck) || '0', 10) || 0;
+    if (n >= 400) return { status: 'ok', st: 'slow' };
+    rc.put(ck, String(n + 1), 3600);
+    var hits = [], seen = {};
+    for (var i = 1; i < t.rows.length; i++) {
+      var row = t.rows[i];
+      if (phKey_(t.c(row, 'טלפון')) !== ph || rowWorld_(t, row) !== 'R') continue;
+      var f = t.c(row, 'שם'), k = f + '|' + t.c(row, 'משפחה');
+      if (!t.c(row, 'מזהה')) continue;
+      if (first && f.split(' ')[0] !== first.split(' ')[0]) continue;
+      if (seen[k]) continue;
+      seen[k] = 1;
+      hits.push(i);
+    }
+    if (hits.length > 1) return { status: 'ok', st: first ? 'none' : 'many' };
+    r = hits.length ? hits[0] : -1;
+  }
+  if (r < 1) return { status: 'ok', st: 'none' };
+  var row2 = t.rows[r], cid = t.c(row2, 'מזהה');
+  var nm = (t.c(row2, 'שם') + ' ' + t.c(row2, 'משפחה')).trim(), tk = liveTok_(s, cid);
+  var rc2 = CacheService.getScriptCache();
+  if (!rc2.get('live:tk:' + tk)) {
+    liveRow_({ 'מפגש': s, 'סוג': 'הצטרף', 'מזהה': cid, 'שם': nm, 'ישיבה': t.c(row2, 'ישיבה'), 'פרטים': tk });
+    rc2.put('live:tk:' + tk, JSON.stringify({ id: cid, n: nm, i: t.c(row2, 'ישיבה') }), 21600);
+  }
+  return { status: 'ok', st: 'ok', tk: tk, first: t.c(row2, 'שם').split(' ')[0] };
+}
+function liveWho_(L, tk) {
+  var rc = CacheService.getScriptCache(), v = rc.get('live:tk:' + tk);
+  if (v) { try { return JSON.parse(v); } catch (e) {} }
+  var hit = null;
+  liveRows_(L).forEach(function (o) {
+    if (o['סוג'] === 'הצטרף' && o['פרטים'] === tk) hit = { id: o['מזהה'], n: o['שם'], i: o['ישיבה'] };
+  });
+  if (hit) rc.put('live:tk:' + tk, JSON.stringify(hit), 21600);
+  return hit;
+}
+function liveAns_(P, s) {
+  var L = liveCur_();
+  if (!L || L.s !== s || !liveOpen_(L)) return { status: 'ok', on: 0 };
+  var qid = String(P.qid || ''), Q = (L.qs || {})[qid], a = parseInt(P.a, 10);
+  if (!Q) return { status: 'error' };
+  var w = liveWho_(L, String(P.tk || '').trim());
+  if (!w) return { status: 'none' };
+  if (!(a >= 0 && a < 8)) return { status: 'error' };
+  liveRow_({ 'מפגש': s, 'סוג': 'תשובה', 'מזהה': w.id, 'שם': w.n, 'ישיבה': w.i, 'חידה': qid,
+             'דף': Q.d, 'שבוע': Q.w, 'תשובה': a, 'נכון': a === Q.c ? 'כן' : 'לא' });
+  return { status: 'ok', on: 1, a: a };
+}
+/* הסגירה: שורת "החידון כולו" לכל משתתף·דף. שורה שכבר נכתבה למפגש — לא שוב. */
+function liveFin_(L) {
+  var T = liveTally_(L), byD = {};
+  Object.keys(L.qs || {}).forEach(function (id) {
+    var Q = L.qs[id];
+    (byD[Q.d] = byD[Q.d] || { w: Q.w, ids: [] }).ids.push(id);
+  });
+  var src = 'שיעור חי ' + L.s, have = {}, qs = sheet_('חידות'), v = qs.getLastRow() > 1 ? qs.getDataRange().getDisplayValues() : [];
+  if (v.length) {
+    var ix = {};
+    v[0].forEach(function (h, i) { ix[String(h).trim()] = i; });
+    if (ix['מקור'] != null && ix['מזהה'] != null && ix['דף'] != null)
+      for (var r = 1; r < v.length; r++) if (String(v[r][ix['מקור']]).trim() === src)
+        have[String(v[r][ix['מזהה']]).trim() + '|' + String(v[r][ix['דף']]).trim()] = 1;
+  }
+  var n = 0;
+  T.forEach(function (p) {
+    Object.keys(byD).forEach(function (d) {
+      var ids = byD[d].ids, got = ids.filter(function (id) { return p.a[id] != null; });
+      if (!got.length || have[p.id + '|' + d]) return;
+      var ok = ids.filter(function (id) { return p.a[id] === 1; }).length;
+      appendCols_('חידות', [
+        ['דף', d], ['קטע', 'החידון כולו'], ['שבוע', byD[d].w], ['ישיבה', p.i], ['שם', p.n], ['טלפון', ''],
+        ['תשובה', got.length + '/' + ids.length], ['ציון', ok + '/' + ids.length],
+        ['נכון', quizPass_([ok, ids.length]) ? 'נכון' : 'לא נכון'], ['זמן בדף (דקות)', ''],
+        ['מכשיר', ''], ['ניסיון', 'חי'], ['מזהה', p.id], ['מקור', src]
+      ]);
+      n++;
+    });
+  });
+  return { n: n, ppl: T.length };
+}
+function liveEnd_(s) {
+  var lk = liveLock_();
+  if (!lk) return { status: 'busy' };
+  try {
+    var L = liveCur_();
+    if (!L || L.s !== s) return { status: 'ok', on: 0 };
+    var R = liveFin_(L);
+    if (!L.end) {
+      L.end = Date.now();
+      L.q = null;
+      livePut_(L);
+      liveRow_({ 'מפגש': s, 'סוג': 'סיום', 'פרטים': R.n });
+    }
+    return { status: 'ok', on: 0, ppl: R.ppl, w: R.n };
+  } finally { lk.releaseLock(); }
+}
+function liveAutoEnd_() {
+  var L = liveCur_();
+  if (L && !L.end && !liveOpen_(L)) liveEnd_(L.s);
+}
+/* ניהול — המפגשים, ולכל משתתף: על כמה חידות ענה מתוך כמה שהופעלו. */
+function liveAdm_() {
+  var sh = liveSheet_(), last = sh.getLastRow();
+  if (last < 2) return { status: 'ok', list: [] };
+  var v = sh.getRange(2, 1, last - 1, LIVE_COLS_.length).getDisplayValues(), S = {}, ord = [];
+  v.forEach(function (r) {
+    var s = String(r[1] || ''), ty = String(r[2] || ''), id = String(r[3] || '');
+    if (!s) return;
+    var o = S[s];
+    if (!o) { o = S[s] = { s: s, t: String(r[0] || ''), q: {}, p: {}, po: [] }; ord.push(s); }
+    if (ty === 'חידה') o.q[r[6]] = 1;
+    if (id && !o.p[id]) { o.p[id] = { n: String(r[4] || ''), i: String(r[5] || ''), a: {} }; o.po.push(id); }
+    if (ty === 'תשובה' && id) o.p[id].a[r[6]] = 1;
+  });
+  return { status: 'ok', list: ord.reverse().slice(0, 30).map(function (s) {
+    var o = S[s];
+    return { s: s, t: o.t, nq: Object.keys(o.q).length, ppl: o.po.map(function (id) {
+      return { n: o.p[id].n, i: o.p[id].i, k: Object.keys(o.p[id].a).length };
+    }) };
+  }) };
 }
