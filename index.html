@@ -3185,7 +3185,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.601';
+var APP_VERSION = '8.99.602';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -18239,7 +18239,7 @@ function tzmRamsHtml(d) {
   var L = d.rams;
   if (!L) return '';
   if (!L.length) return '<p class="h" style="margin-bottom:14px">' + esc(UI.tzmAdmRamsNone) + '</p>';
-  /* כל הר"מים נשאלים (8.99.601) — כולם בסיכום ובכפתורים. */
+  /* כל הר"מים נשאלים (8.99.602) — כולם בסיכום ובכפתורים. */
   var y = 0, n = 0, Z = L.length;
   L.forEach(function (r) { if (r.a === 'y') y++; else if (r.a === 'n') n++; });
   return '<div style="margin-bottom:14px;padding:12px;border-radius:14px;background:#F4F6FA">' +
