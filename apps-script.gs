@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 276;
+var SCRIPT_VERSION = 277;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -173,6 +173,8 @@ var PRIVATE_TABS = ['תמונת בית א', 'תמונת בית ב', 'עלוני�
                     'צמאה — רישום',
                     /* צמאה — הר"מים (שם · כיתה), אחיאסף ממלא. ראו tzmRams_. */
                     'צמאה — ר"מים',
+                    /* חלוקת פרסים — מי מגיע ומי הגיע (prasim.html). ראו prsRoute_. */
+                    'חלוקת פרסים',
                     /* בקשות למחיקת חשבון (mechika.html) — שם וטלפון. ראו mkPut_. */
                     'בקשות מחיקה',
                     /* הגרלת הרביעיות — מי בקבוצה עם מי, והזוכות. ראו quadRoute_. */
@@ -372,7 +374,7 @@ var TM_KEYS_ = ['file', 'help', 'setup', 'fire', 'helpdone', 'conflictdone', 'sa
   'parstat', 'ltime', 'amdaneed', 'test', 'sayCount', 'inbox', 'mark', 'funnel', 'trails', 'arrived', 'push',
   'pairHist', 'pair', 'pairok', 'pairSeen', 'pairFor', 'idFor', 'amdaFor', 'whoIs', 'wid', 'acc', 'accset',
   'netbaks', 'netrun', 'netmarks', 'board', 'ov', 'team', 'recount', 'delrow', 'contactSave', 'archived',
-  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid', 'hasaa', 'hlpq', 'acclim', 'chn', 'tzm', 'mechika'];
+  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid', 'hasaa', 'hlpq', 'acclim', 'chn', 'tzm', 'prs', 'mechika'];
 /* שם הבקשה — המפתח הראשון ברשימה שקיים, ועם ערכו רק כשהוא מילה קצרה
    באנגלית (op של האתגר/ההגרלה). מזהה או מספר לעולם אינו נכנס. */
 function tmName_(e, post) {
@@ -1144,6 +1146,11 @@ function doGetMain_(e) {
   if (e && e.parameter && e.parameter.tzm) {
     try { return reply_(e, tzmRoute_(e.parameter)); }
     catch (eTz) { return reply_(e, { status: 'error' }); }
+  }
+  /* חלוקת פרסים — אישור הגעה ונוכחות. ראו prsRoute_. */
+  if (e && e.parameter && e.parameter.prs) {
+    try { return reply_(e, prsRoute_(e.parameter)); }
+    catch (ePr) { return reply_(e, { status: 'error' }); }
   }
   if (e && e.parameter && e.parameter.mechika) {
     try { return reply_(e, mkChk_(e.parameter.op)); }
@@ -21132,4 +21139,120 @@ function mkChk_(op) {
   if (!op) return { status: 'error', message: 'bad' };
   var sh = sheet_(MK_TAB_);
   return { status: 'ok', saved: sh.getLastRow() >= 2 && mkHas_(sh, op) };
+}
+
+/* ============================================================
+   חלוקת פרסים — אישור הגעה ונוכחות (prasim.html, 8.99.602 · SCRIPT_VERSION 277).
+   ============================================================
+   אחיאסף (25.11): האירוע ביום שלישי 1.12. הזוכים בפרסי הספרים עונים בקישור
+   אחד משותף אם הם מגיעים; אחיאסף רואה הכול בניהול ← עוד ← "חלוקת פרסים",
+   משנה תשובה ומסמן "הגיע" ביום האירוע. גיבוי להודעות הוואטסאפ, לא במקומן.
+   · לשונית פרטית "חלוקת פרסים": שם · כיתה · מגיע (ריק/כן/לא) · הגיע בפועל (ריק/כן).
+     אחיאסף ממלא. **ריקה (אין אף שם) — נזרעת פעם אחת מ"זכאויות"** (hasaaRoster_ של
+     לפיד: אותם שמות של הצהרת התלמיד), בלי כיתה. אחר כך — לא נוגעים בשמות.
+   · הקישור נושא מפתח (`k`, מאפיין PRS_KEY, נוצר בניהול). בלעדיו אין שמות.
+   · ?prs=list&k= — שם וכיתה בלבד. ?prs=me&k=&n=&cl= — התשובה של השם הזה.
+     ?prs=set&k=&n=&cl=&a=y|n — התלמיד עונה. **הכיתה בפרמטר `cl`** — `c` שמור בגוגל.
+   · בסיסמה: ?prs=adm&key= (הכול + המפתח) · ?prs=set&key=&…&a=y|n|- · ?prs=here&key=&…&h=1|0.
+   · כל סימון — הסימון האחרון קובע, שלו או של התלמיד. קריאה חוזרת אחרי כל כתיבה.
+     הנעילה — של המסמך/המשתמש (כמו הסקירה), לא של הסקריפט, שלא ימתין לשמירות הלימוד.
+   ============================================================ */
+var PRS_TAB_ = 'חלוקת פרסים';
+var PRS_COLS_ = ['שם'].concat(['כיתה'], ['מגיע', 'הגיע בפועל']);
+function prsKeyOf_(make) {
+  var P = PropertiesService.getScriptProperties(), k = P.getProperty('PRS_KEY') || '';
+  if (!k && make) { k = Utilities.getUuid().replace(/-/g, '').slice(0, 20); P.setProperty('PRS_KEY', k); }
+  return k;
+}
+function prsCl_(c) { return String(c || '').replace(/\s+/g, ' ').trim().slice(0, 20); }
+function prsSheet_() {
+  var sh = sheet_(PRS_TAB_);
+  if (sh.getMaxColumns() < 4) sh.insertColumnsAfter(sh.getMaxColumns(), 4 - sh.getMaxColumns());
+  var hd = sh.getRange(1, 1, 1, 4).getDisplayValues()[0];
+  for (var i = 0; i < 4; i++) if (String(hd[i] || '').trim() !== PRS_COLS_[i]) sh.getRange(1, i + 1).setValue(PRS_COLS_[i]);
+  return sh;
+}
+function prsA1_(v) { v = String(v || '').trim(); return v === 'כן' ? 'y' : v === 'לא' ? 'n' : ''; }
+function prsRows_(sh) {
+  var n = sh.getLastRow(), out = [];
+  if (n < 2) return out;
+  var v = sh.getRange(2, 1, n - 1, 4).getDisplayValues();
+  for (var i = 0; i < v.length; i++) {
+    var nm = tzmNm_(v[i][0]);
+    if (!nm) continue;
+    out.push({ n: nm, c: prsCl_(v[i][1]), a: prsA1_(v[i][2]), h: prsA1_(v[i][3]) === 'y' ? 1 : 0, r: i + 2 });
+  }
+  return out;
+}
+/* ריקה — זריעה אחת מ"זכאויות". כישלון בקריאה — לא כותבים כלום (קריאה שנכשלה אינה רשימה ריקה). */
+function prsSeed_(sh) {
+  var R = hasaaRoster_('lapid');
+  if (!R || R.status !== 'ok' || !R.list || !R.list.length) return;
+  var lk = LockService.getDocumentLock() || LockService.getUserLock();
+  if (!lk.tryLock(10000)) return;
+  try {
+    if (prsRows_(sh).length) return;
+    var seen = {}, vals = [];
+    R.list.forEach(function (o) { var nm = tzmNm_(o.n); if (nm && !seen[nm]) { seen[nm] = 1; vals.push([nm, '', '', '']); } });
+    if (!vals.length) return;
+    var at = Math.max(2, sh.getLastRow() + 1);
+    sh.getRange(at, 1, vals.length, 4).setValues(vals);
+    SpreadsheetApp.flush();
+  } finally { lk.releaseLock(); }
+}
+function prsAll_() {
+  var sh = prsSheet_(), L = prsRows_(sh);
+  if (!L.length) { prsSeed_(sh); L = prsRows_(sh); }
+  return L;
+}
+function prsOf_(L, n, c) {
+  n = tzmNm_(n); c = prsCl_(c);
+  for (var i = 0; i < L.length; i++) if (L[i].n === n && L[i].c === c) return L[i];
+  return null;
+}
+/* f: 'a' (מגיע: y/n/'') או 'h' (הגיע: 1/0). */
+function prsSet_(n, c, f, val) {
+  var lk = LockService.getDocumentLock() || LockService.getUserLock();
+  if (!lk.tryLock(15000)) return { status: 'busy' };
+  try {
+    var sh = prsSheet_(), r = prsOf_(prsRows_(sh), n, c);
+    if (!r) return { status: 'none' };
+    var col = f === 'a' ? 3 : 4, put = f === 'a' ? (val === 'y' ? 'כן' : val === 'n' ? 'לא' : '') : (val ? 'כן' : '');
+    sh.getRange(r.r, col).setValue(put);
+    SpreadsheetApp.flush();
+    var b = prsOf_(prsRows_(sh), n, c);
+    if (!b || (f === 'a' ? b.a !== val : b.h !== (val ? 1 : 0))) return { status: 'error' };
+    return { status: 'ok', a: b.a, h: b.h };
+  } finally { lk.releaseLock(); }
+}
+function prsRoute_(P) {
+  var op = String(P.prs || ''), adm = !!READ_KEY && String(P.key || '') === READ_KEY;
+  var k = prsKeyOf_(false), stu = !!k && String(P.k || '') === k;
+  var cl = P.cl != null ? P.cl : '';
+  if (op === 'list') {
+    if (!stu) return { status: 'denied' };
+    return { status: 'ok', list: prsAll_().map(function (x) { return { n: x.n, c: x.c }; }) };
+  }
+  if (op === 'me') {
+    if (!stu) return { status: 'denied' };
+    var m = prsOf_(prsAll_(), P.n, cl);
+    return m ? { status: 'ok', a: m.a } : { status: 'none' };
+  }
+  if (op === 'set') {
+    if (!stu && !adm) return { status: 'denied' };
+    var a = String(P.a || '');
+    if (a === '-' && adm) a = '';
+    else if (a !== 'y' && a !== 'n') return { status: 'error' };
+    if (!tzmNm_(P.n)) return { status: 'error' };
+    return prsSet_(P.n, cl, 'a', a);
+  }
+  if (!adm) return { status: 'denied' };
+  if (op === 'adm') return { status: 'ok', k: prsKeyOf_(true), list: prsAll_().map(function (x) { return { n: x.n, c: x.c, a: x.a, h: x.h }; }) };
+  if (op === 'here') {
+    if (!tzmNm_(P.n)) return { status: 'error' };
+    return prsSet_(P.n, cl, 'h', String(P.h) === '1' ? 1 : 0);
+  }
+  /* בדיקה חיה בפריסה — מספרים בלבד, בלי שמות. */
+  if (op === 'bdn') { var L = prsAll_(); return { status: 'ok', tab: PRS_TAB_, n: L.length, key: !!k }; }
+  return { status: 'error' };
 }
