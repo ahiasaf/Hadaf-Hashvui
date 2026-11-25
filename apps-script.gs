@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 277;
+var SCRIPT_VERSION = 278;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -374,7 +374,7 @@ var TM_KEYS_ = ['file', 'help', 'setup', 'fire', 'helpdone', 'conflictdone', 'sa
   'parstat', 'ltime', 'amdaneed', 'test', 'sayCount', 'inbox', 'mark', 'funnel', 'trails', 'arrived', 'push',
   'pairHist', 'pair', 'pairok', 'pairSeen', 'pairFor', 'idFor', 'amdaFor', 'whoIs', 'wid', 'acc', 'accset',
   'netbaks', 'netrun', 'netmarks', 'board', 'ov', 'team', 'recount', 'delrow', 'contactSave', 'archived',
-  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid', 'hasaa', 'hlpq', 'acclim', 'chn', 'tzm', 'prs', 'mechika'];
+  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid', 'hasaa', 'hlpq', 'acclim', 'chn', 'tzm', 'prs', 'mechika', 'limme'];
 /* שם הבקשה — המפתח הראשון ברשימה שקיים, ועם ערכו רק כשהוא מילה קצרה
    באנגלית (op של האתגר/ההגרלה). מזהה או מספר לעולם אינו נכנס. */
 function tmName_(e, post) {
@@ -628,7 +628,7 @@ function doPostMain_(e) {
           if (p && p[0] === 'שכבה') aGC.g = p[1];
           if (p && p[0] === 'כיתה') aGC.c = p[1];
         });
-        if (!limHit_(aLim, aGC.g, aGC.c)) return json_({ status: 'denied', message: LIM_DENY_ });
+        if (!limHit_(aLim, aGC.g, aGC.c)) return json_(limDeny_(aLim));
       }
       var aOk = ['מזהה', 'שבוע', 'יום', 'עמדה', 'קוד עמדה', 'סוג', 'מסלול', 'דף', 'מקום',
                  'רמה', 'אישור חידון', 'שכבה', 'כיתה', 'שם', 'מתי', 'כותרת'];
@@ -645,7 +645,7 @@ function doPostMain_(e) {
         return json_({ status: 'denied', message: 'המכשיר אינו מאושר לישיבה הזו' });
       }
       var dLim = accLim_(String(d.dev), String(d.inst));
-      if (dLim && dLim.bad) return json_({ status: 'denied', message: LIM_DENY_ });
+      if (dLim && dLim.bad) return json_(limDeny_(dLim));
       return json_(amdaDel_(parse_(d.ids) || [], String(d.inst), dLim));
     }
     /* כל הרישומים שבתור בבקשה אחת (amdaRows_) — לשונית העמדה בלבד. איש צוות
@@ -668,7 +668,7 @@ function doPostMain_(e) {
           (cols || []).forEach(function (p) { if (p && p[0] === 'שכבה') g0 = p[1]; if (p && p[0] === 'כיתה') c0 = p[1]; });
           return !limHit_(rLim, g0, c0);
         });
-        if (rBad) return json_({ status: 'denied', message: LIM_DENY_ });
+        if (rBad) return json_(limDeny_(rLim));
       }
       return json_(amdaRows_(AMDA_TAB_, arRows, String(d.inst), String(d.dev)));
     }
@@ -2140,6 +2140,13 @@ function doGetMain_(e) {
       return reply_(e, String(e.parameter.acclim) === 'set' ? limSet_(e.parameter) : limList_());
     } catch (errL) { return reply_(e, { status: 'error', message: String(errL) }); }
   }
+  /* ר"ם שהכיתה שלו לא ידועה — מסמן אותה בעצמו במסך החסימה (limMe_). */
+  if (e && e.parameter && e.parameter.limme) {
+    try {
+      return reply_(e, limMe_(String(e.parameter.limme), String(e.parameter.dev || ''),
+                              String(e.parameter.g || ''), String(e.parameter.cl || '')));
+    } catch (errM) { return reply_(e, { status: 'error', message: String(errM) }); }
+  }
   if (e && e.parameter && e.parameter.accset) {
     if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
       return reply_(e, { status: 'denied', message: 'אין הרשאה' });
@@ -2199,7 +2206,7 @@ function doGetMain_(e) {
       var gOk = accGate_(okInst, e.parameter.dev, true);
       if (gOk) return reply_(e, gOk);
       var okLim = accLim_(e.parameter.dev, okInst);
-      if (okLim && okLim.bad) return reply_(e, { status: 'denied', message: LIM_DENY_ });
+      if (okLim && okLim.bad) return reply_(e, limDeny_(okLim));
     }
     try { return reply_(e, amdaOk_(e.parameter, okAdm)); }
     catch (eOk) { return reply_(e, { status: 'error', message: String(eOk) }); }
@@ -2213,7 +2220,7 @@ function doGetMain_(e) {
       var gN = accGate_(nInst, e.parameter.dev, true);
       if (gN) return reply_(e, gN);
       nLim = accLim_(e.parameter.dev, nInst);
-      if (nLim && nLim.bad) return reply_(e, { status: 'denied', message: LIM_DENY_ });
+      if (nLim && nLim.bad) return reply_(e, limDeny_(nLim));
     }
     try {
       return reply_(e, e.parameter.netroster ? netRoster_(nInst, String(e.parameter.dev || (nAdm ? 'רכז' : '')), nLim)
@@ -2242,7 +2249,7 @@ function doGetMain_(e) {
       var gB = accGate_(bInst, e.parameter.dev, !!e.parameter.k);
       if (gB) return reply_(e, gB);
       var bLim = accLim_(e.parameter.dev, bInst);
-      if (bLim && bLim.bad) return reply_(e, { status: 'denied', message: LIM_DENY_ });
+      if (bLim && bLim.bad) return reply_(e, limDeny_(bLim));
       bk = ensureCode_(bInst, newCode_());
     }
     try { bd = boardData_(String(e.parameter.board), bk, e.parameter.test === '1'); }
@@ -3544,6 +3551,48 @@ function limHit_(L, g, c) {
   return amdaNorm_(g) === L.g && clsK_(c) === L.c;
 }
 var LIM_DENY_ = 'הגישה שלך מוגבלת לכיתה שלך, והכיתה לא ידועה. פנו לרכז התוכנית.';
+/* הדחייה של ר"ם — `lim: 1` כשהכיתה לא ידועה: הלקוח מציג בחירת כיתה
+   (LOCK.limHtml ב-lock.js), ולא מוחק את הקוד או את האישור. */
+function limDeny_(L) {
+  var o = { status: 'denied', message: LIM_DENY_ };
+  if (L && L.bad) o.lim = 1;
+  return o;
+}
+/* ============================================================
+   הר"ם מסמן את הכיתה שלו בעצמו (בקשת אחיאסף, 25.11).
+   ============================================================
+   רק מכשיר מאושר ב"גישה", בתפקיד ר"ם, לישיבה הזו — ורק כשהכיתה
+   **לא ידועה** (accLim_ → bad). כיתה ידועה אינה משתנה מכאן (רק
+   הבעלים, limSet_). נכתב ל"הגבלת כיתה" — אותה שורה של ההשלמה
+   הידנית — ונבדק בקריאה חוזרת דרך accLim_ עצמו. הפרמטר `cl`,
+   לא `c` (שמור ב-Apps Script). */
+function limMe_(inst, dev, g, c) {
+  inst = String(inst || '').trim(); dev = String(dev || '').trim();
+  if (!inst || !/^[\w:.\-]{6,60}$/.test(dev)) return { status: 'error', message: 'חסרים פרטים' };
+  var r = accRow_(dev);
+  if (!r || r.st !== 'אושר' || r.inst !== inst || !limRam_(r.role)) return { status: 'denied' };
+  var L = accLim_(dev, inst);
+  if (!L) return { status: 'ok', free: 1 };
+  if (!L.bad) return { status: 'ok', g: L.gr, c: L.kl };
+  g = String(g || '').replace(/\s+/g, ' ').trim().slice(0, 8);
+  c = String(c || '').replace(/\s+/g, ' ').trim().slice(0, 8);
+  if (!amdaNorm_(g) || !clsK_(c)) return { status: 'error', message: 'חסרות שכבה וכיתה' };
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(15000)) return { status: 'busy', message: 'עומס — נסו שוב' };
+  try {
+    var sh = sheet_(LIM_TAB_);
+    if (!sh.getLastRow()) headRow_(sh, LIM_COLS_);
+    upsertCols_(LIM_TAB_, [['מזהה', dev], ['קוד ישיבה', inst], ['שכבה', g], ['כיתה', c],
+                           ['מוגבל', 'כן'], ['עודכן', new Date()]], 'מזהה');
+    SpreadsheetApp.flush();
+  } finally { lock.releaseLock(); }
+  CacheService.getScriptCache().remove('limTab');
+  var back = accLim_(dev, inst);
+  if (!back || back.bad || back.g !== amdaNorm_(g) || back.c !== clsK_(c)) {
+    return { status: 'error', message: 'השמירה לא אומתה' };
+  }
+  return { status: 'ok', g: back.gr, c: back.kl, set: 1 };
+}
 /* השכבה והכיתה מההרשמה — השורה האחרונה של המכשיר ב"התראות" בישיבה הזו. */
 function limRegOf_(pv, pi, dev, inst) {
   for (var r = pv.length - 1; r >= 1; r--) {
@@ -8445,7 +8494,7 @@ function saySay_(e) {
       var gS = accGate_(inst, P.dev, !!P.k);
       if (gS) return reply_(e, gS);
       var sLim = accLim_(P.dev, inst);
-      if (sLim && sLim.bad) return reply_(e, { status:'denied', message: LIM_DENY_ });
+      if (sLim && sLim.bad) return reply_(e, limDeny_(sLim));
     } else {
       var want = getCode_(inst);
       if (!want || String(P.k || '') !== want) {

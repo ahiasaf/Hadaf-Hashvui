@@ -45,7 +45,7 @@ function sums(p) { return p.$$eval('.prs-sum b', function (x) { return x.map(fun
   ok(adm.status === 'ok' && adm.k && adm.list.length === 2, 'adm seeded', adm);
   ok(!W.pub.getSheetByName('חלוקת פרסים'), 'not public');
   var sh = tab(W);
-  ok(sh && sh.d[0].join('|') === ['שם', 'כיתה', 'מגיע', 'הגיע בפועל'].join('|'), 'header', sh && sh.d[0]);
+  ok(sh && sh.d[0].join('|') === 'שם|כיתה|מגיע|הגיע בפועל', 'header', sh && sh.d[0]);
   ok(G(W, { prs: 'list', k: 'bad' }).status === 'denied', 'bad key');
   // אחיאסף ממלא — אותו שם בכיתה אחרת
   sh.getRange(4, 1, 1, 4).setValues([['אלף בית', 'ט׳2', '', '']]);

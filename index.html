@@ -3201,7 +3201,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.602';
+var APP_VERSION = '8.99.603';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -4570,6 +4570,8 @@ function codeCheck(code) {
     .then(function (r) { return r.json(); })
     .then(function (d) {
       if (!d || !/^(denied|wait|locked|unknown)$/.test(d.status)) return;   /* תקין, או שלא נענה */
+      /* ר"ם בלי כיתה ידועה — הקוד תקין; בוחר כיתה באזור האישי. */
+      if (d.lim) { limNeed = true; return; }
       var m = Store.get('instCodes', {}) || {};
       delete m[code];
       Store.set('instCodes', m);
@@ -5301,6 +5303,13 @@ LOCK.init({
     ASK.post('רשום', null);
   },
   paint: function () { accRe(); },
+  /* הכיתה נשמרה — מה שנחסם נפתח מיד. */
+  onLim: function () {
+    limNeed = false; attMsg = '';
+    var f = limRetry; limRetry = null;
+    renderMy();
+    if (f) f();
+  },
   onWait: function (d) {
     accSt = 'wait'; accPh = d.phone !== false; accPhSent = false;
     Store.set('attR', null);
@@ -5318,6 +5327,9 @@ LOCK.init({
    הבחירה וההסברים ירדו; המעבר ל"התלמידים מסמנים" במתג שבראש העמדה.
    הרשימה נשמרת במכשיר רק כגיבוי לשיעור בלי רשת. */
 var attView = '', attMsg = '';
+/* ר"ם שהכיתה שלו לא ידועה (`lim` מהשרת) — בחירת כיתה בראש האזור (LOCK.limHtml).
+   `limRetry` — מה שנחסם, ורץ שוב אחרי השמירה. */
+var limNeed = false, limRetry = null;
 /* איש צוות אחראי על כל הישיבה — כל הכיתות של כל השכבות שיש לה ברשימה
    (8.99.433: ז׳–י״ב, כמו AMDA_GRADES; עד אז ז׳/ח׳ בלבד). */
 var ATT_GRADES = ['ז', 'ח', 'ט', 'י', 'יא', 'יב'];
@@ -5388,6 +5400,13 @@ function attOpen(mode) {
       /* האישור בוטל — גם הגיבוי במכשיר יורד, והעמדה שנפתחה ממנו נסגרת. */
       if (d && /^(locked|wait|unknown|denied)$/.test(d.status)) {
         Store.set(rk, null);
+        /* ר"ם שהכיתה שלו לא ידועה — בוחר אותה, והעמדה נפתחת מיד אחרי. */
+        if (d.lim && !view) {
+          limNeed = true; limRetry = function () { attOpen(mode); };
+          attMsg = '';
+          if (onHit()) amdaClose(true);
+          renderMy(); return;
+        }
         if (onHit()) { attMsg = d.message || PANEL.attFail; amdaClose(true); }
       }
       if (hit) return;
@@ -5729,6 +5748,8 @@ function renderMy() {
       : '<div class="my-top"><b>' + esc(PANEL.title) + '</b>' +
         nmHtml + '</div>') +
 
+    /* ר"ם בלי כיתה ידועה — קודם הכיתה. */
+    (stOk && limNeed && !viewing ? '<div class="my-sec bare">' + LOCK.limHtml() + '</div>' : '') +
     /* נוכחות בשיעור — ראשונה: זה מה שעושים בכל שיעור. רק אחרי האישור. */
     (stOk ? attHtml() : '') +
 
@@ -6416,6 +6437,9 @@ function saySend() {
         sayDraft = ''; sayErr = '';
         sayPaint();
         SayMsg(headT('saySent'));
+      } else if (d && d.lim && !view) {
+        /* ר"ם שהכיתה שלו לא ידועה — בחירת כיתה בראש האזור; הטיוטה נשארת. */
+        limNeed = true; renderMy();
       } else {
         sayErr = headT('sayErr') + ' ' + ((d && d.message) || '');
         sayPaint();
