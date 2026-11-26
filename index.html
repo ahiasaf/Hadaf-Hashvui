@@ -3201,7 +3201,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.614';
+var APP_VERSION = '8.99.615';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -18341,7 +18341,7 @@ function admTzm(body) {
   busAdmLoad();
 }
 /* צמאה — אוטובוסים (8.99.611): שלושת הקישורים, הקיבולת ומספר האוטובוסים, ומסך האוטובוסים (bus?w=adm). */
-var BUSA = { d: null, err: 0 };
+var BUSA = { d: null, err: 0, ed: {} };
 /* 8.99.612: הכרטיס תמיד מוצג — בטעינה, בכישלון (עם "נסה שוב") ובהצלחה. קודם כישלון הסתיר אותו בשקט. */
 function busAdmLoad() {
   var k = (CFG.readKey || '').trim();
@@ -18357,7 +18357,7 @@ function busAdmSave() {
   var k = (CFG.readKey || '').trim(), cap = document.getElementById('bus-cap'), cnt = document.getElementById('bus-cnt');
   if (!k || !cap || !cnt) return;
   scriptGet({ bus: 'cfg', w: 'adm', key: k, cap: cap.value, cnt: cnt.value }).then(function (d) {
-    if (d && d.status === 'ok' && BUSA.d) { BUSA.d.cap = d.cap; BUSA.d.cnt = d.cnt; tzmPaint(); }
+    if (d && d.status === 'ok' && BUSA.d) { BUSA.d.cap = d.cap; BUSA.d.cnt = d.cnt; BUSA.ed = {}; tzmPaint(); SayMsg(UI.busAdmSaved); }
     else SayMsg(UI.tzmAdmFail);
   }, function () { SayMsg(UI.tzmAdmFail); });
 }
@@ -18378,8 +18378,8 @@ function busAdmHtml() {
     '<a class="btn" style="display:block;text-align:center;text-decoration:none;padding:12px;margin-bottom:12px" href="/bus?w=adm" target="_blank" rel="noopener">' + esc(UI.busAdmOpen) + '</a>' +
     lk(UI.busAdmP, o + 'p&x=' + encodeURIComponent(d.p)) + lk(UI.busAdmA, o + 'a&x=' + encodeURIComponent(d.a)) + lk(UI.busAdmB, o + 'b&x=' + encodeURIComponent(d.b)) +
     '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:8px">' +
-    '<label style="flex:1;font-weight:700;font-size:.9rem">' + esc(UI.busAdmCap) + '<input id="bus-cap" type="number" min="1" max="199" value="' + d.cap + '" style="display:block;width:100%;box-sizing:border-box;padding:8px;border:1px solid #ddd;border-radius:8px"></label>' +
-    '<label style="flex:1;font-weight:700;font-size:.9rem">' + esc(UI.busAdmCnt) + '<input id="bus-cnt" type="number" min="1" max="39" value="' + d.cnt + '" style="display:block;width:100%;box-sizing:border-box;padding:8px;border:1px solid #ddd;border-radius:8px"></label>' +
+    '<label style="flex:1;font-weight:700;font-size:.9rem">' + esc(UI.busAdmCap) + '<input id="bus-cap" type="number" min="1" max="199" oninput="BUSA.ed.cap=this.value" value="' + esc(BUSA.ed.cap != null ? BUSA.ed.cap : d.cap) + '" style="display:block;width:100%;box-sizing:border-box;padding:8px;border:1px solid #ddd;border-radius:8px"></label>' +
+    '<label style="flex:1;font-weight:700;font-size:.9rem">' + esc(UI.busAdmCnt) + '<input id="bus-cnt" type="number" min="1" max="39" oninput="BUSA.ed.cnt=this.value" value="' + esc(BUSA.ed.cnt != null ? BUSA.ed.cnt : d.cnt) + '" style="display:block;width:100%;box-sizing:border-box;padding:8px;border:1px solid #ddd;border-radius:8px"></label>' +
     '<button class="btn" type="button" onclick="busAdmSave()">' + esc(UI.busAdmSave) + '</button></div>' +
     '<p class="h" style="margin:0">' + esc(UI.busAdmTabs) + '</p></div>';
 }

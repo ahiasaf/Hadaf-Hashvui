@@ -438,7 +438,7 @@ var SHEET_TAB = 'מוסדות';
    במטמון, ולכן היא נמשכת מהרשת מיד — גם תחת ה-Worker הישן.
 
    חייבת להיות זהה ל-APP_VERSION. `tools/preflight.py` בודק. */
-var DAF_REV = '8.99.614';
+var DAF_REV = '8.99.615';
 /* ============================================================
    עדכון קריטי — רק הוא מודיע למשתמש.
    ============================================================
@@ -2502,6 +2502,7 @@ var UI = {
   busAdmCap: 'מקומות באוטובוס',
   busAdmCnt: 'מספר אוטובוסים',
   busAdmSave: 'שמירה',
+  busAdmSaved: 'נשמר.',
   busAdmRetry: 'נסה שוב',
   busLastTag: 'עולה אחרון',
   busLastH: 'משבצים רק אם נשאר מקום באוטובוס',
@@ -8049,6 +8050,7 @@ var TEXT_FIELDS = [
   { k:'ui.busAdmCap', lbl:'ניהול צמאה — קיבולת אוטובוס' },
   { k:'ui.busAdmCnt', lbl:'ניהול צמאה — מספר אוטובוסים' },
   { k:'ui.busAdmSave', lbl:'ניהול צמאה — שמירת הגדרות האוטובוסים' },
+  { k:'ui.busAdmSaved', lbl:'ניהול צמאה — הגדרות האוטובוסים נשמרו' },
   { k:'ui.busAdmRetry', lbl:'ניהול צמאה — אוטובוסים: נסה שוב אחרי כישלון' },
   { k:'ui.busLastTag', lbl:'צמאה אוטובוסים — תווית לתלמיד שעולה רק אם נשאר מקום' },
   { k:'ui.busLastH', lbl:'צמאה אוטובוסים — כותרת הקבוצה "רק אם נשאר מקום"' },
@@ -11388,3 +11390,43 @@ var CONTENT = {
    "לא נכון" על כל שאלה. החידון היחיד הוא זה שבתוך הדף. בלי
    רשומה כאן — אין כפתור חידון בשבוע ואין כפתור בסוף הדף. */
 var QUIZ = {};
+
+/* ============================================================
+   שדה טקסט שנשאר בפוקוס גם כשהמסך מצטייר מחדש (8.99.615).
+   ============================================================
+   אחיאסף: "אני נכנס לתיבת טקסט, ופתאום זה מתאפס והסמן נעלם". הסיבה —
+   נתונים שמגיעים ברקע מציירים את המסך מחדש (innerHTML), והשדה שהוקלד בו
+   מוחלף בשדה חדש. כאן: כל שדה עם id שהיה בפוקוס והוחלף — השדה החדש באותו
+   id מקבל את הפוקוס, ואם הוקלד בו — גם את מה שהוקלד ואת מקום הסמן.
+   ============================================================ */
+(function () {
+  if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') return;
+  var F = null;
+  function ok(el) {
+    if (!el || !el.id || el.readOnly || el.disabled) return false;
+    var t = (el.tagName || '').toLowerCase();
+    if (t === 'textarea') return true;
+    if (t !== 'input') return false;
+    var ty = (el.type || 'text').toLowerCase();
+    return ['text', 'search', 'number', 'tel', 'email', 'url', 'password', ''].indexOf(ty) >= 0;
+  }
+  document.addEventListener('focusin', function (e) {
+    var el = e.target;
+    F = ok(el) ? { el: el, id: el.id, dirty: false } : null;
+  }, true);
+  document.addEventListener('input', function (e) { if (F && e.target === F.el) F.dirty = true; }, true);
+  var mo = new MutationObserver(function () {
+    if (!F || document.contains(F.el)) return;
+    var old = F.el, nu = document.getElementById(F.id);
+    if (!nu || !ok(nu) || (nu.tagName !== old.tagName)) { F = null; return; }
+    if (F.dirty) { try { nu.value = old.value; } catch (x) {} }
+    var s = null;
+    try { s = old.selectionStart; } catch (x) {}
+    F.el = nu;
+    try { nu.focus({ preventScroll: true }); } catch (x) { try { nu.focus(); } catch (y) {} }
+    if (s != null) { try { nu.setSelectionRange(s, s); } catch (x) {} }
+    else { try { var v = nu.value; nu.value = ''; nu.value = v; } catch (x) {} }  /* שדה מספר — הסמן לסוף */
+  });
+  function go() { try { mo.observe(document.body, { childList: true, subtree: true }); } catch (x) {} }
+  if (document.body) go(); else document.addEventListener('DOMContentLoaded', go);
+})();
