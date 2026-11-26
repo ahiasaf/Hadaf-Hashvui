@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="only light">
+<title>צמאה — אוטובוסים</title>
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#5E7A2A">
+<meta name="robots" content="noindex">
+<!-- ============================================================
+     צמאה — אוטובוסים (8.99.611). בריף אחיאסף, 26.11.
+     ============================================================
+     ?w=p&x=  — ר"מים: אישור הורים לתלמידי הכיתה (כן/לא).
+     ?w=a&x=  — מנהל האירוע: הגעה, העברה בין אוטובוסים, מקומות פנויים, חיפוש.
+     ?w=b&x=  — רבני אוטובוס: השם → רשימת האוטובוס, הגעה, איפוס לנסיעה חזרה (עם יומן ושחזור).
+     ?w=adm   — אחיאסף (הסיסמה מהמכשיר): כל מה שב-a, ואישור הורים שגובר.
+     הדגל "מאושר"/"אין אישור" ליד כל תלמיד — מתעדכן לבד (קריאה כל 4 שניות כשהעמוד גלוי).
+     השרת: busRoute_ ב-apps-script.gs. שום דבר לא "נשמר" בלי תשובת השרת.
+     ============================================================ -->
+<style>
+html,body{touch-action:manipulation;overflow-x:clip}
+:root{
+  --green:#9DBB5C; --green-d:#5E7A2A; --green-l:#EEF4E0; --ink:#2B2A22; --ink-2:#6B6A5C;
+  --paper:#F7F5EE; --card:#FFFFFE; --rule:#E3E0D2; --stop:#A5382D; --ok:#1E7A34; --warn:#B4570B;
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{background:var(--paper);color:var(--ink);line-height:1.5;padding-bottom:calc(env(safe-area-inset-bottom) + 40px)}
+.poster{max-width:34rem;margin:0 auto;padding:calc(env(safe-area-inset-top) + 12px) 16px 0}
+.poster img{display:block;width:100%;max-width:220px;height:auto;margin:0 auto;border-radius:16px;box-shadow:0 10px 26px rgba(0,0,0,.18)}
+.wrap{max-width:34rem;margin:0 auto;padding:0 16px}
+.hero{margin:8px 0 14px;padding:14px;border-radius:20px;background:var(--green);color:#fff;box-shadow:0 10px 26px rgba(94,122,42,.28)}
+.hero h2{font-size:1.3rem;font-weight:900;line-height:1.2}
+.hero p{font-size:.92rem;font-weight:600;margin-top:4px;opacity:.95}
+.hero p:empty{display:none}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:18px;padding:14px;margin-bottom:12px}
+.card h3{font-size:1.05rem;font-weight:800;margin-bottom:8px}
+.msg{text-align:center;font-size:1.05rem;font-weight:800;padding:24px 8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{border:1.5px solid var(--rule);border-radius:999px;background:#fff;color:var(--ink);font:inherit;font-weight:800;font-size:1rem;padding:8px 13px;cursor:pointer}
+.chips button.on{border-color:var(--green-d);background:var(--green-d);color:#fff}
+.chips button.ov{border-color:var(--stop)}
+.chips button.ov.on{background:var(--stop)}
+.chips button small{font-weight:700;font-size:.78rem;opacity:.85;margin-inline-start:4px}
+.srch{display:block;width:100%;border:1.5px solid var(--rule);border-radius:12px;background:#fff;padding:11px 13px;font:inherit;font-size:16px}
+.list{border:1px solid var(--rule);border-radius:14px;overflow:hidden;background:#fff}
+.row{padding:11px 12px;border-top:1px solid var(--rule)}
+.row:first-child{border-top:0}
+.row.h{background:var(--green-l)}
+.top{display:flex;align-items:center;gap:8px}
+.top .t{flex:1;min-width:0}
+.top .t b{display:block;font-weight:800;font-size:1.02rem}
+.top .t small{display:block;font-size:.78rem;color:var(--ink-2)}
+.fl{flex:none;display:inline-block;padding:4px 10px;border-radius:8px;font-weight:900;font-size:.9rem;color:#fff}
+.fl.y{background:var(--ok)}
+.fl.n{background:var(--stop)}
+.hb{flex:none;border:1.5px solid var(--green-d);border-radius:10px;background:#fff;color:var(--green-d);font:inherit;font-weight:900;font-size:.95rem;padding:8px 10px;cursor:pointer;min-width:96px}
+.hb.on{background:var(--green-d);color:#fff}
+.hb[disabled],.mv button[disabled],.ap button[disabled]{opacity:.6}
+.mv,.ap{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px;font-size:.82rem;font-weight:700;color:var(--ink-2)}
+.mv button,.ap button{border:1px solid var(--rule);border-radius:8px;background:#fff;color:var(--ink);font:inherit;font-weight:800;font-size:.9rem;padding:5px 10px;cursor:pointer}
+.mv button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.ap button.y.on{background:var(--ok);color:#fff;border-color:var(--ok)}
+.ap button.n.on{background:var(--stop);color:#fff;border-color:var(--stop)}
+.ap button.c.on{background:var(--ink-2);color:#fff;border-color:var(--ink-2)}
+.cnt{font-weight:900;font-size:1.05rem;margin-bottom:8px}
+.cnt.ov{color:var(--stop)}
+.say{font-weight:800;font-size:.92rem;margin:0 0 10px;color:var(--stop)}
+.say:empty{display:none}
+.say.ok{color:var(--green-d)}
+.lnk{border:0;background:none;color:var(--ink-2);font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;padding:4px 0}
+.far{margin-top:72px;padding-top:18px;border-top:2px dashed var(--rule)}
+.rst{display:block;width:100%;border:2px solid var(--warn);border-radius:14px;background:#FFF4E8;color:var(--warn);font:inherit;font-weight:900;font-size:1rem;padding:13px;cursor:pointer}
+.undo{display:block;width:100%;margin-top:10px;border:1px solid var(--rule);border-radius:12px;background:#fff;color:var(--ink);font:inherit;font-weight:800;padding:10px;cursor:pointer}
+.lastl{font-size:.82rem;font-weight:700;color:var(--ink-2);margin-top:8px;text-align:center}
+.mdl{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);padding:20px}
+.mdl.on{display:flex}
+.mdl .bx{background:#fff;border-radius:18px;padding:20px;max-width:24rem;width:100%}
+.mdl .bx p{font-weight:900;font-size:1.08rem;margin-bottom:12px}
+.mdl .bx label{display:block;font-weight:700;font-size:.9rem;color:var(--ink-2);margin-bottom:6px}
+.mdl .bx input{display:block;width:100%;border:1.5px solid var(--rule);border-radius:10px;padding:10px;font:inherit;font-size:16px;margin-bottom:14px}
+.mdl .bt{display:flex;gap:10px}
+.mdl .bt button{flex:1;border:0;border-radius:12px;font:inherit;font-weight:900;padding:12px;cursor:pointer}
+.mdl .no{background:#EEE;color:var(--ink)}
+.mdl .yes{background:var(--stop);color:#fff}
+.mdl .yes[disabled]{opacity:.35;cursor:default}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<!-- כמו עמוד הצמאה: הפוסטר של צמאה בראש (חריג לכלל הלוגו). -->
+<header class="poster"><img src="tzama-logo.jpg" alt="" width="600" height="656"></header>
+<main class="wrap">
+  <div class="hero"><h2 id="ttl"></h2><p id="sub"></p></div>
+  <div class="msg" id="msg"></div>
+  <div class="say" id="say"></div>
+  <div id="tools" hidden><input class="srch" id="q" type="search" autocomplete="off"><div style="height:10px"></div></div>
+  <div id="app"></div>
+</main>
+<div class="mdl" id="mdl"><div class="bx"><p id="mQ"></p><label id="mL" for="mI"></label><input id="mI" autocomplete="off">
+  <div class="bt"><button class="no" id="mNo" type="button"></button><button class="yes" id="mYes" type="button" disabled></button></div></div></div>
+<script src="data.js"></script>
+<script>
+function $(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+function tp(t, v) { return String(t || '').replace(/\{(\w+)\}/g, function (m, k) { return v[k] != null ? v[k] : m; }); }
+function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lset(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function jget(k) { try { return JSON.parse(ls(k) || 'null'); } catch (e) { return null; } }
+function take(map) {
+  for (var k in (map || {})) {
+    var p = k.split('.'), v = map[k];
+    if (p.length !== 2 || p[0] !== 'ui' || typeof v !== 'string' || !v) continue;
+    var old = (typeof TEXT_RETIRED !== 'undefined' && TEXT_RETIRED[k]) || [];
+    if ([].concat(old).indexOf(v) >= 0) continue;
+    UI[p[1]] = v;
+  }
+}
+try { take(jget('df:textCache')); take((jget('df:cfg') || {}).texts); } catch (e) {}
+
+var QS = {};
+location.search.replace(/^\?/, '').split('&').forEach(function (p) { if (p) { var i = p.indexOf('='); QS[decodeURIComponent(i < 0 ? p : p.slice(0, i))] = i < 0 ? '' : decodeURIComponent(p.slice(i + 1).replace(/\+/g, ' ')); } });
+var W = QS.w || '', X = QS.x || '';
+var KEY = W === 'adm' ? String((jget('df:cfg') || {}).readKey || '').trim() : '';
+var AUTH = W === 'adm' ? 'w=adm&key=' + encodeURIComponent(KEY) : 'w=' + encodeURIComponent(W) + '&x=' + encodeURIComponent(X);
+var FULL = W === 'a' || W === 'adm';
+
+function api() { return String(ls('dfApi') || (typeof APPS_SCRIPT_URL !== 'undefined' ? APPS_SCRIPT_URL : '') || '').trim(); }
+function viaOk() { return typeof APPS_SCRIPT_URL !== 'undefined' && api() === APPS_SCRIPT_URL; }
+function get(q) {
+  var u = api();
+  var j = function (r) { if (!r.ok) throw new Error('http'); return r.json(); };
+  return fetch(u + (u.indexOf('?') < 0 ? '?' : '&') + q + '&t=' + Date.now()).then(j)['catch'](function () {
+    if (!viaOk()) throw new Error('net');
+    return fetch('/api/gs?' + q + '&t=' + Date.now()).then(j);
+  });
+}
+var GRADES = ['ז', 'ח', 'ט', 'י', 'יא', 'יב'];
+function grD(g) { return g.length > 1 ? g.charAt(0) + '״' + g.charAt(1) : g + '׳'; }
+function clsD(g, c) { return g ? (g.length > 1 ? grD(g) + ' ' + c : grD(g) + c) : c; }
+function say(t, good) { $('say').textContent = t || ''; $('say').className = 'say' + (good ? ' ok' : ''); }
+
+/* S.d — תשובת השרת · PEND — שינויים שנשלחו ועוד לא נקראו בחזרה ('מפתח|שדה' → ערך). */
+var S = { d: null, tab: 1, g: '', c: '', me: null, log: null };
+var PEND = {};
+var ME_K = 'df:busMe:' + X, PC_K = 'df:busP:' + X;
+S.me = W === 'b' ? jget(ME_K) : null;
+(function () { var pc = W === 'p' ? jget(PC_K) : null; if (pc) { S.g = pc.g || ''; S.c = pc.c || ''; } })();
+
+/* שורה: [מפתח, סוג, שכבה, כיתה, שם, אוטובוס, הגיע, אישור, ניהול, אישור הר"ם] (ב-p: [מפתח, שכבה, כיתה, שם, אישור, ניהול, ר"ם]) */
+function people() {
+  var L = (S.d && S.d.p) || [];
+  return L.map(function (x) {
+    var o = W === 'p' ? { k: x[0], t: 's', g: x[1], c: x[2], n: x[3], b: 0, h: 0, ap: x[4], ov: x[5], rv: x[6] }
+      : { k: x[0], t: x[1], g: x[2], c: x[3], n: x[4], b: x[5], h: x[6], ap: x[7], ov: x[8], rv: x[9] };
+    if (PEND[o.k + '|h'] != null) o.h = PEND[o.k + '|h'];
+    if (PEND[o.k + '|b'] != null) o.b = PEND[o.k + '|b'];
+    if (PEND[o.k + '|ap'] != null) {
+      var v = PEND[o.k + '|ap'];
+      if (W === 'adm') { o.ov = v ? 1 : 0; o.ap = v || o.rv; } else { o.rv = v; if (!o.ov) o.ap = v; }
+    }
+    return o;
+  });
+}
+function byName(a, b) {
+  return (GRADES.indexOf(a.g) - GRADES.indexOf(b.g)) || ((+a.c || 99) - (+b.c || 99)) || String(a.n).localeCompare(String(b.n), 'he');
+}
+function flag(o) {
+  if (o.t !== 's') return '';
+  return o.ap === 'y' ? '<span class="fl y">' + esc(UI.busFlagY) + '</span>' : '<span class="fl n">' + esc(UI.busFlagN) + '</span>';
+}
+function sub(o) { return o.t === 's' ? clsD(o.g, o.c) : UI.busStaff + (o.c ? ' · ' + o.c : ''); }
+function hBtn(o) {
+  return '<button class="hb' + (o.h ? ' on' : '') + '" type="button" data-h="' + esc(o.k) + '">' + esc(o.h ? UI.busHereOn : UI.busMark) + '</button>';
+}
+function counts() {
+  var m = {}, P = people();
+  P.forEach(function (o) { if (o.b) m[o.b] = (m[o.b] || 0) + 1; });
+  return m;
+}
+
+/* ---------- ר"ם: אישור הורים ---------- */
+function paintP() {
+  var P = people(), C = {}, have = {};
+  P.forEach(function (o) { var k = o.g + '|' + o.c; (C[k] = C[k] || []).push(o); have[o.g] = 1; });
+  var gs = GRADES.filter(function (g) { return have[g]; });
+  if (!gs.length) { $('app').innerHTML = '<div class="msg">' + esc(UI.busEmpty) + '</div>'; return; }
+  var h = '<div class="card"><h3>' + esc(UI.busPickG) + '</h3><div class="chips">' + gs.map(function (g) {
+    return '<button type="button" data-g="' + esc(g) + '"' + (S.g === g ? ' class="on"' : '') + '>' + esc(grD(g)) + '</button>';
+  }).join('') + '</div>';
+  if (S.g) {
+    var cs = Object.keys(C).filter(function (k) { return k.split('|')[0] === S.g; }).map(function (k) { return k.split('|')[1]; })
+      .sort(function (a, b) { return (+a || 99) - (+b || 99); });
+    h += '<h3 style="margin-top:14px">' + esc(UI.busPickC) + '</h3><div class="chips">' + cs.map(function (c) {
+      return '<button type="button" data-c="' + esc(c) + '"' + (S.c === c ? ' class="on"' : '') + '>' + esc(clsD(S.g, c)) + '</button>';
+    }).join('') + '</div>';
+  }
+  h += '</div>';
+  var L = (C[S.g + '|' + S.c] || []).sort(byName);
+  if (L.length) {
+    var y = L.filter(function (o) { return o.ap === 'y'; }).length;
+    h += '<div class="card"><div class="cnt">' + esc(tp(UI.busPCount, { cls: clsD(S.g, S.c), y: y, t: L.length })) + '</div><div class="list">' +
+      L.map(function (o) {
+        return '<div class="row"><div class="top"><span class="t"><b>' + esc(o.n) + '</b></span>' + flag(o) + '</div>' +
+          '<div class="ap"><button type="button" class="y' + (o.rv === 'y' ? ' on' : '') + '" data-ap="' + esc(o.k) + '" data-v="y">' + esc(UI.busApY) + '</button>' +
+          '<button type="button" class="n' + (o.rv === 'n' ? ' on' : '') + '" data-ap="' + esc(o.k) + '" data-v="n">' + esc(UI.busApN) + '</button>' +
+          (o.ov ? '<span>' + esc(UI.busApAdmSet) + '</span>' : '') + '</div></div>';
+      }).join('') + '</div></div>';
+  }
+  $('app').innerHTML = h;
+}
+
+/* ---------- מנהל האירוע / ניהול ---------- */
+function rowFull(o, cnt) {
+  var h = '<div class="row' + (o.h ? ' h' : '') + '"><div class="top"><span class="t"><b>' + esc(o.n) + '</b><small>' + esc(sub(o)) + '</small></span>' +
+    flag(o) + hBtn(o) + '</div><div class="mv">' + esc(UI.busMove);
+  for (var b = 1; b <= cnt; b++) h += '<button type="button" data-mv="' + esc(o.k) + '" data-v="' + b + '"' + (o.b === b ? ' class="on"' : '') + '>' + b + '</button>';
+  h += '</div>';
+  if (W === 'adm' && o.t === 's') {
+    h += '<div class="ap">' + esc(UI.busApAdm) +
+      '<button type="button" class="y' + (o.ov && o.ap === 'y' ? ' on' : '') + '" data-ap="' + esc(o.k) + '" data-v="y">' + esc(UI.busApY) + '</button>' +
+      '<button type="button" class="n' + (o.ov && o.ap === 'n' ? ' on' : '') + '" data-ap="' + esc(o.k) + '" data-v="n">' + esc(UI.busApN) + '</button>' +
+      '<button type="button" class="c' + (!o.ov ? ' on' : '') + '" data-ap="' + esc(o.k) + '" data-v="">' + esc(UI.busApRav) + '</button></div>';
+  }
+  return h + '</div>';
+}
+function paintA() {
+  var P = people(), d = S.d, cap = d.cap, cnt = d.cnt, m = counts(), q = String($('q').value || '').replace(/\s+/g, ' ').trim();
+  var un = P.filter(function (o) { return !o.b; }).length;
+  var h = '<div class="card"><div class="chips">';
+  for (var b = 1; b <= cnt; b++) {
+    var n = m[b] || 0;
+    h += '<button type="button" data-tab="' + b + '" class="' + (S.tab === b ? 'on' : '') + (n > cap ? ' ov' : '') + '">' + esc(tp(UI.busTab, { b: b })) +
+      '<small>' + esc(tp(UI.busFree, { n: cap - n })) + '</small></button>';
+  }
+  h += '<button type="button" data-tab="0"' + (S.tab === 0 ? ' class="on"' : '') + '>' + esc(UI.busNone) + '<small>' + un + '</small></button></div></div>';
+  var L;
+  if (q) L = P.filter(function (o) { return String(o.n).indexOf(q) >= 0; });
+  else L = P.filter(function (o) { return o.b === S.tab; });
+  L.sort(function (a, b) { return (a.t === b.t ? 0 : a.t === 'r' ? -1 : 1) || byName(a, b); });
+  if (!q && S.tab) {
+    var bs = d.buses[S.tab - 1] || {}, nb = m[S.tab] || 0, hh = L.filter(function (o) { return o.h; }).length;
+    h += '<div class="cnt' + (nb > cap ? ' ov' : '') + '">' + esc(tp(UI.busBusLine, { b: S.tab, n: nb, cap: cap })) +
+      (nb > cap ? ' · ' + esc(tp(UI.busOver, { n: nb - cap })) : '') + '</div>' +
+      '<div class="cnt" style="font-size:.92rem;font-weight:800;color:var(--ink-2)">' + esc(tp(UI.busCount, { h: hh, t: L.length })) +
+      (bs.m ? ' · ' + esc(tp(UI.busMgr, { n: bs.m })) : '') + '</div>';
+  }
+  h += L.length ? '<div class="list">' + L.map(function (o) { return rowFull(o, cnt); }).join('') + '</div>' : '<div class="msg">' + esc(UI.busEmpty) + '</div>';
+  if (!q && S.tab) h += farHtml(S.tab);
+  $('app').innerHTML = h;
+}
+
+/* ---------- רבני אוטובוס ---------- */
+function staffNames() {
+  var out = [];
+  ((S.d && S.d.buses) || []).forEach(function (o) {
+    [o.m].concat(o.r || []).forEach(function (n) { if (n) out.push({ n: n, b: o.b }); });
+  });
+  return out;
+}
+function paintB() {
+  if (!S.me) {
+    var N = staffNames();
+    $('app').innerHTML = N.length ? '<div class="card"><h3>' + esc(UI.busPickName) + '</h3><div class="list">' + N.map(function (o, i) {
+      return '<div class="row" data-me="' + i + '" style="cursor:pointer"><div class="top"><span class="t"><b>' + esc(o.n) + '</b><small>' +
+        esc(tp(UI.busTab, { b: o.b })) + '</small></span></div></div>';
+    }).join('') + '</div></div>' : '<div class="msg">' + esc(UI.busNoNames) + '</div>';
+    return;
+  }
+  var b = S.me.b, L = people().filter(function (o) { return o.b === b; });
+  L.sort(function (a, c) { return (a.t === c.t ? 0 : a.t === 'r' ? -1 : 1) || byName(a, c); });
+  var hh = L.filter(function (o) { return o.h; }).length;
+  var h = '<div class="card"><div class="top"><span class="t"><b>' + esc(tp(UI.busTab, { b: b }) + ' · ' + S.me.n) + '</b></span>' +
+    '<button class="lnk" type="button" data-chg="1">' + esc(UI.busChgName) + '</button></div>' +
+    '<div class="cnt" style="margin:6px 0 0">' + esc(tp(UI.busCount, { h: hh, t: L.length })) + '</div></div>';
+  h += L.length ? '<div class="list">' + L.map(function (o) {
+    return '<div class="row' + (o.h ? ' h' : '') + '"><div class="top"><span class="t"><b>' + esc(o.n) + '</b><small>' + esc(sub(o)) + '</small></span>' +
+      flag(o) + hBtn(o) + '</div></div>';
+  }).join('') + '</div>' : '<div class="msg">' + esc(UI.busEmpty) + '</div>';
+  h += farHtml(b);
+  $('app').innerHTML = h;
+}
+/* האיפוס — רחוק מכפתורי הסימון, בצבע אחר, וחלון אישור עם הקלדה. */
+function farHtml(b) {
+  var lg = S.log && S.log.b === b ? S.log.l : null, h = '<div class="far"><button class="rst" type="button" data-rst="' + b + '">' + esc(UI.busReset) + '</button>';
+  if (lg && lg.length) {
+    var x = lg[0];
+    h += '<div class="lastl">' + esc(tp(UI.busLast, { t: String(x[0]).slice(5, 16), by: x[1], n: x[2] })) + '</div>';
+    if (!x[3]) h += '<button class="undo" type="button" data-undo="' + b + '">' + esc(UI.busUndo) + '</button>';
+  }
+  return h + '</div>';
+}
+function logLoad(b) {
+  if (W === 'p' || !b) return;
+  get('bus=log&' + AUTH + '&bn=' + b).then(function (d) {
+    if (d && d.status === 'ok') { S.log = { b: b, l: d.log || [] }; paint(); }
+  }, function () {});
+}
+
+function paint() {
+  if (!S.d) return;
+  $('msg').hidden = true;
+  if (W === 'p') paintP(); else if (W === 'b') paintB(); else paintA();
+}
+
+/* ---------- כתיבה ---------- */
+function setF(k, f, v, extra) {
+  PEND[k + '|' + f] = f === 'b' ? +v || 0 : f === 'h' ? (v === '1' ? 1 : 0) : v;
+  say('');
+  paint();
+  var q = 'bus=set&' + AUTH + '&k=' + encodeURIComponent(k) + '&f=' + f + '&v=' + encodeURIComponent(v) + (extra || '');
+  get(q).then(function (d) {
+    if (!d || d.status !== 'ok') throw new Error('bad');
+    return load(true);
+  })['catch'](function () { say(UI.busFail); })
+    .then(function () { delete PEND[k + '|' + f]; paint(); });
+}
+$('app').addEventListener('click', function (ev) {
+  var t = ev.target.closest ? ev.target.closest('button,[data-me]') : ev.target;
+  if (!t) return;
+  var a;
+  if ((a = t.getAttribute('data-g')) != null) { S.g = a; S.c = ''; paint(); return; }
+  if ((a = t.getAttribute('data-c')) != null) { S.c = a; lset(PC_K, JSON.stringify({ g: S.g, c: S.c })); paint(); return; }
+  if ((a = t.getAttribute('data-tab')) != null) { S.tab = +a; $('q').value = ''; paint(); logLoad(S.tab); return; }
+  if ((a = t.getAttribute('data-me')) != null) {
+    var o = staffNames()[+a];
+    if (o) { S.me = o; lset(ME_K, JSON.stringify(o)); load(); logLoad(o.b); }
+    return;
+  }
+  if (t.getAttribute('data-chg')) { S.me = null; lset(ME_K, 'null'); load(); return; }
+  if ((a = t.getAttribute('data-h')) != null) {
+    var cur = people().filter(function (x) { return x.k === a; })[0];
+    if (cur) setF(a, 'h', cur.h ? '0' : '1', W === 'b' ? '&bn=' + S.me.b : '');
+    return;
+  }
+  if ((a = t.getAttribute('data-mv')) != null) {
+    var v = t.getAttribute('data-v'), o2 = people().filter(function (x) { return x.k === a; })[0];
+    if (!o2 || String(o2.b) === v) return;
+    var nb = (counts()[+v] || 0) + 1;
+    setF(a, 'b', v);
+    if (nb > S.d.cap) say(tp(UI.busOverMove, { b: v, n: nb, cap: S.d.cap }));
+    return;
+  }
+  if ((a = t.getAttribute('data-ap')) != null) {
+    var v2 = t.getAttribute('data-v');
+    setF(a, 'ap', v2, W === 'p' ? '&by=' + encodeURIComponent(tp(UI.busApBy, { cls: clsD(S.g, S.c) })) : '');
+    return;
+  }
+  if ((a = t.getAttribute('data-rst')) != null) { mOpen(+a); return; }
+  if ((a = t.getAttribute('data-undo')) != null) {
+    t.disabled = true;
+    get('bus=undo&' + AUTH + '&bn=' + a + '&by=' + encodeURIComponent(S.me ? S.me.n : '')).then(function (d) {
+      if (d && d.status === 'ok') say(tp(UI.busUndoOk, { n: d.n }), true);
+      else if (d && d.status === 'none') say(UI.busUndoNone);
+      else say(UI.busFail);
+      load(true); logLoad(+a);
+    }, function () { say(UI.busFail); t.disabled = false; });
+  }
+});
+/* חלון האיפוס — בתוך העמוד (לא confirm). "כן, אפס" נפתח רק אחרי הקלדת המילה. */
+var MB = 0;
+function mOpen(b) {
+  MB = b;
+  $('mQ').textContent = tp(UI.busResetQ, { b: b });
+  $('mL').textContent = tp(UI.busResetType, { w: UI.busResetWord });
+  $('mI').value = ''; $('mYes').disabled = true;
+  $('mNo').textContent = UI.busResetNo; $('mYes').textContent = UI.busResetYes;
+  $('mdl').className = 'mdl on';
+  try { $('mI').focus(); } catch (e) {}
+}
+function mClose() { $('mdl').className = 'mdl'; MB = 0; }
+$('mI').addEventListener('input', function () { $('mYes').disabled = this.value.replace(/\s+/g, '') !== UI.busResetWord.replace(/\s+/g, ''); });
+$('mNo').onclick = mClose;
+$('mdl').addEventListener('click', function (ev) { if (ev.target === this) mClose(); });
+$('mYes').onclick = function () {
+  if (this.disabled || !MB) return;
+  var b = MB;
+  this.disabled = true;
+  get('bus=rst&' + AUTH + '&bn=' + b + '&by=' + encodeURIComponent(S.me ? S.me.n : '')).then(function (d) {
+    mClose();
+    if (d && d.status === 'ok') say(tp(UI.busResetOk, { b: b, n: d.n }), true); else say(UI.busFail);
+    load(true); logLoad(b);
+  }, function () { mClose(); say(UI.busFail); });
+};
+$('q').addEventListener('input', paint);
+
+/* ---------- טעינה וחיות ---------- */
+var BUSY = false;
+function load(force) {
+  if (BUSY && !force) return Promise.resolve();
+  BUSY = true;
+  var q = 'bus=st&' + AUTH + (W === 'b' && S.me ? '&bn=' + S.me.b : '');
+  return get(q).then(function (d) {
+    BUSY = false;
+    if (d && d.status === 'denied') { $('msg').textContent = UI.busDenied; $('msg').hidden = false; $('app').innerHTML = ''; STOP = 1; return; }
+    if (!d || d.status !== 'ok') throw new Error('bad');
+    S.d = d;
+    paint();
+  }, function () {
+    BUSY = false;
+    if (!S.d) { $('msg').textContent = UI.busErr; $('msg').hidden = false; }
+  });
+}
+var STOP = 0;
+setInterval(function () {
+  if (STOP || document.hidden) return;
+  for (var k in PEND) return;
+  if ($('mdl').className.indexOf('on') >= 0) return;
+  load();
+}, 4000);
+document.addEventListener('visibilitychange', function () { if (!document.hidden && !STOP) load(); });
+
+$('ttl').textContent = W === 'p' ? UI.busTtlP : W === 'a' ? UI.busTtlA : W === 'b' ? UI.busTtlB : UI.busTtlAdm;
+$('sub').textContent = W === 'p' ? UI.busSubP : W === 'b' ? UI.busSubB : UI.busSubA;
+$('q').placeholder = UI.busSearch;
+$('tools').hidden = !FULL;
+if ((W !== 'p' && W !== 'a' && W !== 'b' && W !== 'adm') || (W === 'adm' ? !KEY : !X)) { $('msg').textContent = UI.busDenied; STOP = 1; }
+else { $('msg').textContent = UI.busLoad; load(); if (FULL) logLoad(S.tab); if (W === 'b' && S.me) logLoad(S.me.b); }
+</script>
+</body>
+</html>

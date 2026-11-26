@@ -3201,7 +3201,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.610';
+var APP_VERSION = '8.99.611';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -18338,6 +18338,43 @@ function admTzm(body) {
   body.innerHTML = '<div id="tzm"></div>';
   tzmPaint();
   tzmLoad();
+  busAdmLoad();
+}
+/* צמאה — אוטובוסים (8.99.611): שלושת הקישורים, הקיבולת ומספר האוטובוסים, ומסך האוטובוסים (bus?w=adm). */
+var BUSA = { d: null };
+function busAdmLoad() {
+  var k = (CFG.readKey || '').trim();
+  if (!k) return;
+  scriptGet({ bus: 'adm', w: 'adm', key: k }).then(function (d) {
+    if (d && d.status === 'ok') { BUSA.d = d; tzmPaint(); }
+  }, function () {});
+}
+function busAdmSave() {
+  var k = (CFG.readKey || '').trim(), cap = document.getElementById('bus-cap'), cnt = document.getElementById('bus-cnt');
+  if (!k || !cap || !cnt) return;
+  scriptGet({ bus: 'cfg', w: 'adm', key: k, cap: cap.value, cnt: cnt.value }).then(function (d) {
+    if (d && d.status === 'ok' && BUSA.d) { BUSA.d.cap = d.cap; BUSA.d.cnt = d.cnt; tzmPaint(); }
+    else SayMsg(UI.tzmAdmFail);
+  }, function () { SayMsg(UI.tzmAdmFail); });
+}
+function busAdmHtml() {
+  var d = BUSA.d;
+  if (!d) return '';
+  var lk = function (lbl, u) {
+    return '<p class="h"><b>' + esc(lbl) + '</b></p><div style="margin-bottom:12px">' +
+      '<input readonly dir="ltr" style="display:block;width:100%;box-sizing:border-box;padding:8px;margin-bottom:6px;border:1px solid #ddd;border-radius:8px" value="' + esc(u) + '" onfocus="this.select()">' +
+      '<button class="btn g" type="button" onclick="copyText(\'' + esc(u) + '\', UI.tzmAdmCopied)">' + esc(UI.tzmAdmCopy) + '</button></div>';
+  };
+  var o = location.origin + '/bus?w=';
+  return '<div style="margin-bottom:16px;padding:12px;border-radius:14px;background:#EEF2F8">' +
+    '<p class="h" style="margin:0 0 10px"><b style="font-size:1.1rem">' + esc(UI.busAdmH) + '</b></p>' +
+    '<a class="btn" style="display:block;text-align:center;text-decoration:none;padding:12px;margin-bottom:12px" href="/bus?w=adm" target="_blank" rel="noopener">' + esc(UI.busAdmOpen) + '</a>' +
+    lk(UI.busAdmP, o + 'p&x=' + encodeURIComponent(d.p)) + lk(UI.busAdmA, o + 'a&x=' + encodeURIComponent(d.a)) + lk(UI.busAdmB, o + 'b&x=' + encodeURIComponent(d.b)) +
+    '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:8px">' +
+    '<label style="flex:1;font-weight:700;font-size:.9rem">' + esc(UI.busAdmCap) + '<input id="bus-cap" type="number" min="1" max="199" value="' + d.cap + '" style="display:block;width:100%;box-sizing:border-box;padding:8px;border:1px solid #ddd;border-radius:8px"></label>' +
+    '<label style="flex:1;font-weight:700;font-size:.9rem">' + esc(UI.busAdmCnt) + '<input id="bus-cnt" type="number" min="1" max="39" value="' + d.cnt + '" style="display:block;width:100%;box-sizing:border-box;padding:8px;border:1px solid #ddd;border-radius:8px"></label>' +
+    '<button class="btn" type="button" onclick="busAdmSave()">' + esc(UI.busAdmSave) + '</button></div>' +
+    '<p class="h" style="margin:0">' + esc(UI.busAdmTabs) + '</p></div>';
 }
 function tzmLoad() {
   var k = (CFG.readKey || '').trim();
@@ -18507,6 +18544,7 @@ function tzmPaint() {
     esc(left < 0 ? fill(UI.tzmAdmOver, { n: -left }) : fill(UI.tzmAdmLeft, { n: left })) + '</div>' +
     '<div style="font-weight:700;color:#555;margin-top:4px">' + esc(fill(UI.tzmAdmLeftOf, { t: TZM_CAP, n: nReg })) + '</div></div>';
   h += '<div style="margin-bottom:14px"><button class="btn" type="button" style="width:100%;padding:12px" onclick="tzmAllGo()">' + esc(UI.tzmAllBtn) + '</button></div>';
+  h += busAdmHtml();
   h += tzmRamsHtml(d);
   var url = location.origin + '/tzama?k=' + encodeURIComponent(d.k || '');
   h += '<p class="h"><b>' + esc(UI.tzmAdmLink) + '</b></p><div style="margin-bottom:14px">' +

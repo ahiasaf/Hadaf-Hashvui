@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 284;
+var SCRIPT_VERSION = 285;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -172,7 +172,7 @@ var PRIVATE_TABS = ['שיעור חי', 'תמונת בית א', 'תמונת בי�
                     /* רישום לאירוע צמאה — שמות התלמידים שנרשמו. ראו tzmPut_. */
                     'צמאה — רישום',
                     /* צמאה — הר"מים (שם · כיתה), אחיאסף ממלא. ראו tzmRams_. */
-                    'צמאה — ר"מים',
+                    'צמאה — ר"מים', 'צמאה — אוטובוסים', 'צמאה — שיבוץ', 'צמאה — איפוס',
                     /* חלוקת פרסים — מי מגיע ומי הגיע (prasim.html). ראו prsRoute_. */
                     'חלוקת פרסים',
                     /* בקשות למחיקת חשבון (mechika.html) — שם וטלפון. ראו mkPut_. */
@@ -374,7 +374,7 @@ var TM_KEYS_ = ['file', 'help', 'setup', 'fire', 'helpdone', 'conflictdone', 'sa
   'parstat', 'ltime', 'amdaneed', 'test', 'sayCount', 'inbox', 'mark', 'funnel', 'trails', 'arrived', 'push',
   'pairHist', 'pair', 'pairok', 'pairSeen', 'pairFor', 'idFor', 'amdaFor', 'whoIs', 'wid', 'acc', 'accset',
   'netbaks', 'netrun', 'netmarks', 'board', 'ov', 'team', 'recount', 'delrow', 'contactSave', 'archived',
-  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid', 'hasaa', 'hlpq', 'acclim', 'chn', 'tzm', 'prs', 'mechika', 'limme', 'live'];
+  'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid', 'hasaa', 'hlpq', 'acclim', 'chn', 'tzm', 'bus', 'prs', 'mechika', 'limme', 'live'];
 /* שם הבקשה — המפתח הראשון ברשימה שקיים, ועם ערכו רק כשהוא מילה קצרה
    באנגלית (op של האתגר/ההגרלה). מזהה או מספר לעולם אינו נכנס. */
 function tmName_(e, post) {
@@ -1142,6 +1142,11 @@ function doGetMain_(e) {
   if (e && e.parameter && e.parameter.lapid) return reply_(e, lapidGet_());
   /* הצהרת התלמיד — רק "נשמר / לא נשמר" לפי sid, בלי שום תוכן. ראו hasaaCheck_. */
   /* הזמנת חוברות חנוכה — ראו chnRoute_. */
+  /* צמאה — אוטובוסים — ראו busRoute_. */
+  if (e && e.parameter && e.parameter.bus) {
+    try { return reply_(e, busRoute_(e.parameter)); }
+    catch (eBu) { return reply_(e, { status: 'error' }); }
+  }
   /* רישום לאירוע צמאה — ראו tzmRoute_. */
   if (e && e.parameter && e.parameter.tzm) {
     try { return reply_(e, tzmRoute_(e.parameter)); }
@@ -5756,7 +5761,7 @@ function netRunPend_(run) {
 /* doGet: מה קרה לפעולה. `seal` — פעולה שעוד לא הגיעה לא תתבצע
    לעולם (נרשמת כמבוטלת), כך שלמכשיר יש תשובה ודאית. */
 function netRunGet_(run, seal) {
-  var lk = LockService.getScriptLock();
+  var lk = busLock_();
   if (!lk.tryLock(15000)) return { status: 'busy' };
   try {
     var healed = netHeal_();
@@ -5771,7 +5776,7 @@ function netRunGet_(run, seal) {
 }
 /* doGet: הגיבויים, החתימה הנוכחית (בסיס לשחזור), ומצב היומן. */
 function netBaksGet_() {
-  var lk = LockService.getScriptLock();
+  var lk = busLock_();
   if (!lk.tryLock(15000)) return { status: 'busy' };
   try {
     var healed = netHeal_();
@@ -21161,6 +21166,269 @@ function tzmRoute_(P) {
     return { status: 'ok', on: tzmOn_() };
   }
   if (op === 'push') return tzmPush_(String(P.go) === '1');
+  return { status: 'error' };
+}
+
+/* ============================================================
+   צמאה — אוטובוסים (8.99.611 · SCRIPT_VERSION 285). בריף אחיאסף, 26.11.
+   ============================================================
+   תשתית בלבד — אין שיבוץ אוטומטי. אחיאסף משבץ בניהול (או בלשונית "צמאה — שיבוץ",
+   עמודת "אוטובוס"). אין נתוני תלמידים בקוד.
+   · "צמאה — אוטובוסים" (פרטית): אוטובוס · מנהל · רבנים נוספים (מופרדים בפסיק). אחיאסף ממלא.
+   · "צמאה — שיבוץ" (פרטית): שורה לאדם — כל תלמיד רשום (tzmReg_), כל ר"ם שסימן "מגיע",
+     וכל מי שבלשונית האוטובוסים (משובץ לאוטובוס שלו). השורות נוספות לבד (busSync_).
+   · "צמאה — איפוס" (פרטית): כל איפוס לנסיעה חזרה — מתי · מי · אוטובוס · מי היה מסומן.
+   · קיבולת (BUS_CAP, ברירת מחדל 50) ומספר אוטובוסים (BUS_CNT, 6) — מאפיינים. חריגה = אזהרה בלבד.
+   · אישור הורים: הר"ם (קישור p) → "אישור הורים"; אחיאסף → "אישור ניהול", וגובר.
+     השיבוץ אינו תלוי באישור. בעלייה — רק הדגל.
+   · קישורים: ?bus=st&w=<p|a|b>&x=<מפתח> — p אישור הורים · a מנהל האירוע · b רבני אוטובוס.
+     w=adm&key=READ_KEY — אחיאסף. שמות פרמטרים: לא c/sid/rt (שמורים בגוגל).
+   ============================================================ */
+var BUS_TAB_ = 'צמאה — אוטובוסים';
+var BUS_COLS_ = ['אוטובוס', 'מנהל', 'רבנים נוספים'];
+var BUS_ST_TAB_ = 'צמאה — שיבוץ';
+var BUS_ST_COLS_ = ['מפתח', 'סוג', 'שכבה', 'כיתה'].concat(['שם'], ['אוטובוס', 'הגיע', 'אישור הורים', 'אישר', 'אישור ניהול', 'עודכן']);
+var BUS_LOG_TAB_ = 'צמאה — איפוס';
+var BUS_LOG_COLS_ = ['מתי', 'מי', 'אוטובוס', 'מסומנים', 'מספר', 'שוחזר'];
+/* נעילה משלה — לא של הסקריפט (שתפוסה בשמירות הלימוד בשעות העומס). ראו ov_. */
+function busLock_() { return LockService.getDocumentLock() || LockService.getUserLock(); }
+function busP_() { return PropertiesService.getScriptProperties(); }
+function busCap_() { var v = +busP_().getProperty('BUS_CAP'); return v > 0 ? v : 50; }
+function busCnt_() { var v = +busP_().getProperty('BUS_CNT'); return v > 0 && v < 40 ? v : 6; }
+function busKeyOf_(w, make) {
+  var name = 'BUS_KEY_' + w.toUpperCase(), P = busP_(), k = P.getProperty(name) || '';
+  if (!k && make) { k = Utilities.getUuid().replace(/-/g, '').slice(0, 20); P.setProperty(name, k); }
+  return k;
+}
+function busRole_(P) {
+  var w = String(P.w || '');
+  if (w === 'adm') return READ_KEY && String(P.key || '') === READ_KEY ? 'adm' : '';
+  if (w !== 'p' && w !== 'a' && w !== 'b') return '';
+  var k = busKeyOf_(w, false);
+  return k && String(P.x || '') === k ? w : '';
+}
+function busHead_(tab, cols) {
+  var sh = sheet_(tab);
+  if (sh.getMaxColumns() < cols.length) sh.insertColumnsAfter(sh.getMaxColumns(), cols.length - sh.getMaxColumns());
+  if (sh.getLastRow() < 1) {
+    sh.getRange(1, 1, 1, cols.length).setValues([cols]);
+    try { sh.setFrozenRows(1); } catch (x) {}
+  }
+  return sh;
+}
+function busRead_(sh, cols) {
+  var n = sh.getLastRow(), out = [];
+  if (n < 2) return out;
+  var v = sh.getRange(2, 1, n - 1, cols.length).getDisplayValues();
+  for (var i = 0; i < v.length; i++) {
+    var o = { r: i + 2 };
+    for (var j = 0; j < cols.length; j++) o[cols[j]] = String(v[i][j] || '').trim();
+    out.push(o);
+  }
+  return out;
+}
+function busNames_(s) { return String(s || '').split(/[,،\n]/).map(tzmNm_).filter(function (x) { return x; }); }
+/* האוטובוסים: 1…BUS_CNT, עם המנהל והרבנים מהלשונית. הלשונית נזרעת במספרים אם ריקה. */
+function busBuses_() {
+  var sh = busHead_(BUS_TAB_, BUS_COLS_), cnt = busCnt_(), L = busRead_(sh, BUS_COLS_), at = {}, out = [];
+  if (!L.length) {
+    var seed = [];
+    for (var i = 1; i <= cnt; i++) seed.push([i, '', '']);
+    sh.getRange(2, 1, seed.length, 3).setValues(seed);
+  }
+  L.forEach(function (o) { var b = +o['אוטובוס']; if (b > 0) at[b] = o; });
+  for (var b = 1; b <= cnt; b++) {
+    var o = at[b] || {};
+    out.push({ b: b, m: tzmNm_(o['מנהל']), r: busNames_(o['רבנים נוספים']) });
+  }
+  return out;
+}
+/* מי בשיבוץ: תלמידים רשומים · ר"מים שמגיעים · צוות האוטובוסים. מוסיף שורות חסרות (תחת נעילה). */
+function busWant_(B) {
+  var W = [], seen = {};
+  tzmReg_().forEach(function (x) {
+    var k = 's|' + x[0] + '|' + x[1] + '|' + x[2];
+    if (seen[k]) return;
+    seen[k] = 1; W.push({ k: k, t: 'תלמיד', g: x[0], c: x[1], n: x[2], b: '' });
+  });
+  B.forEach(function (o) {
+    [o.m].concat(o.r).forEach(function (n) {
+      if (!n) return;
+      var k = 'r|' + n;
+      if (seen[k]) return;
+      seen[k] = 1; W.push({ k: k, t: 'צוות', g: '', c: '', n: n, b: String(o.b) });
+    });
+  });
+  tzmRams_(true).forEach(function (x) {
+    if (x.a !== 'y') return;
+    var k = 'r|' + x.n;
+    if (seen[k]) return;
+    seen[k] = 1; W.push({ k: k, t: 'צוות', g: '', c: x.c, n: x.n, b: '' });
+  });
+  return W;
+}
+function busSync_() {
+  var B = busBuses_(), W = busWant_(B), sh = busHead_(BUS_ST_TAB_, BUS_ST_COLS_), rows = busRead_(sh, BUS_ST_COLS_), at = {};
+  rows.forEach(function (o) { at[o['מפתח']] = o; });
+  var add = W.filter(function (x) { return !at[x.k]; }), lk = null;
+  if (add.length) {
+    lk = busLock_();
+    if (!lk.tryLock(8000)) lk = null;
+    else {
+      rows = busRead_(sh, BUS_ST_COLS_); at = {};
+      rows.forEach(function (o) { at[o['מפתח']] = o; });
+      add = W.filter(function (x) { return !at[x.k]; });
+    }
+  }
+  if (lk && add.length) {
+    var now = chnNow_();
+    sh.getRange(sh.getLastRow() + 1, 1, add.length, BUS_ST_COLS_.length).setValues(add.map(function (x) {
+      return [x.k, x.t, x.g, x.c, x.n, x.b, '', '', '', '', now];
+    }));
+    try { sh.getRange(2, 3, sh.getLastRow() - 1, 2).setNumberFormat('@'); } catch (e2) {}
+    SpreadsheetApp.flush();
+    rows = busRead_(sh, BUS_ST_COLS_);
+  }
+  if (lk) lk.releaseLock();
+  var on = {};
+  W.forEach(function (x) { on[x.k] = 1; });
+  return { B: B, rows: rows.filter(function (o) { return on[o['מפתח']]; }), sh: sh };
+}
+function busAp_(o) {
+  var a = o['אישור ניהול'] || o['אישור הורים'];
+  return a === 'כן' ? 'y' : a === 'לא' ? 'n' : '';
+}
+/* המצב לכל הקישורים — במטמון לעשר שניות; כל כתיבה מנקה. */
+function busState_() {
+  var rc = CacheService.getScriptCache();
+  try { var hit = rc.get('bus:st'); if (hit) return JSON.parse(hit); } catch (x) {}
+  var S = busSync_();
+  var out = { cap: busCap_(), cnt: busCnt_(), buses: S.B, p: S.rows.map(function (o) {
+    return [o['מפתח'], o['סוג'] === 'צוות' ? 'r' : 's', o['שכבה'], o['כיתה'], o['שם'], +o['אוטובוס'] || 0, o['הגיע'] ? 1 : 0, busAp_(o),
+      o['אישור ניהול'] ? 1 : 0, o['אישור הורים'] === 'כן' ? 'y' : o['אישור הורים'] === 'לא' ? 'n' : ''];
+  }) };
+  try { rc.put('bus:st', JSON.stringify(out), 10); } catch (x) {}
+  return out;
+}
+function busBust_() { try { CacheService.getScriptCache().remove('bus:st'); } catch (x) {} }
+function busView_(role, P) {
+  var S = busState_();
+  if (!S) return { status: 'busy' };
+  if (role === 'p') return { status: 'ok', p: S.p.filter(function (x) { return x[1] === 's'; }).map(function (x) { return [x[0], x[2], x[3], x[4], x[7], x[8], x[9]]; }) };
+  var p = S.p;
+  if (role === 'b' && +P.bn > 0) p = p.filter(function (x) { return x[5] === +P.bn; });
+  return { status: 'ok', cap: S.cap, cnt: S.cnt, buses: S.buses, p: p };
+}
+/* כתיבה לשורה אחת לפי מפתח, וקריאה חוזרת. */
+function busSet_(role, P) {
+  var f = String(P.f || ''), v = String(P.v == null ? '' : P.v), key = String(P.k || '');
+  var ok = { h: { a: 1, b: 1, adm: 1 }, ap: { p: 1, adm: 1 }, b: { a: 1, adm: 1 } }[f];
+  if (!ok || !ok[role] || !key) return { status: 'denied' };
+  var lk = busLock_();
+  if (!lk.tryLock(10000)) return { status: 'busy' };
+  try {
+    var sh = busHead_(BUS_ST_TAB_, BUS_ST_COLS_), rows = busRead_(sh, BUS_ST_COLS_), o = null;
+    for (var i = 0; i < rows.length; i++) if (rows[i]['מפתח'] === key) { o = rows[i]; break; }
+    if (!o) return { status: 'none' };
+    var col, val, now = chnNow_();
+    if (f === 'h') {
+      if (role === 'b' && +o['אוטובוס'] !== +P.bn) return { status: 'denied' };
+      col = 'הגיע'; val = v === '1' ? now : '';
+    } else if (f === 'b') {
+      var bn = +v;
+      if (v !== '' && !(bn >= 1 && bn <= busCnt_())) return { status: 'error' };
+      col = 'אוטובוס'; val = v === '' ? '' : String(bn);
+    } else {
+      if (o['סוג'] === 'צוות') return { status: 'error' };
+      val = v === 'y' ? 'כן' : v === 'n' ? 'לא' : '';
+      if (role === 'adm') col = 'אישור ניהול';
+      else {
+        if (!val) return { status: 'error' };
+        col = 'אישור הורים';
+        sh.getRange(o.r, BUS_ST_COLS_.indexOf('אישר') + 1).setValue(tzmNm_(P.by) || '—');
+      }
+    }
+    sh.getRange(o.r, BUS_ST_COLS_.indexOf(col) + 1).setValue(val);
+    sh.getRange(o.r, BUS_ST_COLS_.indexOf('עודכן') + 1).setValue(now);
+    SpreadsheetApp.flush();
+    busBust_();
+    var back = String(sh.getRange(o.r, BUS_ST_COLS_.indexOf(col) + 1).getDisplayValue() || '').trim();
+    var same = f === 'h' ? (!!back === (v === '1')) : back === val;
+    return same ? { status: 'ok' } : { status: 'error' };
+  } finally { lk.releaseLock(); }
+}
+/* איפוס לנסיעה חזרה: רק "הגיע" של האוטובוס הזה. קודם היומן (עם מי היה מסומן), אחר כך הניקוי. */
+function busReset_(role, P) {
+  var bn = +P.bn, by = tzmNm_(P.by) || (role === 'adm' ? 'ניהול' : '—');
+  if (!(bn >= 1 && bn <= busCnt_())) return { status: 'error' };
+  var lk = busLock_();
+  if (!lk.tryLock(15000)) return { status: 'busy' };
+  try {
+    var sh = busHead_(BUS_ST_TAB_, BUS_ST_COLS_), rows = busRead_(sh, BUS_ST_COLS_), hC = BUS_ST_COLS_.indexOf('הגיע') + 1;
+    var on = rows.filter(function (o) { return +o['אוטובוס'] === bn && o['הגיע']; });
+    var lg = busHead_(BUS_LOG_TAB_, BUS_LOG_COLS_);
+    lg.appendRow([chnNow_(), by, bn, JSON.stringify(on.map(function (o) { return [o['מפתח'], o['הגיע']]; })), on.length, '']);
+    SpreadsheetApp.flush();
+    on.forEach(function (o) { sh.getRange(o.r, hC).setValue(''); });
+    SpreadsheetApp.flush();
+    busBust_();
+    var left = busRead_(sh, BUS_ST_COLS_).filter(function (o) { return +o['אוטובוס'] === bn && o['הגיע']; }).length;
+    return left ? { status: 'error' } : { status: 'ok', n: on.length };
+  } finally { lk.releaseLock(); }
+}
+/* שחזור האיפוס האחרון של האוטובוס שעוד לא שוחזר — מחזיר את הסימונים (מי שסומן מאז נשאר). */
+function busUndo_(role, P) {
+  var bn = +P.bn;
+  if (!(bn >= 1 && bn <= busCnt_())) return { status: 'error' };
+  var lk = busLock_();
+  if (!lk.tryLock(15000)) return { status: 'busy' };
+  try {
+    var lg = busHead_(BUS_LOG_TAB_, BUS_LOG_COLS_), L = busRead_(lg, BUS_LOG_COLS_), last = null;
+    for (var i = L.length - 1; i >= 0; i--) if (+L[i]['אוטובוס'] === bn && !L[i]['שוחזר']) { last = L[i]; break; }
+    if (!last) return { status: 'none' };
+    var keep = [];
+    try { keep = JSON.parse(last['מסומנים'] || '[]'); } catch (x) { return { status: 'error' }; }
+    var sh = busHead_(BUS_ST_TAB_, BUS_ST_COLS_), rows = busRead_(sh, BUS_ST_COLS_), at = {}, hC = BUS_ST_COLS_.indexOf('הגיע') + 1, n = 0;
+    rows.forEach(function (o) { at[o['מפתח']] = o; });
+    keep.forEach(function (x) {
+      var o = at[x[0]];
+      if (!o || o['הגיע']) return;
+      sh.getRange(o.r, hC).setValue(x[1] || chnNow_());
+      n++;
+    });
+    lg.getRange(last.r, BUS_LOG_COLS_.indexOf('שוחזר') + 1).setValue(chnNow_() + ' · ' + (tzmNm_(P.by) || (role === 'adm' ? 'ניהול' : '—')));
+    SpreadsheetApp.flush();
+    busBust_();
+    var R2 = busRead_(sh, BUS_ST_COLS_), at2 = {};
+    R2.forEach(function (o) { at2[o['מפתח']] = o; });
+    var miss = keep.filter(function (x) { return at2[x[0]] && !at2[x[0]]['הגיע']; }).length;
+    return miss ? { status: 'error' } : { status: 'ok', n: n };
+  } finally { lk.releaseLock(); }
+}
+function busLog_(P) {
+  var bn = +P.bn, L = busRead_(busHead_(BUS_LOG_TAB_, BUS_LOG_COLS_), BUS_LOG_COLS_);
+  return { status: 'ok', log: L.filter(function (o) { return +o['אוטובוס'] === bn; }).slice(-5).reverse().map(function (o) {
+    return [o['מתי'], o['מי'], +o['מספר'] || 0, o['שוחזר'] ? 1 : 0];
+  }) };
+}
+function busRoute_(P) {
+  var op = String(P.bus || ''), role = busRole_(P);
+  if (!role) return { status: 'denied' };
+  if (op === 'st') return busView_(role, P);
+  if (op === 'set') return busSet_(role, P);
+  if (role === 'p') return { status: 'denied' };
+  if (op === 'rst') return busReset_(role, P);
+  if (op === 'undo') return busUndo_(role, P);
+  if (op === 'log') return busLog_(P);
+  if (role !== 'adm') return { status: 'denied' };
+  if (op === 'adm') return { status: 'ok', p: busKeyOf_('p', true), a: busKeyOf_('a', true), b: busKeyOf_('b', true), cap: busCap_(), cnt: busCnt_() };
+  if (op === 'cfg') {
+    var cap = Math.floor(+P.cap), cnt = Math.floor(+P.cnt);
+    if (cap > 0 && cap < 200) busP_().setProperty('BUS_CAP', String(cap));
+    if (cnt > 0 && cnt < 40) busP_().setProperty('BUS_CNT', String(cnt));
+    busBust_();
+    return { status: 'ok', cap: busCap_(), cnt: busCnt_() };
+  }
   return { status: 'error' };
 }
 
