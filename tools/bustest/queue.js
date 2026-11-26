@@ -40,6 +40,8 @@ function srv() {
 var NET = { mode: 'ok', cnt: 0, batch: 0 };
 async function page(b, port, W, url) {
   var ctx = await b.newContext(Object.assign({ serviceWorkers: 'block' }, pw.devices['iPhone 13']));
+  /* מסך ההסבר של רב האוטובוס נבדק ב-intro.js — כאן מדלגים עליו. */
+  await ctx.addInitScript(function () { try { localStorage.setItem('df:busIntro:' + new URLSearchParams(location.search).get('x'), '1'); } catch (e) {} });
   await ctx.route(/script\.google\.com/, async function (rt) {
     var u = new URL(rt.request().url()), P = {};
     u.searchParams.forEach(function (v, k) { P[k] = v; });

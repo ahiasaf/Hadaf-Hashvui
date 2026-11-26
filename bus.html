@@ -115,6 +115,20 @@ body{background:var(--paper);color:var(--ink);line-height:1.5;padding-bottom:cal
 .fullb{display:block;width:100%;max-width:34rem;margin:0 auto;border:0;border-radius:14px;background:var(--stop);color:#fff;font:inherit;font-weight:900;font-size:1.15rem;padding:15px;cursor:pointer;box-shadow:0 4px 12px rgba(165,56,45,.35)}
 .fullb.on{background:#7A1F17}
 body.hasbar{padding-bottom:calc(env(safe-area-inset-bottom) + 110px)}
+/* מסך ההסבר לרב האוטובוס — בכניסה הראשונה מכל טלפון; "איך זה עובד?" פותח שוב. */
+.intro{position:fixed;inset:0;z-index:70;overflow-y:auto;background:var(--paper);padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 20px)}
+.intro .ib{max-width:34rem;margin:0 auto}
+.intro img{display:block;width:100%;height:auto;border-radius:18px;box-shadow:0 10px 26px rgba(0,0,0,.16)}
+.intro h2{font-size:1.45rem;font-weight:900;line-height:1.25;margin:16px 0 10px}
+.intro ol{list-style:none;counter-reset:s}
+.intro li{counter-increment:s;position:relative;padding:8px 40px 8px 0;font-weight:700;font-size:1.05rem;border-top:1px solid var(--rule)}
+.intro li:first-child{border-top:0}
+.intro li::before{content:counter(s);position:absolute;right:0;top:8px;width:28px;height:28px;border-radius:50%;background:#1F4E8C;color:#fff;font-weight:900;text-align:center;line-height:28px}
+.intro .why{margin-top:12px;padding:12px;border-radius:14px;background:var(--green-l);font-weight:700;font-size:.98rem}
+.intro .net{margin-top:8px;font-size:.9rem;font-weight:700;color:var(--ink-2);text-align:center}
+.intro .net:empty,.intro .why:empty,.intro li:empty{display:none}
+.intro .go{display:block;width:100%;margin-top:16px;border:0;border-radius:14px;background:var(--ok);color:#fff;font:inherit;font-weight:900;font-size:1.15rem;padding:15px;cursor:pointer}
+.hero .again{border:0;background:none;color:#fff;font:inherit;font-weight:800;text-decoration:underline;padding:6px 0 0;cursor:pointer}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -122,12 +136,15 @@ body.hasbar{padding-bottom:calc(env(safe-area-inset-bottom) + 110px)}
 <!-- כמו עמוד הצמאה: הפוסטר של צמאה בראש (חריג לכלל הלוגו). -->
 <header class="poster"><img src="tzama-logo.jpg" alt="" width="600" height="656"></header>
 <main class="wrap">
-  <div class="hero"><h2 id="ttl"></h2><p id="sub"></p></div>
+  <div class="hero"><h2 id="ttl"></h2><p id="sub"></p><button class="again" id="inAgain" type="button" hidden></button></div>
   <div class="msg" id="msg"></div>
   <div class="say" id="say"></div>
   <div id="tools" hidden><input class="srch" id="q" type="search" autocomplete="off"><div style="height:10px"></div></div>
   <div id="app"></div>
 </main>
+<div class="intro" id="intro" hidden><div class="ib"><img src="bus-intro.jpg" alt="" width="1000" height="563">
+  <h2 id="inT"></h2><ol><li id="in1"></li><li id="in2"></li><li id="in3"></li><li id="in4"></li></ol>
+  <p class="why" id="inWhy"></p><p class="net" id="inNet"></p><button class="go" id="inGo" type="button"></button></div></div>
 <div class="mdl" id="mdl"><div class="bx"><p id="mQ"></p><label id="mL" for="mI"></label><input id="mI" autocomplete="off">
   <div class="bt"><button class="no" id="mNo" type="button"></button><button class="yes" id="mYes" type="button" disabled></button></div></div></div>
 <script src="data.js"></script>
@@ -590,6 +607,25 @@ setInterval(function () {
 }, 5000);
 document.addEventListener('visibilitychange', function () { if (!document.hidden && !STOP) { load(); QFAIL = 0; qGo(0); } });
 
+/* מסך ההסבר — רק לרב האוטובוס. פעם אחת לכל טלפון (df:busIntro:<x>); "איך זה עובד?" פותח שוב. */
+var IN_K = 'df:busIntro:' + X;
+function inShow(on) {
+  $('intro').hidden = !on;
+  document.documentElement.style.overflow = on ? 'hidden' : '';
+  if (on) try { $('intro').scrollTop = 0; } catch (e) {}
+}
+if (W === 'b' && X) {
+  $('inT').textContent = UI.busInT || '';
+  ['1', '2', '3', '4'].forEach(function (i) { $('in' + i).textContent = UI['busIn' + i] || ''; });
+  $('inWhy').textContent = UI.busInWhy || '';
+  $('inNet').textContent = UI.busInNet || '';
+  $('inGo').textContent = UI.busInGo || '';
+  $('inAgain').textContent = UI.busInAgain || '';
+  $('inAgain').hidden = !UI.busInAgain;
+  $('inGo').onclick = function () { lset(IN_K, '1'); inShow(false); window.scrollTo(0, 0); };
+  $('inAgain').onclick = function () { inShow(true); };
+  if (!ls(IN_K)) inShow(true);
+}
 $('ttl').textContent = W === 'p' ? UI.busTtlP : W === 'a' ? UI.busTtlA : W === 'b' ? UI.busTtlB : UI.busTtlAdm;
 $('sub').textContent = W === 'p' ? UI.busSubP : W === 'b' ? UI.busSubB : UI.busSubA;
 $('q').placeholder = UI.busSearch;
