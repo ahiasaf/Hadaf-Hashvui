@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 287;
+var SCRIPT_VERSION = 288;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -20612,7 +20612,7 @@ function tzmPut_(d) {
       rg.setNumberFormat('@');
       rg.setValues(add);
     }
-    SpreadsheetApp.flush();
+    SpreadsheetApp.flush(); busTzBust_();
     return { status: 'ok' };
   } catch (err) {
     return { status: 'error' };
@@ -21055,7 +21055,7 @@ function tzmSApprove_(P) {
       sh.getRange(o.r, upC).setValue(now);
       n++;
     });
-    SpreadsheetApp.flush();
+    SpreadsheetApp.flush(); busTzBust_();
     var left = tzmPq_().filter(function (x) { return chnGr_(x[0]) === g && clsK_(x[1]) === c; }).length;
     return left ? { status: 'error' } : { status: 'ok', n: n, pq: tzmPq_(), rq: tzmRq_() };
   } catch (e) {
@@ -21111,7 +21111,7 @@ function tzmRamSet_(P) {
     if (!r) return { status: 'none' };
     var sh = tzmRamSheet_(), col = tzmRamACol_(sh);
     sh.getRange(r.r, col).setValue(a === 'y' ? 'כן' : 'לא');
-    SpreadsheetApp.flush();
+    SpreadsheetApp.flush(); busTzBust_();
     var back = tzmRamOf_(n);
     if (!back || back.a !== a) return { status: 'error' };
     return { status: 'ok', a: back.a };
@@ -21251,9 +21251,17 @@ function busBuses_() {
   return out;
 }
 /* מי בשיבוץ: תלמידים רשומים · ר"מים שמגיעים · צוות האוטובוסים. מוסיף שורות חסרות (תחת נעילה). */
+/* הרשומים והר"מים — מלשוניות אחרות; במטמון לדקה, כך שבנייה מחדש אחרי כל כתיבה קוראת רק את לשוניות האוטובוסים. */
+function busTz_() {
+  var rc = CacheService.getScriptCache();
+  try { var hit = rc.get('bus:tz'); if (hit) return JSON.parse(hit); } catch (x) {}
+  var o = { reg: tzmReg_(), rams: tzmRams_(true).filter(function (x) { return x.a === 'y'; }).map(function (x) { return { n: x.n, c: x.c, a: x.a }; }) };
+  try { rc.put('bus:tz', JSON.stringify(o), 60); } catch (x) {}
+  return o;
+}
 function busWant_(B) {
-  var W = [], seen = {};
-  tzmReg_().forEach(function (x) {
+  var W = [], seen = {}, TZ = busTz_();
+  TZ.reg.forEach(function (x) {
     var k = 's|' + x[0] + '|' + x[1] + '|' + x[2];
     if (seen[k]) return;
     seen[k] = 1; W.push({ k: k, t: 'תלמיד', g: x[0], c: x[1], n: x[2], b: '' });
@@ -21266,7 +21274,7 @@ function busWant_(B) {
       seen[k] = 1; W.push({ k: k, t: 'צוות', g: '', c: '', n: n, b: String(o.b) });
     });
   });
-  tzmRams_(true).forEach(function (x) {
+  TZ.rams.forEach(function (x) {
     if (x.a !== 'y') return;
     var k = 'r|' + x.n;
     if (seen[k]) return;
@@ -21318,6 +21326,7 @@ function busState_() {
   try { rc.put('bus:st', JSON.stringify(out), 10); } catch (x) {}
   return out;
 }
+function busTzBust_() { try { CacheService.getScriptCache().remove('bus:tz'); } catch (x) {} }
 function busBust_() { try { CacheService.getScriptCache().remove('bus:st'); } catch (x) {} }
 function busView_(role, P) {
   var S = busState_();
@@ -21330,19 +21339,77 @@ function busView_(role, P) {
 }
 /* כתיבה לשורה אחת לפי מפתח, וקריאה חוזרת. */
 function busSet_(role, P) {
-  var f = String(P.f || ''), v = String(P.v == null ? '' : P.v), key = String(P.k || '');
+  var f = String(P.f || ''), key = String(P.k || '');
   var ok = { h: { a: 1, b: 1, adm: 1 }, ap: { p: 1, adm: 1 }, b: { a: 1, adm: 1 } }[f];
   if (!ok || !ok[role] || !key) return { status: 'denied' };
   var lk = busLock_();
   if (!lk.tryLock(10000)) return { status: 'busy' };
   try {
-    var sh = busHead_(BUS_ST_TAB_, BUS_ST_COLS_), rows = busRead_(sh, BUS_ST_COLS_), o = null;
-    for (var i = 0; i < rows.length; i++) if (rows[i]['מפתח'] === key) { o = rows[i]; break; }
-    if (!o) return { status: 'none' };
+    var sh = busHead_(BUS_ST_TAB_, BUS_ST_COLS_), rows = busRead_(sh, BUS_ST_COLS_), at = {};
+    rows.forEach(function (o) { at[o['מפתח']] = o; });
+    var r = busPut_(role, P, sh, at);
+    if (r.status !== 'ok') return r;
+    SpreadsheetApp.flush();
+    busBust_();
+    return busBack_(sh, r) ? { status: 'ok' } : { status: 'error' };
+  } finally { lk.releaseLock(); }
+}
+/* קריאה חוזרת של תא אחד שנכתב (busPut_). */
+function busBack_(sh, r) {
+  var back = String(sh.getRange(r.row, r.col).getDisplayValue() || '').trim();
+  return r.f === 'h' ? (!!back === r.on) : back === r.val;
+}
+/* שליחה מרוכזת מהמכשיר (8.99.617): כל התור בבקשה אחת — נעילה אחת, קריאה אחת, flush אחד, קריאה חוזרת אחת.
+   ops = JSON [[מפתח, שדה, ערך, ov, אוטובוס], …]; שדה 'full' = "מילאתי את האוטובוס" (מפתח ריק).
+   כל פעולה מוחלטת (לא היפוך) — שליחה חוזרת של אותה פעולה אינה משנה דבר. תשובה לכל פעולה. */
+var BUS_BATCH_MAX_ = 40;
+function busBatch_(role, P) {
+  var ops;
+  try { ops = JSON.parse(String(P.ops || '[]')); } catch (x) { return { status: 'error' }; }
+  if (!ops || !ops.length || ops.length > BUS_BATCH_MAX_) return { status: 'error' };
+  var lk = busLock_();
+  if (!lk.tryLock(20000)) return { status: 'busy' };
+  try {
+    var sh = busHead_(BUS_ST_TAB_, BUS_ST_COLS_), rows = busRead_(sh, BUS_ST_COLS_), at = {}, res = [], done = [], fr = {};
+    rows.forEach(function (o) { at[o['מפתח']] = o; });
+    ops.forEach(function (a, i) {
+      a = a || [];
+      var Q = { k: String(a[0] || ''), f: String(a[1] || ''), v: a[2] == null ? '' : String(a[2]), ov: a[3] ? '1' : '', bn: a[4], by: P.by };
+      if (Q.f === 'full') {
+        var bn = +Q.bn;
+        if (role === 'p' || !(bn >= 1 && bn <= busCnt_())) { res[i] = 'denied'; return; }
+        var R = fr[bn] || (fr[bn] = busFullRow_(bn, true)), col = BUS_COLS_.indexOf('מלא') + 1, on = Q.v !== '0';
+        R.sh.getRange(R.r, col).setValue(on ? chnNow_() + ' · ' + (tzmNm_(P.by) || (role === 'adm' ? 'ניהול' : '—')) : '');
+        done.push({ i: i, full: R, col: col, on: on });
+        return;
+      }
+      var ok = { h: { a: 1, b: 1, adm: 1 }, ap: { p: 1, adm: 1 }, b: { a: 1, adm: 1 } }[Q.f];
+      if (!ok || !ok[role] || !Q.k) { res[i] = 'denied'; return; }
+      var r = busPut_(role, Q, sh, at);
+      if (r.status !== 'ok') { res[i] = r.status; return; }
+      done.push({ i: i, r: r });
+    });
+    if (done.length) { SpreadsheetApp.flush(); busBust_(); }
+    done.forEach(function (d) {
+      if (d.full) {
+        var back = String(d.full.sh.getRange(d.full.r, d.col).getDisplayValue() || '').trim();
+        res[d.i] = !!back === d.on ? 'ok' : 'error';
+      } else res[d.i] = busBack_(sh, d.r) ? 'ok' : 'error';
+    });
+    return { status: 'ok', res: res };
+  } finally { lk.releaseLock(); }
+}
+/* כתיבה של פעולה אחת לשורה (בלי נעילה ובלי flush — הקורא אחראי). at = מפתח → שורה. */
+function busPut_(role, P, sh, at) {
+  var f = String(P.f || ''), v = String(P.v == null ? '' : P.v), key = String(P.k || '');
+  var o = at[key];
+  if (!o) return { status: 'none' };
+  {
     var col, val, now = chnNow_();
     if (f === 'h') {
       if (role === 'b' && +o['אוטובוס'] !== +P.bn) return { status: 'denied' };
-      col = 'הגיע'; val = v === '1' ? now : '';
+      /* כבר מסומן — לא דורסים את שעת העלייה (שליחה חוזרת מהתור). */
+      col = 'הגיע'; val = v === '1' ? (o['הגיע'] || now) : '';
     } else if (f === 'b') {
       var bn = +v;
       if (v !== '' && !(bn >= 1 && bn <= busCnt_())) return { status: 'error' };
@@ -21362,12 +21429,11 @@ function busSet_(role, P) {
     }
     sh.getRange(o.r, BUS_ST_COLS_.indexOf(col) + 1).setValue(val);
     sh.getRange(o.r, BUS_ST_COLS_.indexOf('עודכן') + 1).setValue(now);
-    SpreadsheetApp.flush();
-    busBust_();
-    var back = String(sh.getRange(o.r, BUS_ST_COLS_.indexOf(col) + 1).getDisplayValue() || '').trim();
-    var same = f === 'h' ? (!!back === (v === '1')) : back === val;
-    return same ? { status: 'ok' } : { status: 'error' };
-  } finally { lk.releaseLock(); }
+    /* הזיכרון של השורה מתעדכן — פעולה מאוחרת באותה שליחה רואה את הערך החדש. */
+    o[col] = val;
+    if (f === 'b') o['הועבר מ'] = from;
+    return { status: 'ok', f: f, row: o.r, col: BUS_ST_COLS_.indexOf(col) + 1, val: val, on: v === '1' };
+  }
 }
 /* איפוס לנסיעה חזרה: רק "הגיע" של האוטובוס הזה. קודם היומן (עם מי היה מסומן), אחר כך הניקוי. */
 function busReset_(role, P) {
@@ -21455,6 +21521,7 @@ function busRoute_(P) {
   if (!role) return { status: 'denied' };
   if (op === 'st') return busView_(role, P);
   if (op === 'set') return busSet_(role, P);
+  if (op === 'batch') return busBatch_(role, P);
   if (role === 'p') return { status: 'denied' };
   if (op === 'rst') return busReset_(role, P);
   if (op === 'undo') return busUndo_(role, P);

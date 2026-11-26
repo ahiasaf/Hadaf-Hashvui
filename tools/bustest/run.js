@@ -8,7 +8,7 @@ c.TZM_CLOSED_ = false;
 c.sheet_('תלמידי הרשת').getRange(1, 1, 3, 5).setValues([['קוד ישיבה', 'שכבה', 'כיתה', 'משפחה', 'פרטי'],
   ['lapid', 'ז', '3', 'אלף', 'בית'], ['lapid', 'ז', '3', 'גימל', 'דלת']]);
 function g(P) { CacheServiceClear(); return JSON.parse(c.doGet({ parameter: P }).t); }
-function CacheServiceClear() { try { c.CacheService.getScriptCache().remove('bus:st'); } catch (e) {} }
+function CacheServiceClear() { try { c.CacheService.getScriptCache().remove('bus:st'); c.CacheService.getScriptCache().remove('bus:tz'); } catch (e) {} }
 var tz = JSON.parse(c.doGet({ parameter: { tzm: 'adm', key: 'k' } }).t);
 c.doPost({ postData: { contents: JSON.stringify({ action: 'tzm', k: tz.k, by: 'x', ch: [{ g: 'ז', c: '3', n: A, on: 1 }, { g: 'ז', c: '3', n: B, on: 1 }] }) } });
 ok(c.tzmReg_().length === 2, 'two registered');

@@ -180,6 +180,90 @@ var S = { d: null, tab: 1, g: '', c: '', me: null, log: null };
 var PEND = {};
 var FULLP = {};
 var ME_K = 'df:busMe:' + X, PC_K = 'df:busP:' + X;
+
+/* ---------- התור במכשיר (8.99.617) ----------
+   כל לחיצה נשמרת מיד במכשיר ומוצגת. התור יוצא ברקע בבקשה אחת (bus=batch), שוב ושוב עד שהשרת
+   מאשר כל פעולה בקריאה חוזרת — גם בלי קליטה, גם אחרי רענון או סגירת הדף. פעולה = ערך מוחלט,
+   ולכן שליחה חוזרת אינה משנה דבר. אותו אדם·שדה — רק הערך האחרון בתור. */
+var Q_K = 'df:busQ:' + W + ':' + (X || 'adm'), Q = jget(Q_K) || [], QSEQ = 0, QBUSY = false, QWAIT = 0, QFAIL = 0;
+var Q_MAX = 15;
+function qSave() { lset(Q_K, JSON.stringify(Q)); }
+function qSync() {
+  PEND = {}; FULLP = {};
+  Q.forEach(function (it) {
+    if (it.f === 'full') { FULLP[it.bn] = it.v === '1' ? 1 : 0; return; }
+    PEND[it.k + '|' + it.f] = it.f === 'b' ? +it.v || 0 : it.f === 'h' ? (it.v === '1' ? 1 : 0) : it.v;
+    if (it.f === 'b' && it.mf != null) PEND[it.k + '|mf'] = it.mf;
+  });
+}
+function qAdd(it) {
+  it.i = Date.now() + '-' + (++QSEQ);
+  Q = Q.filter(function (x) { return !(x.f === it.f && (it.f === 'full' ? x.bn === it.bn : x.k === it.k)); });
+  Q.push(it);
+  qSave(); qSync();
+  say(''); paint();
+  qGo(0);
+}
+function qGo(ms) {
+  clearTimeout(QWAIT);
+  QWAIT = setTimeout(qSend, ms || 0);
+}
+function qSend() {
+  if (QBUSY || !Q.length || STOP) return;
+  var wait = Q.filter(function (x) { return !x.ok; });
+  if (!wait.length) return;
+  var by0 = wait[0].by || '', part = wait.filter(function (x) { return (x.by || '') === by0; }).slice(0, Q_MAX);
+  var ops = part.map(function (x) { return [x.k || '', x.f, x.v, x.ov ? 1 : 0, x.bn || 0]; });
+  QBUSY = true;
+  get('bus=batch&' + AUTH + '&by=' + encodeURIComponent(by0) + '&ops=' + encodeURIComponent(JSON.stringify(ops))).then(function (d) {
+    if (!d || d.status !== 'ok' || !d.res) throw new Error('bad');
+    var gone = {}, bad = 0;
+    part.forEach(function (x, i) {
+      var r = d.res[i];
+      if (r === 'ok') gone[x.i] = 1;
+      else if (r === 'denied' || r === 'none' || (x.e = (x.e || 0) + 1) >= 3) { gone[x.i] = 2; bad = 1; }
+    });
+    QFAIL = 0;
+    /* מה שאושר נשאר על המסך עד שקריאה של המצב (שהתחילה אחרי האישור) מראה אותו — בלי הבהוב. */
+    var now = Date.now();
+    Q = Q.filter(function (x) { if (gone[x.i] === 2) return false; if (gone[x.i]) { x.ok = now; } return true; });
+    qSave(); qSync(); paint();
+    if (bad) say(UI.busFail);
+    return load(true);
+  })['catch'](function () { QFAIL++; }).then(function () {
+    QBUSY = false;
+    /* כישלון — ניסיון חוזר בהמתנה גדלה (2→4→8 שנ'), בלי הודעה: הסימון שמור במכשיר. */
+    if (Q.some(function (x) { return !x.ok; })) qGo(QFAIL ? Math.min(8000, 1000 * Math.pow(2, QFAIL)) : 300);
+    else qChk();
+  });
+}
+/* מה שאושר ועוד לא נראה במצב מהשרת — קריאה נוספת בעוד 2 שנ', בלי לחכות לרענון הקבוע. */
+var QCHK = 0;
+function qChk() {
+  clearTimeout(QCHK);
+  if (!Q.some(function (x) { return x.ok; })) return;
+  QCHK = setTimeout(function () { if (STOP || QBUSY) return qChk(); load(true).then(qChk, qChk); }, 2000);
+}
+/* פעולה שאושרה יורדת מהתור כשהמצב מהשרת מראה אותה (או אחרי חצי דקה — שלא תיתקע לנצח על המסך). */
+function qSeen(d, t0) {
+  var at = {}, n0 = Q.length;
+  (d.p || []).forEach(function (x) { at[x[0]] = x; });
+  Q = Q.filter(function (it) {
+    if (!it.ok) return true;
+    if (it.ok < t0 - 30000) return false;
+    if (it.ok >= t0) return true;
+    var x = at[it.k], v;
+    if (it.f === 'full') { var bo = (d.buses || [])[it.bn - 1]; return !bo || (bo.f ? '1' : '0') !== it.v; }
+    if (!x) return false;
+    if (W === 'p') v = it.f === 'ap' ? x[6] : null;
+    else v = it.f === 'h' ? (x[6] ? '1' : '0') : it.f === 'b' ? String(x[5] || '') : (W === 'adm' ? (x[8] ? x[7] : '') : x[9]);
+    if (it.f === 'b' && it.v === '') return v !== '' && v !== '0';
+    return v != null && String(v) !== String(it.v);
+  });
+  if (Q.length !== n0) { qSave(); qSync(); }
+}
+window.addEventListener('online', function () { QFAIL = 0; qGo(0); });
+qSync();
 S.me = W === 'b' ? jget(ME_K) : null;
 (function () { var pc = W === 'p' ? jget(PC_K) : null; if (pc) { S.g = pc.g || ''; S.c = pc.c || ''; } })();
 
@@ -388,16 +472,11 @@ function paint() {
 }
 
 /* ---------- כתיבה ---------- */
-function setF(k, f, v, extra) {
-  PEND[k + '|' + f] = f === 'b' ? +v || 0 : f === 'h' ? (v === '1' ? 1 : 0) : v;
-  say('');
-  paint();
-  var q = 'bus=set&' + AUTH + '&k=' + encodeURIComponent(k) + '&f=' + f + '&v=' + encodeURIComponent(v) + (extra || '');
-  get(q).then(function (d) {
-    if (!d || d.status !== 'ok') throw new Error('bad');
-    return load(true);
-  })['catch'](function () { say(UI.busFail); })
-    .then(function () { delete PEND[k + '|' + f]; if (f === 'b') delete PEND[k + '|mf']; paint(); });
+function setF(k, f, v, o) {
+  o = o || {};
+  var cur = people().filter(function (x) { return x.k === k; })[0];
+  qAdd({ k: k, f: f, v: v, ov: o.ov ? 1 : 0, mf: f === 'b' ? (o.ov ? (cur ? cur.b : 0) : 0) : null,
+    bn: f === 'h' && W === 'b' && S.me ? S.me.b : 0, qb: cur ? cur.b : 0, by: o.by || '', t: Date.now() });
 }
 $('app').addEventListener('click', function (ev) {
   var t = ev.target.closest ? ev.target.closest('button,[data-me]') : ev.target;
@@ -414,37 +493,31 @@ $('app').addEventListener('click', function (ev) {
   if (t.getAttribute('data-chg')) { S.me = null; lset(ME_K, 'null'); load(); return; }
   if ((a = t.getAttribute('data-h')) != null) {
     var cur = people().filter(function (x) { return x.k === a; })[0];
-    if (cur) setF(a, 'h', cur.h ? '0' : '1', W === 'b' ? '&bn=' + S.me.b : '');
+    if (cur) setF(a, 'h', cur.h ? '0' : '1');
     return;
   }
   if ((a = t.getAttribute('data-mv')) != null) {
     var v = t.getAttribute('data-v'), o2 = people().filter(function (x) { return x.k === a; })[0];
     if (!o2 || String(o2.b) === v) return;
     var nb = (counts()[+v] || 0) + 1;
-    PEND[a + '|mf'] = 0;
     setF(a, 'b', v);
     if (nb > S.d.cap) say(tp(UI.busOverMove, { b: v, n: nb, cap: S.d.cap }));
     return;
   }
   if ((a = t.getAttribute('data-full')) != null) {
     var fb = +a, nv = busF(fb) ? '0' : '1';
-    FULLP[fb] = nv === '1' ? 1 : 0; say(''); paint();
-    get('bus=full&' + AUTH + '&bn=' + fb + '&v=' + nv + '&by=' + encodeURIComponent(S.me ? S.me.n : '')).then(function (d) {
-      if (!d || d.status !== 'ok') throw new Error('bad');
-      return load(true);
-    })['catch'](function () { say(UI.busFail); }).then(function () { delete FULLP[fb]; paint(); });
+    qAdd({ k: '', f: 'full', v: nv, bn: fb, by: S.me ? S.me.n : '', t: Date.now() });
     return;
   }
   if ((a = t.getAttribute('data-ov')) != null) {
     var v3 = t.getAttribute('data-v'), o3 = people().filter(function (x) { return x.k === a; })[0];
     if (!o3) return;
-    PEND[a + '|mf'] = o3.b;
-    setF(a, 'b', v3, '&ov=1');
+    setF(a, 'b', v3, { ov: 1 });
     return;
   }
   if ((a = t.getAttribute('data-ap')) != null) {
     var v2 = t.getAttribute('data-v');
-    setF(a, 'ap', v2, W === 'p' ? '&by=' + encodeURIComponent(tp(UI.busApBy, { cls: clsD(S.g, S.c) })) : '');
+    setF(a, 'ap', v2, { by: W === 'p' ? tp(UI.busApBy, { cls: clsD(S.g, S.c) }) : '' });
     return;
   }
   if ((a = t.getAttribute('data-rst')) != null) { mOpen(+a); return; }
@@ -475,11 +548,16 @@ $('mNo').onclick = mClose;
 $('mdl').addEventListener('click', function (ev) { if (ev.target === this) mClose(); });
 $('mYes').onclick = function () {
   if (this.disabled || !MB) return;
-  var b = MB;
+  var b = MB, T0 = Date.now();
   this.disabled = true;
   get('bus=rst&' + AUTH + '&bn=' + b + '&by=' + encodeURIComponent(S.me ? S.me.n : '')).then(function (d) {
     mClose();
-    if (d && d.status === 'ok') say(tp(UI.busResetOk, { b: b, n: d.n }), true); else say(UI.busFail);
+    if (d && d.status === 'ok') {
+      /* סימונים של האוטובוס שחיכו בתור מלפני האיפוס — לא יוצאים אחריו. */
+      Q = Q.filter(function (x) { return !(x.t < T0 && ((x.f === 'h' && (x.bn === b || x.qb === b)) || (x.f === 'full' && x.bn === b))); });
+      qSave(); qSync();
+      say(tp(UI.busResetOk, { b: b, n: d.n }), true);
+    } else say(UI.busFail);
     load(true); logLoad(b);
   }, function () { mClose(); say(UI.busFail); });
 };
@@ -490,9 +568,10 @@ var BUSY = false;
 function load(force) {
   if (BUSY && !force) return Promise.resolve();
   BUSY = true;
-  var q = 'bus=st&' + AUTH + (W === 'b' && S.me ? '&bn=' + S.me.b : '');
+  var q = 'bus=st&' + AUTH + (W === 'b' && S.me ? '&bn=' + S.me.b : ''), t0 = Date.now();
   return get(q).then(function (d) {
     BUSY = false;
+    if (d && d.status === 'ok') qSeen(d, t0);
     if (d && d.status === 'denied') { $('msg').textContent = UI.busDenied; $('msg').hidden = false; $('app').innerHTML = ''; STOP = 1; return; }
     if (!d || d.status !== 'ok') throw new Error('bad');
     S.d = d;
@@ -503,21 +582,20 @@ function load(force) {
   });
 }
 var STOP = 0;
+/* הקריאה ממשיכה גם כשיש תור — הסימונים שבתור מוצגים מעל מה שהשרת מחזיר. */
 setInterval(function () {
-  if (STOP || document.hidden) return;
-  for (var k in PEND) return;
-  for (var k2 in FULLP) return;
+  if (STOP || document.hidden || QBUSY) return;
   if ($('mdl').className.indexOf('on') >= 0) return;
   load();
-}, 4000);
-document.addEventListener('visibilitychange', function () { if (!document.hidden && !STOP) load(); });
+}, 5000);
+document.addEventListener('visibilitychange', function () { if (!document.hidden && !STOP) { load(); QFAIL = 0; qGo(0); } });
 
 $('ttl').textContent = W === 'p' ? UI.busTtlP : W === 'a' ? UI.busTtlA : W === 'b' ? UI.busTtlB : UI.busTtlAdm;
 $('sub').textContent = W === 'p' ? UI.busSubP : W === 'b' ? UI.busSubB : UI.busSubA;
 $('q').placeholder = UI.busSearch;
 $('tools').hidden = !FULL;
 if ((W !== 'p' && W !== 'a' && W !== 'b' && W !== 'adm') || (W === 'adm' ? !KEY : !X)) { $('msg').textContent = UI.busDenied; STOP = 1; }
-else { $('msg').textContent = UI.busLoad; load(); if (FULL) logLoad(S.tab); if (W === 'b' && S.me) logLoad(S.me.b); }
+else { $('msg').textContent = UI.busLoad; load(); qGo(500); if (FULL) logLoad(S.tab); if (W === 'b' && S.me) logLoad(S.me.b); }
 </script>
 </body>
 </html>

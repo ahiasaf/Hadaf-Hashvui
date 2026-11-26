@@ -46,6 +46,12 @@ async function page(b, port, W, url, init) {
   await p.goto('http://localhost:' + port + url);
   return p;
 }
+function qEmpty(p) {
+  return p.waitForFunction(function () {
+    for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k.indexOf('df:busQ:') === 0 && localStorage.getItem(k) !== '[]') return false; }
+    return true;
+  }, null, { timeout: 15000 });
+}
 (async function () {
   var s = await srv(), port = s.address().port, b = await pw.chromium.launch();
   try {
@@ -69,6 +75,7 @@ async function page(b, port, W, url, init) {
     await pp.click('button.y[data-ap="s|ז|3|' + A + '"]');
     await pp.waitForFunction(function () { return document.querySelectorAll('button.y.on').length === 1 && !document.querySelector('#say').textContent; });
     ok(await pp.$('.fl') === null, 'p mode: no flag beside name');
+    await qEmpty(pp);
     var row = W.priv.getSheetByName('צמאה — שיבוץ').d.filter(function (r) { return r[0] === 's|ז|3|' + A; })[0];
     ok(row[7] === 'כן' && row[8] === 'ר"ם ז׳3', 'sheet approval + by', row);
     // הדגל אצל רב האוטובוס — בלי רענון
@@ -77,6 +84,7 @@ async function page(b, port, W, url, init) {
     // הגעה
     await pb.click('[data-h="s|ז|3|' + A + '"]');
     await pb.waitForFunction(function () { var x = document.querySelector('.hb.on'); return x && !document.querySelector('#say').textContent; });
+    await qEmpty(pb);
     ok(!!row && W.priv.getSheetByName('צמאה — שיבוץ').d.filter(function (r) { return r[0] === 's|ז|3|' + A; })[0][6], 'arrived written');
     // איפוס: חלון, "כן" נעול עד הקלדה
     await pb.click('.rst');
@@ -144,6 +152,7 @@ async function page(b, port, W, url, init) {
     ok((await pb2.textContent('.lh')).indexOf('רק אם נשאר מקום') >= 0, 'last group in B');
     await ovb.click();
     await pa2.waitForFunction(function () { return !document.querySelector('[data-ov]') && !document.querySelector('#say').textContent; });
+    await qEmpty(pa2);
     ok(!!(await pa2.$('.full')), 'still full (boarded count unchanged)');
     var rw = st.d[ri];
     ok(rw[5] === '2' && rw[12] === '1', 'moved with from', rw);
@@ -153,7 +162,7 @@ async function page(b, port, W, url, init) {
     await pa2.click('[data-tab="2"]');
     await pa2.click('[data-mv="s|ז|3|' + A + '"][data-v="1"]');
     await pa2.waitForFunction(function () { return !document.querySelector('#say').textContent || true; });
-    await pa2.waitForTimeout(600);
+    await qEmpty(pa2);
     ok(st.d[ri][12] === '', 'regular move clears from', st.d[ri]);
     // בריף v5: "מילאתי את האוטובוס" אצל הרב → מלא אצל המנהל, גם מתחת לקיבולת; איפוס מנקה, שחזור מחזיר
     W.ctx.doGet({ parameter: { bus: 'cfg', w: 'adm', key: 'k', cap: '50' } });
@@ -175,6 +184,7 @@ async function page(b, port, W, url, init) {
     ok(String(bt.d[1][3]).indexOf(R1) >= 0, 'undo restores full');
     await pb2.click('.fullb');
     await pb2.waitForSelector('.fullb:not(.on)', { timeout: 15000 });
+    await qEmpty(pb2);
     ok(!bt.d[1][3], 'second tap unmarks');
     ok(await pb2.$('[data-mv]') === null, 'rav cannot move');
     var bad = await page(b, port, W, '/bus?w=a&x=nope');
