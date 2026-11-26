@@ -84,6 +84,17 @@ body{background:var(--paper);color:var(--ink);line-height:1.5;padding-bottom:cal
 .mdl .no{background:#EEE;color:var(--ink)}
 .mdl .yes{background:var(--stop);color:#fff}
 .mdl .yes[disabled]{opacity:.35;cursor:default}
+/* בריף v4: קבוצת "רק אם נשאר מקום", אוטובוס מלא, מי שהועבר */
+.lh{margin:16px 0 8px;padding:9px 12px;border-radius:12px;background:#FFF1D6;color:#7A4A00;font-weight:900;font-size:1rem}
+.lt{display:inline-block;margin-inline-start:6px;padding:1px 8px;border-radius:99px;background:#B4570B;color:#fff;font-size:.74rem;font-weight:800;vertical-align:2px}
+.full{margin-bottom:12px;padding:12px;border-radius:16px;background:#FDECEA;border:2px solid var(--stop)}
+.full .fh{font-weight:900;font-size:1.25rem;color:var(--stop)}
+.full .fl2{font-weight:800;margin:8px 0 4px}
+.frow{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid #F2C9C4}
+.frow .t{flex:1;min-width:0}
+.frow .t b{display:block;font-weight:800}
+.frow .t small,.frow>small{display:block;font-size:.78rem;color:var(--ink-2)}
+.row.gone{opacity:.55;background:#F1F1F1}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -156,9 +167,9 @@ function people() {
   var L = (S.d && S.d.p) || [];
   return L.map(function (x) {
     var o = W === 'p' ? { k: x[0], t: 's', g: x[1], c: x[2], n: x[3], b: 0, h: 0, ap: x[4], ov: x[5], rv: x[6] }
-      : { k: x[0], t: x[1], g: x[2], c: x[3], n: x[4], b: x[5], h: x[6], ap: x[7], ov: x[8], rv: x[9] };
+      : { k: x[0], t: x[1], g: x[2], c: x[3], n: x[4], b: x[5], h: x[6], ap: x[7], ov: x[8], rv: x[9], last: x[10] ? 1 : 0, mf: x[11] || 0 };
     if (PEND[o.k + '|h'] != null) o.h = PEND[o.k + '|h'];
-    if (PEND[o.k + '|b'] != null) o.b = PEND[o.k + '|b'];
+    if (PEND[o.k + '|b'] != null) { if (PEND[o.k + '|mf'] != null) o.mf = PEND[o.k + '|mf']; o.b = PEND[o.k + '|b']; }
     if (PEND[o.k + '|ap'] != null) {
       var v = PEND[o.k + '|ap'];
       if (W === 'adm') { o.ov = v ? 1 : 0; o.ap = v || o.rv; } else { o.rv = v; if (!o.ov) o.ap = v; }
@@ -205,7 +216,8 @@ function paintP() {
     var y = L.filter(function (o) { return o.ap === 'y'; }).length;
     h += '<div class="card"><div class="cnt">' + esc(tp(UI.busPCount, { cls: clsD(S.g, S.c), y: y, t: L.length })) + '</div><div class="list">' +
       L.map(function (o) {
-        return '<div class="row"><div class="top"><span class="t"><b>' + esc(o.n) + '</b></span>' + flag(o) + '</div>' +
+        /* בלי הדגל ליד השם (8.99.613, אחיאסף) — הכפתור הלחוץ מספיק. */
+        return '<div class="row"><div class="top"><span class="t"><b>' + esc(o.n) + '</b></span></div>' +
           '<div class="ap"><button type="button" class="y' + (o.rv === 'y' ? ' on' : '') + '" data-ap="' + esc(o.k) + '" data-v="y">' + esc(UI.busApY) + '</button>' +
           '<button type="button" class="n' + (o.rv === 'n' ? ' on' : '') + '" data-ap="' + esc(o.k) + '" data-v="n">' + esc(UI.busApN) + '</button>' +
           (o.ov ? '<span>' + esc(UI.busApAdmSet) + '</span>' : '') + '</div></div>';
@@ -216,7 +228,7 @@ function paintP() {
 
 /* ---------- מנהל האירוע / ניהול ---------- */
 function rowFull(o, cnt) {
-  var h = '<div class="row' + (o.h ? ' h' : '') + '"><div class="top"><span class="t"><b>' + esc(o.n) + '</b><small>' + esc(sub(o)) + '</small></span>' +
+  var h = '<div class="row' + (o.h ? ' h' : '') + '"><div class="top"><span class="t"><b>' + esc(o.n) + lastTag(o) + '</b><small>' + esc(sub(o)) + '</small></span>' +
     flag(o) + hBtn(o) + '</div><div class="mv">' + esc(UI.busMove);
   for (var b = 1; b <= cnt; b++) h += '<button type="button" data-mv="' + esc(o.k) + '" data-v="' + b + '"' + (o.b === b ? ' class="on"' : '') + '>' + b + '</button>';
   h += '</div>';
@@ -228,14 +240,50 @@ function rowFull(o, cnt) {
   }
   return h + '</div>';
 }
-function paintA() {
-  var P = people(), d = S.d, cap = d.cap, cnt = d.cnt, m = counts(), q = String($('q').value || '').replace(/\s+/g, ' ').trim();
-  var un = P.filter(function (o) { return !o.b; }).length;
-  var h = '<div class="card"><div class="chips">';
+function lastTag(o) { return o.last ? ' <span class="lt">' + esc(UI.busLastTag) + '</span>' : ''; }
+/* מונים חיים לכל אוטובוס (בריף v4): עלו · מתוכנן · פנויים (= קיבולת פחות מי שעלה). */
+function stats() {
+  var m = {}, P = people();
+  P.forEach(function (o) {
+    if (!o.b) return;
+    var x = m[o.b] = m[o.b] || { n: 0, h: 0 };
+    x.n++; if (o.h) x.h++;
+  });
+  return m;
+}
+/* בסיס למעלה, ואחריהם "רק אם נשאר מקום" תחת כותרת. */
+function groups(L, row) {
+  var base = L.filter(function (o) { return !o.last; }), late = L.filter(function (o) { return o.last; });
+  var h = base.length ? '<div class="list">' + base.map(row).join('') + '</div>' : '';
+  if (late.length) h += '<div class="lh">' + esc(UI.busLastH) + '</div><div class="list">' + late.map(row).join('') + '</div>';
+  return h;
+}
+/* אוטובוס מלא: באנר אדום, ומתחתיו מי שעוד לא עלה — העברה בלחיצה לאוטובוס הראשון עם מקום פנוי. */
+function fullHtml(m, cap, cnt) {
+  var P = people(), h = '';
   for (var b = 1; b <= cnt; b++) {
-    var n = m[b] || 0;
-    h += '<button type="button" data-tab="' + b + '" class="' + (S.tab === b ? 'on' : '') + (n > cap ? ' ov' : '') + '">' + esc(tp(UI.busTab, { b: b })) +
-      '<small>' + esc(tp(UI.busFree, { n: cap - n })) + '</small></button>';
+    var x = m[b];
+    if (!x || x.h < cap) continue;
+    var left = P.filter(function (o) { return o.b === b && o.t === 's' && !o.h; }).sort(byName), to = 0;
+    for (var y = 1; y <= cnt && !to; y++) if (y !== b && ((m[y] && m[y].n) || 0) < cap) to = y;
+    h += '<div class="full"><div class="fh">' + esc(tp(UI.busFull, { b: b })) + '</div>';
+    if (left.length) h += '<div class="fl2">' + esc(UI.busLeftH) + '</div>' + left.map(function (o) {
+      return '<div class="frow"><span class="t"><b>' + esc(o.n) + lastTag(o) + '</b><small>' + esc(sub(o)) + '</small></span>' + flag(o) +
+        (to ? '<button type="button" class="hb" data-ov="' + esc(o.k) + '" data-v="' + to + '">' + esc(tp(UI.busMoveTo, { b: to })) + '</button>'
+          : '<small>' + esc(UI.busNoRoom) + '</small>') + '</div>';
+    }).join('');
+    h += '</div>';
+  }
+  return h;
+}
+function paintA() {
+  var P = people(), d = S.d, cap = d.cap, cnt = d.cnt, m = stats(), q = String($('q').value || '').replace(/\s+/g, ' ').trim();
+  var un = P.filter(function (o) { return !o.b; }).length;
+  var h = fullHtml(m, cap, cnt) + '<div class="card"><div class="chips">';
+  for (var b = 1; b <= cnt; b++) {
+    var x = m[b] || { n: 0, h: 0 };
+    h += '<button type="button" data-tab="' + b + '" class="' + (S.tab === b ? 'on' : '') + (x.h >= cap || x.n > cap ? ' ov' : '') + '">' + esc(tp(UI.busTab, { b: b })) +
+      '<small>' + esc(tp(UI.busTabLive, { h: x.h, cap: cap })) + '</small></button>';
   }
   h += '<button type="button" data-tab="0"' + (S.tab === 0 ? ' class="on"' : '') + '>' + esc(UI.busNone) + '<small>' + un + '</small></button></div></div>';
   var L;
@@ -243,13 +291,13 @@ function paintA() {
   else L = P.filter(function (o) { return o.b === S.tab; });
   L.sort(function (a, b) { return (a.t === b.t ? 0 : a.t === 'r' ? -1 : 1) || byName(a, b); });
   if (!q && S.tab) {
-    var bs = d.buses[S.tab - 1] || {}, nb = m[S.tab] || 0, hh = L.filter(function (o) { return o.h; }).length;
-    h += '<div class="cnt' + (nb > cap ? ' ov' : '') + '">' + esc(tp(UI.busBusLine, { b: S.tab, n: nb, cap: cap })) +
-      (nb > cap ? ' · ' + esc(tp(UI.busOver, { n: nb - cap })) : '') + '</div>' +
-      '<div class="cnt" style="font-size:.92rem;font-weight:800;color:var(--ink-2)">' + esc(tp(UI.busCount, { h: hh, t: L.length })) +
-      (bs.m ? ' · ' + esc(tp(UI.busMgr, { n: bs.m })) : '') + '</div>';
+    var bs = d.buses[S.tab - 1] || {}, xb = m[S.tab] || { n: 0, h: 0 };
+    h += '<div class="cnt' + (xb.h >= cap || xb.n > cap ? ' ov' : '') + '">' + esc(tp(UI.busLive, { h: xb.h, n: xb.n, f: Math.max(0, cap - xb.h) })) +
+      (xb.n > cap ? ' · ' + esc(tp(UI.busOver, { n: xb.n - cap })) : '') + '</div>' +
+      (bs.m ? '<div class="cnt" style="font-size:.92rem;font-weight:800;color:var(--ink-2)">' + esc(tp(UI.busMgr, { n: bs.m })) + '</div>' : '');
   }
-  h += L.length ? '<div class="list">' + L.map(function (o) { return rowFull(o, cnt); }).join('') + '</div>' : '<div class="msg">' + esc(UI.busEmpty) + '</div>';
+  var row = function (o) { return rowFull(o, cnt); };
+  h += L.length ? (q || !S.tab ? '<div class="list">' + L.map(row).join('') + '</div>' : groups(L, row)) : '<div class="msg">' + esc(UI.busEmpty) + '</div>';
   if (!q && S.tab) h += farHtml(S.tab);
   $('app').innerHTML = h;
 }
@@ -271,16 +319,21 @@ function paintB() {
     }).join('') + '</div></div>' : '<div class="msg">' + esc(UI.busNoNames) + '</div>';
     return;
   }
-  var b = S.me.b, L = people().filter(function (o) { return o.b === b; });
+  var b = S.me.b, all = people(), L = all.filter(function (o) { return o.b === b; });
+  var gone = all.filter(function (o) { return o.b !== b && o.mf === b; }).sort(byName);
   L.sort(function (a, c) { return (a.t === c.t ? 0 : a.t === 'r' ? -1 : 1) || byName(a, c); });
   var hh = L.filter(function (o) { return o.h; }).length;
   var h = '<div class="card"><div class="top"><span class="t"><b>' + esc(tp(UI.busTab, { b: b }) + ' · ' + S.me.n) + '</b></span>' +
     '<button class="lnk" type="button" data-chg="1">' + esc(UI.busChgName) + '</button></div>' +
     '<div class="cnt" style="margin:6px 0 0">' + esc(tp(UI.busCount, { h: hh, t: L.length })) + '</div></div>';
-  h += L.length ? '<div class="list">' + L.map(function (o) {
+  h += L.length ? groups(L, function (o) {
     return '<div class="row' + (o.h ? ' h' : '') + '"><div class="top"><span class="t"><b>' + esc(o.n) + '</b><small>' + esc(sub(o)) + '</small></span>' +
       flag(o) + hBtn(o) + '</div></div>';
-  }).join('') + '</div>' : '<div class="msg">' + esc(UI.busEmpty) + '</div>';
+  }) : '<div class="msg">' + esc(UI.busEmpty) + '</div>';
+  /* מי שהמנהל העביר — נשאר למטה, אפור ובלי סימון, כדי שהרב יוכל לומר לו לאן ללכת. */
+  if (gone.length) h += '<div class="list" style="margin-top:12px">' + gone.map(function (o) {
+    return '<div class="row gone"><div class="top"><span class="t"><b>' + esc(o.n) + '</b><small>' + esc(tp(UI.busMovedTo, { b: o.b })) + '</small></span></div></div>';
+  }).join('') + '</div>';
   h += farHtml(b);
   $('app').innerHTML = h;
 }
@@ -317,7 +370,7 @@ function setF(k, f, v, extra) {
     if (!d || d.status !== 'ok') throw new Error('bad');
     return load(true);
   })['catch'](function () { say(UI.busFail); })
-    .then(function () { delete PEND[k + '|' + f]; paint(); });
+    .then(function () { delete PEND[k + '|' + f]; if (f === 'b') delete PEND[k + '|mf']; paint(); });
 }
 $('app').addEventListener('click', function (ev) {
   var t = ev.target.closest ? ev.target.closest('button,[data-me]') : ev.target;
@@ -341,8 +394,16 @@ $('app').addEventListener('click', function (ev) {
     var v = t.getAttribute('data-v'), o2 = people().filter(function (x) { return x.k === a; })[0];
     if (!o2 || String(o2.b) === v) return;
     var nb = (counts()[+v] || 0) + 1;
+    PEND[a + '|mf'] = 0;
     setF(a, 'b', v);
     if (nb > S.d.cap) say(tp(UI.busOverMove, { b: v, n: nb, cap: S.d.cap }));
+    return;
+  }
+  if ((a = t.getAttribute('data-ov')) != null) {
+    var v3 = t.getAttribute('data-v'), o3 = people().filter(function (x) { return x.k === a; })[0];
+    if (!o3) return;
+    PEND[a + '|mf'] = o3.b;
+    setF(a, 'b', v3, '&ov=1');
     return;
   }
   if ((a = t.getAttribute('data-ap')) != null) {

@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 285;
+var SCRIPT_VERSION = 286;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -21187,7 +21187,9 @@ function tzmRoute_(P) {
 var BUS_TAB_ = 'צמאה — אוטובוסים';
 var BUS_COLS_ = ['אוטובוס', 'מנהל', 'רבנים נוספים'];
 var BUS_ST_TAB_ = 'צמאה — שיבוץ';
-var BUS_ST_COLS_ = ['מפתח', 'סוג', 'שכבה', 'כיתה'].concat(['שם'], ['אוטובוס', 'הגיע', 'אישור הורים', 'אישר', 'אישור ניהול', 'עודכן']);
+var BUS_ST_COLS_ = ['מפתח', 'סוג', 'שכבה', 'כיתה'].concat(['שם'], ['אוטובוס', 'הגיע', 'אישור הורים', 'אישר', 'אישור ניהול', 'עודכן', 'עולה אחרון', 'הועבר מ']);
+/* 8.99.613 (בריף v4): "עולה אחרון" — אחיאסף ממלא בגיליון; כל ערך = הקבוצה "רק אם נשאר מקום", ריק = בסיס.
+   "הועבר מ" — האוטובוס המקורי של תלמיד שהמנהל העביר מרשימת "נשארו בלי מקום" (נשאר אפור אצל הרב המקורי). */
 var BUS_LOG_TAB_ = 'צמאה — איפוס';
 var BUS_LOG_COLS_ = ['מתי', 'מי', 'אוטובוס', 'מסומנים', 'מספר', 'שוחזר'];
 /* נעילה משלה — לא של הסקריפט (שתפוסה בשמירות הלימוד בשעות העומס). ראו ov_. */
@@ -21213,6 +21215,10 @@ function busHead_(tab, cols) {
   if (sh.getLastRow() < 1) {
     sh.getRange(1, 1, 1, cols.length).setValues([cols]);
     try { sh.setFrozenRows(1); } catch (x) {}
+  } else {
+    /* לשונית קיימת — משלימים כותרות של עמודות שנוספו בגרסה מאוחרת, בלי לגעת בשאר. */
+    var hd = sh.getRange(1, 1, 1, cols.length).getDisplayValues()[0];
+    for (var i = 0; i < cols.length; i++) if (!String(hd[i] || '').trim()) sh.getRange(1, i + 1).setValue(cols[i]);
   }
   return sh;
 }
@@ -21283,7 +21289,7 @@ function busSync_() {
   if (lk && add.length) {
     var now = chnNow_();
     sh.getRange(sh.getLastRow() + 1, 1, add.length, BUS_ST_COLS_.length).setValues(add.map(function (x) {
-      return [x.k, x.t, x.g, x.c, x.n, x.b, '', '', '', '', now];
+      return [x.k, x.t, x.g, x.c, x.n, x.b, '', '', '', '', now, '', ''];
     }));
     try { sh.getRange(2, 3, sh.getLastRow() - 1, 2).setNumberFormat('@'); } catch (e2) {}
     SpreadsheetApp.flush();
@@ -21305,7 +21311,8 @@ function busState_() {
   var S = busSync_();
   var out = { cap: busCap_(), cnt: busCnt_(), buses: S.B, p: S.rows.map(function (o) {
     return [o['מפתח'], o['סוג'] === 'צוות' ? 'r' : 's', o['שכבה'], o['כיתה'], o['שם'], +o['אוטובוס'] || 0, o['הגיע'] ? 1 : 0, busAp_(o),
-      o['אישור ניהול'] ? 1 : 0, o['אישור הורים'] === 'כן' ? 'y' : o['אישור הורים'] === 'לא' ? 'n' : ''];
+      o['אישור ניהול'] ? 1 : 0, o['אישור הורים'] === 'כן' ? 'y' : o['אישור הורים'] === 'לא' ? 'n' : '',
+      o['עולה אחרון'] ? 1 : 0, +o['הועבר מ'] || 0];
   }) };
   try { rc.put('bus:st', JSON.stringify(out), 10); } catch (x) {}
   return out;
@@ -21316,7 +21323,8 @@ function busView_(role, P) {
   if (!S) return { status: 'busy' };
   if (role === 'p') return { status: 'ok', p: S.p.filter(function (x) { return x[1] === 's'; }).map(function (x) { return [x[0], x[2], x[3], x[4], x[7], x[8], x[9]]; }) };
   var p = S.p;
-  if (role === 'b' && +P.bn > 0) p = p.filter(function (x) { return x[5] === +P.bn; });
+  /* הרב רואה גם מי שהועבר מהאוטובוס שלו (אפור, בלי סימון). */
+  if (role === 'b' && +P.bn > 0) p = p.filter(function (x) { return x[5] === +P.bn || x[11] === +P.bn; });
   return { status: 'ok', cap: S.cap, cnt: S.cnt, buses: S.buses, p: p };
 }
 /* כתיבה לשורה אחת לפי מפתח, וקריאה חוזרת. */
@@ -21338,6 +21346,9 @@ function busSet_(role, P) {
       var bn = +v;
       if (v !== '' && !(bn >= 1 && bn <= busCnt_())) return { status: 'error' };
       col = 'אוטובוס'; val = v === '' ? '' : String(bn);
+      /* העברה מ"נשארו בלי מקום" (ov=1) זוכרת את האוטובוס המקורי; העברה רגילה מנקה. */
+      var from = String(P.ov) === '1' && +o['אוטובוס'] && +o['אוטובוס'] !== bn ? String(+o['אוטובוס']) : '';
+      sh.getRange(o.r, BUS_ST_COLS_.indexOf('הועבר מ') + 1).setValue(from);
     } else {
       if (o['סוג'] === 'צוות') return { status: 'error' };
       val = v === 'y' ? 'כן' : v === 'n' ? 'לא' : '';
