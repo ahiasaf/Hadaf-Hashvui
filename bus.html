@@ -110,6 +110,11 @@ body{background:var(--paper);color:var(--ink);line-height:1.5;padding-bottom:cal
 .ap button.y.on{background:var(--ok);color:#fff}
 .ap button.n.on{background:var(--stop);color:#fff}
 .ap button.c.on{background:var(--ink-2);color:#fff}
+/* בריף v5: הכפתור הקבוע של הרב */
+.fbar{position:fixed;left:0;right:0;bottom:0;z-index:40;padding:10px 16px calc(env(safe-area-inset-bottom) + 10px);background:rgba(247,245,238,.97);border-top:1px solid var(--rule)}
+.fullb{display:block;width:100%;max-width:34rem;margin:0 auto;border:0;border-radius:14px;background:var(--stop);color:#fff;font:inherit;font-weight:900;font-size:1.15rem;padding:15px;cursor:pointer;box-shadow:0 4px 12px rgba(165,56,45,.35)}
+.fullb.on{background:#7A1F17}
+body.hasbar{padding-bottom:calc(env(safe-area-inset-bottom) + 110px)}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -173,6 +178,7 @@ function say(t, good) { $('say').textContent = t || ''; $('say').className = 'sa
 /* S.d — תשובת השרת · PEND — שינויים שנשלחו ועוד לא נקראו בחזרה ('מפתח|שדה' → ערך). */
 var S = { d: null, tab: 1, g: '', c: '', me: null, log: null };
 var PEND = {};
+var FULLP = {};
 var ME_K = 'df:busMe:' + X, PC_K = 'df:busP:' + X;
 S.me = W === 'b' ? jget(ME_K) : null;
 (function () { var pc = W === 'p' ? jget(PC_K) : null; if (pc) { S.g = pc.g || ''; S.c = pc.c || ''; } })();
@@ -274,11 +280,12 @@ function groups(L, row) {
   return h;
 }
 /* אוטובוס מלא: באנר אדום, ומתחתיו מי שעוד לא עלה — העברה בלחיצה לאוטובוס הראשון עם מקום פנוי. */
+function busF(b) { var o = ((S.d && S.d.buses) || [])[b - 1] || {}; return FULLP[b] != null ? FULLP[b] : o.f; }
 function fullHtml(m, cap, cnt) {
-  var P = people(), h = '';
+  var P = people(), h = '', d0 = ((S.d && S.d.buses) || []).map(function (o) { return { f: busF(o.b) }; });
   for (var b = 1; b <= cnt; b++) {
-    var x = m[b];
-    if (!x || x.h < cap) continue;
+    var x = m[b] || { n: 0, h: 0 }, bs = d0[b - 1] || {};
+    if (x.h < cap && !bs.f) continue;
     var left = P.filter(function (o) { return o.b === b && o.t === 's' && !o.h; }).sort(byName), to = 0;
     for (var y = 1; y <= cnt && !to; y++) if (y !== b && ((m[y] && m[y].n) || 0) < cap) to = y;
     h += '<div class="full"><div class="fh">' + esc(tp(UI.busFull, { b: b })) + '</div>';
@@ -297,7 +304,7 @@ function paintA() {
   var h = fullHtml(m, cap, cnt) + '<div class="card"><div class="chips">';
   for (var b = 1; b <= cnt; b++) {
     var x = m[b] || { n: 0, h: 0 };
-    h += '<button type="button" data-tab="' + b + '" class="' + (S.tab === b ? 'on' : '') + (x.h >= cap || x.n > cap ? ' ov' : '') + '">' + esc(tp(UI.busTab, { b: b })) +
+    h += '<button type="button" data-tab="' + b + '" class="' + (S.tab === b ? 'on' : '') + (x.h >= cap || x.n > cap || busF(b) ? ' ov' : '') + '">' + esc(tp(UI.busTab, { b: b })) +
       '<small>' + esc(tp(UI.busTabLive, { h: x.h, cap: cap })) + '</small></button>';
   }
   h += '<button type="button" data-tab="0"' + (S.tab === 0 ? ' class="on"' : '') + '>' + esc(UI.busNone) + '<small>' + un + '</small></button></div></div>';
@@ -350,7 +357,12 @@ function paintB() {
     return '<div class="row gone"><div class="top"><span class="t"><b>' + esc(o.n) + '</b><small>' + esc(tp(UI.busMovedTo, { b: o.b })) + '</small></span></div></div>';
   }).join('') + '</div>';
   h += farHtml(b);
+  /* "מילאתי את האוטובוס" (בריף v5) — בתחתית, קבוע ובולט. מלא (סומן או הגיע לקיבולת) — נשאר בולט כמידע. */
+  var full = busF(b) || hh >= S.d.cap;
+  h += '<div class="fbar"><button type="button" class="fullb' + (full ? ' on' : '') + '" data-full="' + b + '">' +
+    esc(full ? UI.busFullOn : UI.busFullBtn) + '</button></div>';
   $('app').innerHTML = h;
+  document.body.classList.add('hasbar');
 }
 /* האיפוס — רחוק מכפתורי הסימון, בצבע אחר, וחלון אישור עם הקלדה. */
 function farHtml(b) {
@@ -412,6 +424,15 @@ $('app').addEventListener('click', function (ev) {
     PEND[a + '|mf'] = 0;
     setF(a, 'b', v);
     if (nb > S.d.cap) say(tp(UI.busOverMove, { b: v, n: nb, cap: S.d.cap }));
+    return;
+  }
+  if ((a = t.getAttribute('data-full')) != null) {
+    var fb = +a, nv = busF(fb) ? '0' : '1';
+    FULLP[fb] = nv === '1' ? 1 : 0; say(''); paint();
+    get('bus=full&' + AUTH + '&bn=' + fb + '&v=' + nv + '&by=' + encodeURIComponent(S.me ? S.me.n : '')).then(function (d) {
+      if (!d || d.status !== 'ok') throw new Error('bad');
+      return load(true);
+    })['catch'](function () { say(UI.busFail); }).then(function () { delete FULLP[fb]; paint(); });
     return;
   }
   if ((a = t.getAttribute('data-ov')) != null) {
@@ -485,6 +506,7 @@ var STOP = 0;
 setInterval(function () {
   if (STOP || document.hidden) return;
   for (var k in PEND) return;
+  for (var k2 in FULLP) return;
   if ($('mdl').className.indexOf('on') >= 0) return;
   load();
 }, 4000);

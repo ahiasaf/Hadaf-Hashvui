@@ -155,6 +155,28 @@ async function page(b, port, W, url, init) {
     await pa2.waitForFunction(function () { return !document.querySelector('#say').textContent || true; });
     await pa2.waitForTimeout(600);
     ok(st.d[ri][12] === '', 'regular move clears from', st.d[ri]);
+    // בריף v5: "מילאתי את האוטובוס" אצל הרב → מלא אצל המנהל, גם מתחת לקיבולת; איפוס מנקה, שחזור מחזיר
+    W.ctx.doGet({ parameter: { bus: 'cfg', w: 'adm', key: 'k', cap: '50' } });
+    await pa2.waitForFunction(function () { return !document.querySelector('.full'); }, null, { timeout: 15000 });
+    await pb2.waitForSelector('.fbar .fullb:not(.on)', { timeout: 15000 });
+    ok((await pb2.textContent('.fullb')) === 'מילאתי את האוטובוס', 'rav button');
+    ok(await pb2.evaluate(function () { return getComputedStyle(document.querySelector('.fbar')).position === 'fixed'; }), 'button fixed');
+    await pb2.click('.fullb');
+    await pb2.waitForSelector('.fullb.on');
+    await pa2.waitForSelector('.full', { timeout: 15000 });
+    ok((await pa2.textContent('.full .fh')) === 'אוטובוס 1 מלא', 'manager sees full from rav');
+    var bt = W.priv.getSheetByName('צמאה — אוטובוסים');
+    ok(bt.d[0][3] === 'מלא' && String(bt.d[1][3]).indexOf(R1) >= 0, 'sheet full flag', bt.d[1]);
+    await pb2.click('.rst'); await pb2.fill('#mI', 'אפס'); await pb2.click('#mYes');
+    await pb2.waitForSelector('.fullb:not(.on)', { timeout: 15000 });
+    ok(!bt.d[1][3], 'reset clears full');
+    await pb2.waitForSelector('.undo'); await pb2.click('.undo');
+    await pb2.waitForSelector('.fullb.on', { timeout: 15000 });
+    ok(String(bt.d[1][3]).indexOf(R1) >= 0, 'undo restores full');
+    await pb2.click('.fullb');
+    await pb2.waitForSelector('.fullb:not(.on)', { timeout: 15000 });
+    ok(!bt.d[1][3], 'second tap unmarks');
+    ok(await pb2.$('[data-mv]') === null, 'rav cannot move');
     var bad = await page(b, port, W, '/bus?w=a&x=nope');
     await bad.waitForFunction(function () { return /אינו תקין/.test(document.querySelector('#msg').textContent); });
     ok(true, 'bad link');
