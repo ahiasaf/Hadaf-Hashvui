@@ -2274,6 +2274,9 @@ node scratchpad/smoke.js     # כל המסכים, שתי רזולוציות
   tzmReq_ (הבית) — `closed`; cls/scls — `closed: 1` בלי שמות; tzmMe_ — `on: false` (כרטיס הבית נעלם). פתוח: ramset/ramst, הניהול.
   העמוד: ר"ם — רק שאלת ההגעה + `ui.tzmClosed`; תלמיד — ההודעה, ומי שנרשם מהטלפון — המצב שלו בלי "ביטול ההרשמה".
   פתיחה מחדש — `TZM_CLOSED_ = false`. הבדיקות האחרות מכבות את הנעילה (`c.TZM_CLOSED_ = false`). בדיקה: `tools/tzmtest/closed.js` (17).
+* **8.99.607 · SCRIPT_VERSION 282 — "מי רשום" לפי כיתה** (ניהול ← אירוע צמאה, כפתור `ui.tzmAllBtn`): `?tzm=all&key=` (המאגר + הרשומים)
+  → `tzmAllHtml`: שכבות, ולכל כיתה "רשומים N מתוך T" וכל התלמידים — רשום ✓ ירוק, אחר אפור. רשום שאינו במאגר — נוסף לכיתה.
+  בדיקה: `NODE_PATH=$(npm root -g) node tools/tzmtest/allview.js` (10).
 
 ## מחשב — בלי שלב ההתקנה (8.99.601)
 

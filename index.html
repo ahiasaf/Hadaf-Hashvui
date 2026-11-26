@@ -3201,7 +3201,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.606';
+var APP_VERSION = '8.99.607';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -18439,9 +18439,58 @@ function tzmListTxt() {
   }).join('\n\n');
 }
 function tzmCopyList() { copyText(tzmListTxt(), UI.tzmAdmListOk); }
+/* "מי רשום" (8.99.607): כל תלמידי הכיתה מהמאגר, והרשומים מסומנים — לפי שכבה, כיתה אחרי כיתה. */
+function tzmAllGo() {
+  var k = (CFG.readKey || '').trim();
+  if (!k) return;
+  TZM.view = 'all'; TZM.all = null; TZM.allErr = 0; tzmPaint(); window.scrollTo(0, 0);
+  scriptGet({ tzm: 'all', key: k }).then(function (d) {
+    if (d && d.status === 'ok') TZM.all = d; else TZM.allErr = 1;
+    tzmPaint();
+  }, function () { TZM.allErr = 1; tzmPaint(); });
+}
+function tzmAllBack() { TZM.view = ''; tzmPaint(); window.scrollTo(0, 0); }
+function tzmAllG(g) { TZM.allG = g; tzmPaint(); }
+function tzmAllHtml() {
+  var h = '<div class="adm-card"><h4>' + esc(UI.tzmAllH) + '</h4>' +
+    '<button class="btn g" type="button" onclick="tzmAllBack()" style="margin-bottom:12px">' + esc(UI.tzmAllBack) + '</button>';
+  var A = TZM.all;
+  if (!A) return h + '<p class="h">' + esc(TZM.allErr ? UI.tzmAdmFail : UI.tzmLoad) + '</p></div>';
+  var C = {}, k, reg = {};
+  for (k in (A.cls || {})) C[k] = (A.cls[k] || []).slice();
+  (A.reg || []).forEach(function (x) {
+    var ck = x[0] + '|' + x[1];
+    reg[ck + '|' + x[2]] = 1;
+    C[ck] = C[ck] || [];
+    if (C[ck].indexOf(x[2]) < 0) C[ck].push(x[2]);
+  });
+  var GO = ['ז', 'ח', 'ט', 'י', 'יא', 'יב'], have = {};
+  for (k in C) have[k.split('|')[0]] = 1;
+  var gs = GO.filter(function (g) { return have[g]; });
+  if (!gs.length) return h + '<p class="h">' + esc(UI.tzmAdmNone) + '</p></div>';
+  var g = gs.indexOf(TZM.allG) >= 0 ? TZM.allG : gs[0];
+  h += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">' + gs.map(function (x) {
+    return '<button class="btn' + (x === g ? '' : ' g') + '" type="button" onclick="tzmAllG(\'' + esc(x) + '\')">' + esc(tzmGrD(x)) + '</button>';
+  }).join('') + '</div>';
+  var cs = Object.keys(C).filter(function (k2) { return k2.split('|')[0] === g; })
+    .sort(function (a, b) { return (+a.split('|')[1] || 99) - (+b.split('|')[1] || 99); });
+  h += cs.map(function (ck) {
+    var c = ck.split('|')[1], L = C[ck].slice().sort(function (a, b) { return a.localeCompare(b, 'he'); });
+    var n = L.filter(function (x) { return reg[ck + '|' + x]; }).length;
+    return '<div style="margin:14px 0 4px;padding:8px 12px;border-radius:10px;background:#EEF2F8;font-weight:900;font-size:1.05rem">' +
+      esc(fill(UI.tzmAllCls, { cls: tzmCls(g, c), n: n, t: L.length })) + '</div>' +
+      L.map(function (x) {
+        var on = !!reg[ck + '|' + x];
+        return '<div style="padding:7px 12px;margin:3px 0;border-radius:9px;' + (on ? 'background:#E3F4D8;color:#1F4D0A;font-weight:800' : 'background:#F6F6F6;color:#777') + '">' +
+          (on ? '✓ ' : '') + esc(x) + (on ? ' · ' + esc(UI.tzmAllOn) : '') + '</div>';
+      }).join('');
+  }).join('');
+  return h + '</div>';
+}
 function tzmPaint() {
   var el = document.getElementById('tzm');
   if (!el) return;
+  if (TZM.view === 'all') { el.innerHTML = tzmAllHtml(); return; }
   var d = TZM.d, h = '<div class="adm-card"><h4>' + esc(UI.moreTzm) + '</h4>' +
     (TZM.msg ? '<div class="cond" style="margin-bottom:10px">' + esc(TZM.msg) + '</div>' : '');
   if (!d) { el.innerHTML = h + (TZM.busy ? '<p class="h">' + esc(UI.tzmLoad) + '</p>' : '') + '</div>'; return; }
@@ -18451,6 +18500,7 @@ function tzmPaint() {
     '<div style="font-size:2.4rem;font-weight:900;line-height:1.1;color:' + (left < 0 ? '#B3261E' : '#2F5C12') + '">' +
     esc(left < 0 ? fill(UI.tzmAdmOver, { n: -left }) : fill(UI.tzmAdmLeft, { n: left })) + '</div>' +
     '<div style="font-weight:700;color:#555;margin-top:4px">' + esc(fill(UI.tzmAdmLeftOf, { t: TZM_CAP, n: nReg })) + '</div></div>';
+  h += '<div style="margin-bottom:14px"><button class="btn" type="button" style="width:100%;padding:12px" onclick="tzmAllGo()">' + esc(UI.tzmAllBtn) + '</button></div>';
   h += tzmRamsHtml(d);
   var url = location.origin + '/tzama?k=' + encodeURIComponent(d.k || '');
   h += '<p class="h"><b>' + esc(UI.tzmAdmLink) + '</b></p><div style="margin-bottom:14px">' +
