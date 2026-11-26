@@ -60,6 +60,7 @@ function rows(W) { var s = W.priv.getSheetByName('צמאה — רישום'); ret
     ok(v.status === 'ok' && v.reg.length === 1 && v.reg[0].length === 3, 'view data', v);
     var p = await page(b, port, W, '/tzama?v=' + all.vk);
     await p.waitForSelector('#vw:not([hidden])');
+    ok((await p.$$('#vwK [data-c]')).length === 1, 'class chips');
     var t = await p.textContent('#vwC');
     ok(t.indexOf('רשומים 1 מתוך 2') >= 0, 'count', t);
     ok(t.indexOf('✓ ' + A) >= 0 && t.indexOf(B) >= 0 && t.indexOf('✓ ' + B) < 0, 'marks');
