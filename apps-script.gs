@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 283;
+var SCRIPT_VERSION = 284;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -21129,7 +21129,8 @@ function tzmRoute_(P) {
   if (op === 'view') {
     var vk = tzmVKeyOf_(false);
     if (!vk || String(P.v || '') !== vk) return { status: 'denied' };
-    return { status: 'ok', cls: tzmRoster_(), reg: tzmReg_().map(function (x) { return [x[0], x[1], x[2]]; }) };
+    /* 8.99.610: רק הרשומים — בלי שאר תלמידי הכיתות. */
+    return { status: 'ok', reg: tzmReg_().map(function (x) { return [x[0], x[1], x[2]]; }) };
   }
   if (op === 'scls') return tzmSOk_(P) ? (TZM_CLOSED_ ? { status: 'ok', cls: {}, closed: 1 } : { status: 'ok', cls: tzmRoster_() }) : { status: 'denied' };
   if (op === 'sreq') return tzmSOk_(P) ? tzmSReq_(P) : { status: 'denied' };

@@ -113,8 +113,7 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
   <!-- קישור התלמידים (8.99.582): פרטי האירוע — התמונה שאחיאסף שלח. -->
   <img class="info" id="info" src="tzama-info.jpg" alt="" width="880" height="3344" hidden>
   <div class="msg" id="msg" hidden></div>
-  <div id="vw" hidden><div class="card"><div class="chips" id="vwG"></div>
-    <div class="chips" id="vwK" style="margin-top:12px"></div></div><div id="vwC"></div></div>
+  <div id="vw" hidden><div class="card"><h3 id="vwG" style="margin:0"></h3></div><div id="vwC"></div></div>
   <div class="st" id="lerr" hidden><p id="lerrT"></p><button class="btn g" id="lre" type="button"></button></div>
   <div id="f" hidden>
     <div class="card" id="byCard"><label class="fl"><h3 id="byL"></h3><p class="note" id="byP"></p>
@@ -311,49 +310,17 @@ function fetchCls() {
     return d;
   });
 }
-var VW = { d: null, g: '', c: '' };
+var VW = { d: null };
+/* קישור לצפייה (8.99.610, אחיאסף): רשימה אחת של הרשומים בלבד — לפי שכבה, כיתה ושם; הכיתה ליד השם. */
 function vwPaint() {
-  var A = VW.d, C = {}, reg = {}, k;
-  for (k in (A.cls || {})) C[k] = (A.cls[k] || []).slice();
-  (A.reg || []).forEach(function (x) {
-    var ck = x[0] + '|' + x[1];
-    reg[ck + '|' + x[2]] = 1;
-    C[ck] = C[ck] || [];
-    if (C[ck].indexOf(x[2]) < 0) C[ck].push(x[2]);
+  var L = (VW.d.reg || []).slice();
+  L.sort(function (a, b) {
+    return (GRADES.indexOf(a[0]) - GRADES.indexOf(b[0])) || ((+a[1] || 99) - (+b[1] || 99)) || String(a[2]).localeCompare(String(b[2]), 'he');
   });
-  var have = {};
-  for (k in C) have[k.split('|')[0]] = 1;
-  var gs = GRADES.filter(function (g) { return have[g]; });
-  if (!gs.length) return say(UI.tzmAdmNone);
-  if (gs.indexOf(VW.g) < 0) VW.g = gs[0];
-  $('vwG').innerHTML = gs.map(function (g) {
-    return '<button type="button" data-g="' + g + '"' + (VW.g === g ? ' class="on"' : '') + '>' + grD(g) + '</button>';
-  }).join('');
-  Array.prototype.forEach.call($('vwG').querySelectorAll('[data-g]'), function (el) {
-    el.onclick = function () { var g = this.getAttribute('data-g'); if (VW.g !== g) { VW.g = g; VW.c = ''; } vwPaint(); };
-  });
-  var cs = Object.keys(C).filter(function (k2) { return k2.split('|')[0] === VW.g; })
-    .sort(function (a, b) { return (+a.split('|')[1] || 99) - (+b.split('|')[1] || 99); });
-  /* בחירת כיתה (8.99.609, אחיאסף): כיתה אחת על המסך. */
-  var ccs = cs.map(function (ck) { return ck.split('|')[1]; });
-  if (ccs.indexOf(VW.c) < 0) VW.c = ccs[0] || '';
-  $('vwK').innerHTML = ccs.map(function (c) {
-    return '<button type="button" data-c="' + esc(c) + '"' + (VW.c === c ? ' class="on"' : '') + '>' + esc(clsD(VW.g, c)) + '</button>';
-  }).join('');
-  Array.prototype.forEach.call($('vwK').querySelectorAll('[data-c]'), function (el) {
-    el.onclick = function () { VW.c = this.getAttribute('data-c'); vwPaint(); };
-  });
-  cs = cs.filter(function (ck) { return ck.split('|')[1] === VW.c; });
-  $('vwC').innerHTML = cs.map(function (ck) {
-    var c = ck.split('|')[1], L = C[ck].slice().sort(function (a, b) { return a.localeCompare(b, 'he'); });
-    var n = L.filter(function (x) { return reg[ck + '|' + x]; }).length;
-    return '<div class="card"><h3>' + esc(tp(UI.tzmAllCls, { cls: clsD(VW.g, c), n: n, t: L.length })) + '</h3><div class="list">' +
-      L.map(function (x) {
-        var on = !!reg[ck + '|' + x];
-        return '<div class="row' + (on ? ' ch' : '') + '" style="cursor:default"><span class="t"><b' + (on ? '' : ' style="font-weight:500;color:var(--ink-2)"') + '>' +
-          (on ? '✓ ' : '') + esc(x) + '</b>' + (on ? '<small style="color:var(--green-d);font-weight:800">' + esc(UI.tzmAllOn) + '</small>' : '') + '</span></div>';
-      }).join('') + '</div></div>';
-  }).join('');
+  $('vwG').textContent = tp(UI.tzmAllTot, { n: L.length });
+  $('vwC').innerHTML = L.length ? '<div class="card"><div class="list">' + L.map(function (x) {
+    return '<div class="row ch" style="cursor:default"><span class="t"><b>✓ ' + esc(x[2]) + '</b><small>' + esc(clsD(x[0], x[1])) + '</small></span></div>';
+  }).join('') + '</div></div>' : '';
   show('vw');
 }
 function load() {
