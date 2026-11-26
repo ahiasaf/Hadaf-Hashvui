@@ -3201,7 +3201,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.611';
+var APP_VERSION = '8.99.612';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -18341,14 +18341,18 @@ function admTzm(body) {
   busAdmLoad();
 }
 /* צמאה — אוטובוסים (8.99.611): שלושת הקישורים, הקיבולת ומספר האוטובוסים, ומסך האוטובוסים (bus?w=adm). */
-var BUSA = { d: null };
+var BUSA = { d: null, err: 0 };
+/* 8.99.612: הכרטיס תמיד מוצג — בטעינה, בכישלון (עם "נסה שוב") ובהצלחה. קודם כישלון הסתיר אותו בשקט. */
 function busAdmLoad() {
   var k = (CFG.readKey || '').trim();
   if (!k) return;
+  BUSA.err = 0;
   scriptGet({ bus: 'adm', w: 'adm', key: k }).then(function (d) {
-    if (d && d.status === 'ok') { BUSA.d = d; tzmPaint(); }
-  }, function () {});
+    if (d && d.status === 'ok') BUSA.d = d; else BUSA.err = 1;
+    tzmPaint();
+  }, function () { BUSA.err = 1; tzmPaint(); });
 }
+function busAdmRetry() { BUSA.err = 0; tzmPaint(); busAdmLoad(); }
 function busAdmSave() {
   var k = (CFG.readKey || '').trim(), cap = document.getElementById('bus-cap'), cnt = document.getElementById('bus-cnt');
   if (!k || !cap || !cnt) return;
@@ -18359,7 +18363,10 @@ function busAdmSave() {
 }
 function busAdmHtml() {
   var d = BUSA.d;
-  if (!d) return '';
+  if (!d) return '<div style="margin-bottom:16px;padding:12px;border-radius:14px;background:#EEF2F8">' +
+    '<p class="h" style="margin:0 0 6px"><b style="font-size:1.1rem">' + esc(UI.busAdmH) + '</b></p>' +
+    (BUSA.err ? '<p class="h" style="margin:0 0 8px">' + esc(UI.tzmAdmFail) + '</p><button class="btn g" type="button" onclick="busAdmRetry()">' + esc(UI.busAdmRetry) + '</button>'
+      : '<p class="h" style="margin:0">' + esc(UI.tzmLoad) + '</p>') + '</div>';
   var lk = function (lbl, u) {
     return '<p class="h"><b>' + esc(lbl) + '</b></p><div style="margin-bottom:12px">' +
       '<input readonly dir="ltr" style="display:block;width:100%;box-sizing:border-box;padding:8px;margin-bottom:6px;border:1px solid #ddd;border-radius:8px" value="' + esc(u) + '" onfocus="this.select()">' +
@@ -18433,14 +18440,16 @@ function tzmRamsHtml(d) {
   /* כל הר"מים נשאלים (8.99.602) — כולם בסיכום ובכפתורים. */
   var y = 0, n = 0, Z = L.length;
   L.forEach(function (r) { if (r.a === 'y') y++; else if (r.a === 'n') n++; });
-  return '<div style="margin-bottom:14px;padding:12px;border-radius:14px;background:#F4F6FA">' +
-    '<p class="h" style="margin:0 0 8px"><b>' + esc(fill(UI.tzmAdmRams, { y: y, n: n, q: Z - y - n })) + '</b></p>' +
+  /* מקופל (8.99.612, אחיאסף): נפתח בלחיצה, וזוכר שנפתח בין ציור לציור. */
+  return '<details style="margin-bottom:14px;padding:10px 12px;border-radius:14px;background:#F4F6FA"' + (TZM.ramOpen ? ' open' : '') +
+    ' ontoggle="TZM.ramOpen = this.open">' +
+    '<summary style="cursor:pointer;font-weight:800">' + esc(fill(UI.tzmAdmRams, { y: y, n: n, q: Z - y - n })) + '</summary><div style="margin-top:8px">' +
     L.map(function (r, i) {
       var b = TZM.ramBusy === r.n ? ' disabled' : '';
       return '<div class="prow2"><div style="flex:1"><b>' + esc(r.n) + '</b>' + (r.c ? '<span>' + esc(r.c) + '</span>' : '') + '</div>' +
         '<button class="btn' + (r.a === 'y' ? '' : ' g') + '" type="button"' + b + ' onclick="tzmRamGo(' + i + ',\'y\')">' + (r.a === 'y' ? '✓ ' : '') + esc(UI.tzmRamY) + '</button> ' +
         '<button class="btn' + (r.a === 'n' ? '' : ' g') + '" type="button"' + b + ' onclick="tzmRamGo(' + i + ',\'n\')">' + (r.a === 'n' ? '✓ ' : '') + esc(UI.tzmRamN) + '</button></div>';
-    }).join('') + '</div>';
+    }).join('') + '</div></details>';
 }
 function tzmLsK(g, c, n) {
   var cl = String(c || '').replace(/["'׳״`\s]/g, '');
@@ -18543,8 +18552,8 @@ function tzmPaint() {
     '<div style="font-size:2.4rem;font-weight:900;line-height:1.1;color:' + (left < 0 ? '#B3261E' : '#2F5C12') + '">' +
     esc(left < 0 ? fill(UI.tzmAdmOver, { n: -left }) : fill(UI.tzmAdmLeft, { n: left })) + '</div>' +
     '<div style="font-weight:700;color:#555;margin-top:4px">' + esc(fill(UI.tzmAdmLeftOf, { t: TZM_CAP, n: nReg })) + '</div></div>';
-  h += '<div style="margin-bottom:14px"><button class="btn" type="button" style="width:100%;padding:12px" onclick="tzmAllGo()">' + esc(UI.tzmAllBtn) + '</button></div>';
   h += busAdmHtml();
+  h += '<div style="margin-bottom:14px"><button class="btn" type="button" style="width:100%;padding:12px" onclick="tzmAllGo()">' + esc(UI.tzmAllBtn) + '</button></div>';
   h += tzmRamsHtml(d);
   var url = location.origin + '/tzama?k=' + encodeURIComponent(d.k || '');
   h += '<p class="h"><b>' + esc(UI.tzmAdmLink) + '</b></p><div style="margin-bottom:14px">' +
