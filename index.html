@@ -3201,7 +3201,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.607';
+var APP_VERSION = '8.99.608';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -18456,6 +18456,12 @@ function tzmAllHtml() {
     '<button class="btn g" type="button" onclick="tzmAllBack()" style="margin-bottom:12px">' + esc(UI.tzmAllBack) + '</button>';
   var A = TZM.all;
   if (!A) return h + '<p class="h">' + esc(TZM.allErr ? UI.tzmAdmFail : UI.tzmLoad) + '</p></div>';
+  if (A.vk) {
+    var vu = location.origin + '/tzama?v=' + encodeURIComponent(A.vk);
+    h += '<p class="h"><b>' + esc(UI.tzmAllLink) + '</b></p><div style="margin-bottom:14px">' +
+      '<input readonly dir="ltr" style="display:block;width:100%;box-sizing:border-box;padding:8px;margin-bottom:6px;border:1px solid #ddd;border-radius:8px" value="' + esc(vu) + '" onfocus="this.select()">' +
+      '<button class="btn g" type="button" onclick="copyText(\'' + esc(vu) + '\', UI.tzmAdmCopied)">' + esc(UI.tzmAdmCopy) + '</button></div>';
+  }
   var C = {}, k, reg = {};
   for (k in (A.cls || {})) C[k] = (A.cls[k] || []).slice();
   (A.reg || []).forEach(function (x) {

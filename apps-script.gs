@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 282;
+var SCRIPT_VERSION = 283;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -20934,6 +20934,12 @@ function tzmSKeyOf_(make) {
   if (!k && make) { k = Utilities.getUuid().replace(/-/g, '').slice(0, 20); P.setProperty('TZM_SKEY', k); }
   return k;
 }
+/* קישור לצפייה בלבד ברשימת הרשומים (8.99.608): מפתח נפרד, קריאה בלבד — שם · שכבה · כיתה · רשום. */
+function tzmVKeyOf_(make) {
+  var P = PropertiesService.getScriptProperties(), k = P.getProperty('TZM_VKEY') || '';
+  if (!k && make) { k = Utilities.getUuid().replace(/-/g, '').slice(0, 20); P.setProperty('TZM_VKEY', k); }
+  return k;
+}
 function tzmSOk_(P) { var k = tzmSKeyOf_(false); return !!k && String(P.s || '') === k; }
 /* אסימון הבקשה (8.99.584) — עמודה 11 ("אסימון"), מחוץ ל-TZM_COLS_. רק הטלפון ששלח את הבקשה מחזיק אותו,
    ורק הוא יכול לבטל אותה (?tzm=scan). */
@@ -21120,6 +21126,11 @@ function tzmRoute_(P) {
     var me1 = tzmRamOf_(P.n);
     return me1 ? { status: 'ok', a: me1.a, z: 1 } : { status: 'none' };
   }
+  if (op === 'view') {
+    var vk = tzmVKeyOf_(false);
+    if (!vk || String(P.v || '') !== vk) return { status: 'denied' };
+    return { status: 'ok', cls: tzmRoster_(), reg: tzmReg_().map(function (x) { return [x[0], x[1], x[2]]; }) };
+  }
   if (op === 'scls') return tzmSOk_(P) ? (TZM_CLOSED_ ? { status: 'ok', cls: {}, closed: 1 } : { status: 'ok', cls: tzmRoster_() }) : { status: 'denied' };
   if (op === 'sreq') return tzmSOk_(P) ? tzmSReq_(P) : { status: 'denied' };
   if (op === 'scan') return tzmSOk_(P) ? tzmSCancel_(P) : { status: 'denied' };
@@ -21135,7 +21146,7 @@ function tzmRoute_(P) {
   if (op === 'req') return tzmReq_(P.id);
   if (!READ_KEY || String(P.key || '') !== READ_KEY) return { status: 'denied' };
   /* כל תלמידי הכיתות + הרשומים — לתצוגה "מי רשום" בניהול (8.99.607). */
-  if (op === 'all') return { status: 'ok', cls: tzmRoster_(), reg: tzmReg_() };
+  if (op === 'all') return { status: 'ok', cls: tzmRoster_(), reg: tzmReg_(), vk: tzmVKeyOf_(true) };
   if (op === 'adm') return { status: 'ok', rams: tzmRams_(true).map(function (x) { return { n: x.n, c: x.c, a: x.a, z: x.z ? 1 : 0 }; }), k: tzmKeyOf_(true), sk: tzmSKeyOf_(true), reg: tzmReg_(), rq: tzmRq_(), pq: tzmPq_(), on: tzmOn_(),
     lsOn: tzmLsOn_(), ls: tzmLsOn_() ? tzmLs_().keys : [] };
   if (op === 'lson') {

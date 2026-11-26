@@ -2277,6 +2277,9 @@ node scratchpad/smoke.js     # כל המסכים, שתי רזולוציות
 * **8.99.607 · SCRIPT_VERSION 282 — "מי רשום" לפי כיתה** (ניהול ← אירוע צמאה, כפתור `ui.tzmAllBtn`): `?tzm=all&key=` (המאגר + הרשומים)
   → `tzmAllHtml`: שכבות, ולכל כיתה "רשומים N מתוך T" וכל התלמידים — רשום ✓ ירוק, אחר אפור. רשום שאינו במאגר — נוסף לכיתה.
   בדיקה: `NODE_PATH=$(npm root -g) node tools/tzmtest/allview.js` (10).
+* **8.99.608 · SCRIPT_VERSION 283 — קישור לצפייה בלבד:** `tzama?v=<TZM_VKEY>` (מפתח נפרד, נוצר ב-`?tzm=all`; הקישור + העתקה בראש
+  "מי רשום" — `ui.tzmAllLink`). `?tzm=view&v=` — רק המאגר ו[שכבה, כיתה, שם] של הרשומים. tzama.html (`VKEY`, `vwPaint`) — שכבות
+  וכיתות, ✓ לרשום, בלי שום שדה או כפתור שמשנה. בדיקה: `NODE_PATH=$(npm root -g) node tools/tzmtest/viewlink.js` (9).
 
 ## מחשב — בלי שלב ההתקנה (8.99.601)
 

@@ -113,6 +113,7 @@ header{padding:calc(env(safe-area-inset-top) + 4px) 0 0}
   <!-- קישור התלמידים (8.99.582): פרטי האירוע — התמונה שאחיאסף שלח. -->
   <img class="info" id="info" src="tzama-info.jpg" alt="" width="880" height="3344" hidden>
   <div class="msg" id="msg" hidden></div>
+  <div id="vw" hidden><div class="card"><div class="chips" id="vwG"></div></div><div id="vwC"></div></div>
   <div class="st" id="lerr" hidden><p id="lerrT"></p><button class="btn g" id="lre" type="button"></button></div>
   <div id="f" hidden>
     <div class="card" id="byCard"><label class="fl"><h3 id="byL"></h3><p class="note" id="byP"></p>
@@ -240,6 +241,8 @@ function ramsPaint(L) {
 $('by').onkeydown = function (ev) { if (ev.keyCode === 13) { ev.preventDefault(); byGo(); } };
 
 var KEY = (location.search.match(/[?&]k=([0-9a-zA-Z]+)/) || [])[1] || '';
+/* קישור לצפייה (8.99.608): `?v=` — כל תלמידי הכיתה והרשומים מסומנים, בלי שום שינוי. */
+var VKEY = KEY ? '' : ((location.search.match(/[?&]v=([0-9a-zA-Z]+)/) || [])[1] || '');
 /* קישור התלמידים (?s=): בלי שם בהתחלה — שכבה, כיתה, לחיצה על השם, "להרשמה". הבקשה מגיעה קודם לאחיאסף. */
 var SKEY = KEY ? '' : ((location.search.match(/[?&]s=([0-9a-zA-Z]+)/) || [])[1] || '');
 var STU = !!SKEY;
@@ -282,7 +285,7 @@ function wait(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
 function grD(g) { return g.length > 1 ? g.charAt(0) + '״' + g.charAt(1) : g + '׳'; }
 function clsD(g, c) { return g.length > 1 ? grD(g) + ' ' + c : grD(g) + c; }
 
-function show(w) { $('msg').hidden = w !== 'msg'; $('lerr').hidden = w !== 'lerr'; $('f').hidden = w !== 'f'; }
+function show(w) { $('msg').hidden = w !== 'msg'; $('lerr').hidden = w !== 'lerr'; $('f').hidden = w !== 'f'; $('vw').hidden = w !== 'vw'; }
 function say(t) { $('msg').textContent = t; show('msg'); }
 
 /* הרשומים מהשרת → מפה */
@@ -307,7 +310,52 @@ function fetchCls() {
     return d;
   });
 }
+var VW = { d: null, g: '' };
+function vwPaint() {
+  var A = VW.d, C = {}, reg = {}, k;
+  for (k in (A.cls || {})) C[k] = (A.cls[k] || []).slice();
+  (A.reg || []).forEach(function (x) {
+    var ck = x[0] + '|' + x[1];
+    reg[ck + '|' + x[2]] = 1;
+    C[ck] = C[ck] || [];
+    if (C[ck].indexOf(x[2]) < 0) C[ck].push(x[2]);
+  });
+  var have = {};
+  for (k in C) have[k.split('|')[0]] = 1;
+  var gs = GRADES.filter(function (g) { return have[g]; });
+  if (!gs.length) return say(UI.tzmAdmNone);
+  if (gs.indexOf(VW.g) < 0) VW.g = gs[0];
+  $('vwG').innerHTML = gs.map(function (g) {
+    return '<button type="button" data-g="' + g + '"' + (VW.g === g ? ' class="on"' : '') + '>' + grD(g) + '</button>';
+  }).join('');
+  Array.prototype.forEach.call($('vwG').querySelectorAll('[data-g]'), function (el) {
+    el.onclick = function () { VW.g = this.getAttribute('data-g'); vwPaint(); };
+  });
+  var cs = Object.keys(C).filter(function (k2) { return k2.split('|')[0] === VW.g; })
+    .sort(function (a, b) { return (+a.split('|')[1] || 99) - (+b.split('|')[1] || 99); });
+  $('vwC').innerHTML = cs.map(function (ck) {
+    var c = ck.split('|')[1], L = C[ck].slice().sort(function (a, b) { return a.localeCompare(b, 'he'); });
+    var n = L.filter(function (x) { return reg[ck + '|' + x]; }).length;
+    return '<div class="card"><h3>' + esc(tp(UI.tzmAllCls, { cls: clsD(VW.g, c), n: n, t: L.length })) + '</h3><div class="list">' +
+      L.map(function (x) {
+        var on = !!reg[ck + '|' + x];
+        return '<div class="row' + (on ? ' ch' : '') + '" style="cursor:default"><span class="t"><b' + (on ? '' : ' style="font-weight:500;color:var(--ink-2)"') + '>' +
+          (on ? '✓ ' : '') + esc(x) + '</b>' + (on ? '<small style="color:var(--green-d);font-weight:800">' + esc(UI.tzmAllOn) + '</small>' : '') + '</span></div>';
+      }).join('') + '</div></div>';
+  }).join('');
+  show('vw');
+}
 function load() {
+  if (VKEY) {
+    $('ttl').textContent = UI.tzmAllH; $('sub').hidden = true;
+    if (UI.tzmAllH) document.title = UI.tzmAllH;
+    say(UI.tzmLoad);
+    return get('tzm=view&v=' + encodeURIComponent(VKEY)).then(function (d) {
+      if (d && d.status === 'denied') return say(UI.tzmDenied);
+      if (!d || d.status !== 'ok') { $('lerrT').textContent = UI.tzmLoadErr; return show('lerr'); }
+      VW.d = d; vwPaint();
+    }, function () { $('lerrT').textContent = UI.tzmLoadErr; show('lerr'); });
+  }
   if (!KEY && !SKEY) return say(UI.tzmDenied);
   say(UI.tzmLoad);
   if (KEY && $('byS').hidden) get('tzm=rams&k=' + encodeURIComponent(KEY)).then(function (d) { if (d && d.status === 'ok') ramsPaint(d.rams); }, function () {});
