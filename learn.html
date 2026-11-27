@@ -906,6 +906,22 @@ textarea.qz-in{min-height:60px;resize:vertical}
 .qz-opt.chosen{border-width:2px}
 .qz-opt.chosen::before{content:'\25CF';margin-inline-end:8px;color:var(--blue,#17468F)}
 .qz-opt.right.chosen::before{content:'\2713';color:#3B7D57}
+/* תוויות א׳–ד׳ וסימון התשובה שנבחרה (8.99.624). הבחירה נשארת גלויה גם
+   כשהשאלה נעולה (אחרי השליחה) — הכפתור הנעול אינו דוהה, והאחרות דוהות
+   מעט כדי שהבחירה תבלוט. */
+.qz-opt.qz-ab{display:flex;align-items:flex-start;gap:10px;text-align:right}
+.qz-opt.qz-ab::before,.qz-opt.qz-ab.chosen::before,.qz-opt.qz-ab.right.chosen::before{content:none}
+.qz-l{flex:none;display:inline-flex;align-items:center;justify-content:center;
+  min-width:28px;height:28px;border-radius:50%;border:1.5px solid var(--rule,#E4DCC8);
+  font-size:.82rem;font-weight:800;color:var(--ink-2,#5A6A85);background:#fff}
+.qz-t{flex:1 1 auto;padding-top:2px}
+.qz-opt.qz-ab.chosen{border-width:2px;border-color:var(--blue,#17468F);
+  background:rgba(23,70,143,.12);box-shadow:0 0 0 2px rgba(23,70,143,.14)}
+.qz-opt.qz-ab.chosen .qz-l{background:var(--blue,#17468F);border-color:var(--blue,#17468F);color:#fff}
+.qz-opt.qz-ab.right.chosen{border-color:#3B7D57;background:rgba(59,125,87,.12);box-shadow:none}
+.qz-opt.qz-ab.right.chosen .qz-l{background:#3B7D57;border-color:#3B7D57}
+.qz-opt.qz-ab:disabled{opacity:1;color:var(--ink,#1B2A45);-webkit-text-fill-color:var(--ink,#1B2A45)}
+.qz-opt.qz-ab:disabled:not(.chosen){opacity:.55}
 /* "כדאי לעיין בפירוש לנוער" — אחרי האפשרויות, בשאלה שהרכז הפעיל בה
    הפניה (qYrGo_). אותה צורה של כפתורי האפליקציה (רוחב מלא, פינות 12),
    ובשפת הזהב של לשונית "פירוש לנוער" — כדי שיהיה ברור שזה כפתור,
@@ -6226,6 +6242,34 @@ function qTagHtml_(it) {
 
 /* הלשונית עצמה מצוירת בתוך chavTabHtml (ליד חברותא/פירוש
    לנוער); כאן רק התוכן שבפנים, בדיוק כמו paintChav/paintOwn. */
+/* ערבוב התשובות לכל תלמיד (8.99.624) — **סדר תצוגה בלבד**, כמו qOrd_:
+   האינדקס שנשמר (qAnsSet_), נשלח (qSend) ונבדק נשאר של המקור. הסדר נשמר
+   במכשיר (`df:qaord:`), ולכן רענון, כניסה מחדש וניסיון שני — אותו סדר.
+   תוויות א׳–ד׳ לפי מקום התצוגה. אצל הרכז — סדר המקור. תשובה שמפנה
+   לתשובות אחרות ("כל התשובות", "א׳ וב׳") — לא מערבבים את השאלה. */
+var QZ_LET = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ז׳', 'ח׳'];
+var QA_ORDS = {};
+function qAOrd_(n, q) {
+  var len = (q && q.a) ? q.a.length : 0, ord = [];
+  for (var i = 0; i < len; i++) ord.push(i);
+  if (SIDE_ADM || len < 2) return ord;
+  if (q.a.some(function (t) {
+    return /תשובות|לעיל|הנ"ל|הנ״ל|כל האמור|אף אחת|שתיהן|(^|[\s(])[אבגד]['׳]?\s*(ו|או|\+|,)\s*[אבגד]['׳]?(?=$|[\s.)])/.test(String(t));
+  })) return ord;
+  var k = 'df:qaord:' + dmKey(S.mas, S.daf) + ':' + n + ':' + q.q;
+  if (QA_ORDS[k] && QA_ORDS[k].length === len) return QA_ORDS[k];
+  var was = null;
+  try { was = JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { was = null; }
+  if (was && was.length === len &&
+      was.slice().sort(function (a, b) { return a - b; }).join() === ord.join()) return (QA_ORDS[k] = was);
+  for (var j = len - 1; j > 0; j--) {
+    var r = Math.floor(Math.random() * (j + 1)), t2 = ord[j];
+    ord[j] = ord[r]; ord[r] = t2;
+  }
+  QA_ORDS[k] = ord;
+  try { localStorage.setItem(k, JSON.stringify(ord)); } catch (e2) {}
+  return ord;
+}
 var QZ_SHOWN = '';
 function paintQuiz() {
   var st = FLAT[IDX], box = $('chb');
@@ -6272,9 +6316,12 @@ function paintQuiz() {
       : list.length > 1 ? '<div class="qz-of">' + esc(String(UI.quizOf || '')
       .replace('{i}', pos + 1).replace('{n}', list.length)) + '</div>' : '') +
     '<div class="qz-q">' + esc(q.q) + '</div>' +
-    q.a.map(function (t, k) {
+    qAOrd_(n, q).map(function (k, d) {
+      var t = q.a[k];
       var c = k === pick ? (kept ? ' right chosen' : ' chosen') : (SIDE_ADM && k === q.correct ? ' right' : '');
-      return '<button class="qz-opt' + c + '" id="qz-opt' + k + '"' + (lock ? ' disabled' : '') + '>' + esc(t) + '</button>';
+      return '<button class="qz-opt qz-ab' + c + '" id="qz-opt' + k + '"' + (lock ? ' disabled' : '') +
+        (k === pick ? ' aria-pressed="true"' : '') + '><span class="qz-l">' + QZ_LET[d] + '</span>' +
+        '<span class="qz-t">' + esc(t) + '</span></button>';
     }).join('') +
     (yr ? '<button class="qz-yr" id="qz-yr">' + esc(UI.qYrBtn || '') + '</button>' : '') +
     (lock ? '<div class="qz-res">' + esc((kept ? UI.qKeptOk : UI.dqLocked) || '') + '</div>'
