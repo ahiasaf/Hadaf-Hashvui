@@ -29,7 +29,7 @@ var s = http.createServer(function (q, r) {
     await p.goto('http://localhost:' + port + '/bus?w=b&x=' + ad.b);
     await p.waitForSelector('#intro:not([hidden])');
     ok((await p.textContent('#inT')) === 'אתה עומד בכניסה לאוטובוס', 'title');
-    ok((await p.$$eval('#intro li', function (x) { return x.length; })) === 4, '4 lines');
+    ok((await p.$$eval('#intro li', function (x) { return x.length; })) === 5, '5 lines');
     ok(await p.evaluate(function () { var i = document.querySelector('#intro img'); return i.complete && i.naturalWidth > 0; }), 'image loaded');
     if (process.env.SHOT) await p.screenshot({ path: process.env.SHOT, fullPage: false });
     await p.click('#inGo');
