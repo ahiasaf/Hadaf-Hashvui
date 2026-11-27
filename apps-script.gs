@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 289;
+var SCRIPT_VERSION = 290;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -146,7 +146,7 @@ var PRIVATE_ID_FALLBACK = '';
 /* `נשלחו` — מה שכבר יצא: מפתח אחד לכל שליחה מתוזמנת שהצליחה.
    הוא מה שמונע שליחה כפולה כשהרצה משלימה משבצות שנפספסו, והוא
    נושא מזהי מכשירים — ולכן פרטי כמו השאר. ראו tools/sched.js. */
-var PRIVATE_TABS = ['שיעור חי', 'תמונת בית א', 'תמונת בית ב', 'עלונים להורדה', 'סקירה — אנשי קשר', 'סקירה — קשר', 'סבבים', 'זמני שרת', 'לומדים', 'לימוד', 'זמן יומי', 'הרשמות', 'חידות', 'קודים', 'התראות',
+var PRIVATE_TABS = ['מאגר — לטיפול ידני', 'שיעור חי', 'תמונת בית א', 'תמונת בית ב', 'עלונים להורדה', 'סקירה — אנשי קשר', 'סקירה — קשר', 'סבבים', 'זמני שרת', 'לומדים', 'לימוד', 'זמן יומי', 'הרשמות', 'חידות', 'קודים', 'התראות',
                     'הודעות', 'תקועים', 'תזכורות', 'נשלחו',
                     /* הלימוד המשותף — אבא ובן. שמות וטלפונים, ולכן פרטית. */
                     'זוגות',
@@ -373,7 +373,7 @@ var TM_KEYS_ = ['file', 'help', 'setup', 'fire', 'helpdone', 'conflictdone', 'sa
   'quizPubAll', 'amdaAmb', 'quizSum', 'pts', 'tkd', 'raffle', 'prz', 'quad', 'hash', 'twin', 'challenge',
   'parstat', 'ltime', 'amdaneed', 'test', 'sayCount', 'inbox', 'mark', 'funnel', 'trails', 'arrived', 'push',
   'pairHist', 'pair', 'pairok', 'pairSeen', 'pairFor', 'idFor', 'amdaFor', 'whoIs', 'wid', 'acc', 'accset',
-  'netbaks', 'netrun', 'netmarks', 'board', 'ov', 'team', 'recount', 'delrow', 'contactSave', 'archived',
+  'netbaks', 'netrun', 'netuni', 'netmarks', 'board', 'ov', 'team', 'recount', 'delrow', 'contactSave', 'archived',
   'dedupe', 'studioInv', 'sidStep', 'tm', 'read', 'dtime', 'alon', 'amdaok', 'lapid', 'hasaa', 'hlpq', 'acclim', 'chn', 'tzm', 'bus', 'prs', 'mechika', 'limme', 'live'];
 /* שם הבקשה — המפתח הראשון ברשימה שקיים, ועם ערכו רק כשהוא מילה קצרה
    באנגלית (op של האתגר/ההגרלה). מזהה או מספר לעולם אינו נכנס. */
@@ -810,8 +810,10 @@ function doPostMain_(e) {
          (סטטוס "תיעוד") נשמרות גם כשהמכשיר לא שלח אותן. ראו ovJnlKeep_. */
       if (d.tab === OV_JNL_TAB_ && !d.ss) wRows = ovJnlKeep_(wRows || []);
       var wtr = writeTable_(d.tab, parse_(d.cols), wRows, d.ss);
-      /* רשימת בית הספר היא חלק מהרשימה של איש הצוות (netRoster_). */
-      if (d.tab === NET_SCH_TAB_) netBumpVer_();
+      /* רשימת בית הספר היא חלק מהרשימה של איש הצוות (netRoster_). ישיבה
+         שאוחדה — מה שהעמדה כתבה עובר מיד ל"תלמידי הרשת" (netUni_). */
+      if (d.tab === NET_SCH_TAB_ && !d.ss) { netBumpVer_(); netUniAfterSch_(wRows, parse_(d.cols)); }
+      else if (d.tab === NET_SCH_TAB_) netBumpVer_();
       return wtr;
     }
 
@@ -2192,6 +2194,19 @@ function doGetMain_(e) {
   /* ---- ייבוא "תלמידי הרשת": תוצאת ריצה, ורשימת הגיבויים ----
      no-cors אטום, ולכן התשובה של netMerge נשמרת לפי מזהה הריצה
      ונשאלת כאן. רק בסיסמת הרכז. */
+  /* ---- רשומה אחת לתלמיד (netUni_): pre — מספרים בלבד · go — האיחוד · chk — בדיקה ---- */
+  if (e && e.parameter && e.parameter.netuni) {
+    if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) return reply_(e, { status: 'denied' });
+    var uOp = String(e.parameter.netuni), uInst = String(e.parameter.inst || '').trim();
+    if (uOp === 'chk') {
+      try { return reply_(e, netUniChk_(uInst)); } catch (eU0) { return reply_(e, { status: 'error', message: String(eU0) }); }
+    }
+    var uLk = LockService.getScriptLock();
+    if (!uLk.tryLock(30000)) return reply_(e, { status: 'busy' });
+    try { return reply_(e, netUni_(uInst, uOp === 'go')); }
+    catch (eU) { return reply_(e, { status: 'error', message: String(eU) }); }
+    finally { uLk.releaseLock(); }
+  }
   if (e && e.parameter && (e.parameter.netrun || e.parameter.netbaks)) {
     if (!READ_KEY || String(e.parameter.key || '') !== READ_KEY) {
       return reply_(e, { status: 'denied' });
@@ -5529,26 +5544,257 @@ function netRoster_(inst, dev, lim) {
 /* מחזיר { rows: [[שכבה, כיתה, שם]…], a: מתלמידי הרשת, b: מתלמידי בית הספר }. */
 function netRosterRead_(inst) {
   var rows = [], a = 0, b = 0;
-  var push = function (g, c, n) {
+  /* הרביעי — השם הפרטי (לעמדה של הבעלים, 8.99.625). */
+  var push = function (g, c, n, f) {
     g = String(g || '').replace(/["'׳״`\s]/g, '');
     n = String(n || '').replace(/\s+/g, ' ').trim();
     /* כל שכבה שבמאגר (8.99.454) — לא רשימה קבועה. */
     if (!g || !c || !n || !/^[\u05D0-\u05EA]{1,2}$/.test(g)) return false;
-    rows.push([g, c, n]);
+    rows.push([g, c, n, String(f || '').trim()]);
     return true;
   };
   var t = amdaTable_(NET_TAB_);
   for (var r = 1; r < t.rows.length; r++) {
     if (t.c(t.rows[r], 'קוד ישיבה') !== inst) continue;
     if (push(t.c(t.rows[r], 'שכבה'), t.c(t.rows[r], 'כיתה'),
-             t.c(t.rows[r], 'משפחה') + ' ' + t.c(t.rows[r], 'פרטי'))) a++;
+             t.c(t.rows[r], 'משפחה') + ' ' + t.c(t.rows[r], 'פרטי'), t.c(t.rows[r], 'פרטי'))) a++;
   }
   var s = amdaTable_(NET_SCH_TAB_);
   for (var q = 1; q < s.rows.length; q++) {
     if (s.c(s.rows[q], 'קוד ישיבה') !== inst) continue;
-    if (push(s.c(s.rows[q], 'שכבה'), s.c(s.rows[q], 'כיתה'), s.c(s.rows[q], 'שם'))) b++;
+    if (push(s.c(s.rows[q], 'שכבה'), s.c(s.rows[q], 'כיתה'), s.c(s.rows[q], 'שם'), s.c(s.rows[q], 'פרטי'))) b++;
   }
   return { rows: rows, a: a, b: b };
+}
+/* ============================================================
+   רשומה אחת לתלמיד (8.99.625 · SCRIPT_VERSION 290).
+   ============================================================
+   23.11: קובץ של 1035 תלמידי לפיד יובא ל"תלמידי הרשת", בזמן ש-714 מהם
+   (ז׳–י׳) כבר ישבו ב"תלמידי בית הספר" — העמדה של הבעלים. אותו תלמיד
+   בשתי לשוניות.
+
+   **הרשומה הקנונית — "תלמידי הרשת".** שם הייבוא המוגן (גיבוי, יומן,
+   כתיבה אחת ואימות), הטלפונים, הלוח, החיפוש והספירות. "תלמידי בית
+   הספר" נשארת תחנת קליטה של העמדה בלבד: מה שנכתב אליה לישיבה מאוחדת
+   עובר מיד לכאן (netUni_ אחרי `table`), והעמדה קוראת את הרשימה מכאן
+   (netroster בסיסמה).
+
+   netUni_(inst, go):
+   · מפתח — ישיבה + שכבה + שם (בלי גרשיים, רווחים כפולים ומקפים), וכיתה
+     שאינה סותרת (cOk_, כמו כל התאמה אוטומטית מאז 8.99.361).
+   · שורה ב"בית הספר" שיש לה בדיוק התאמה אחת כאן, והמפתח יחיד בשני
+     הצדדים — כפולה: יורדת מ"בית הספר"; "פרטי" ריק כאן — מתמלא ממנה.
+   · אין לה התאמה — עוברת לכאן כשורה חדשה ("מקור": תלמידי בית הספר).
+   · שמות זהים באותה שכבה (בכל צד), או כיתה סותרת — **לא נוגעים**: שורה
+     ב"מאגר — לטיפול ידני", והשאר ממשיך.
+   · לכל תלמיד של הישיבה — "מזהה תלמיד" קבוע (T…). נוצר פעם אחת, וייבוא
+     אינו נוגע בו (העמודה אינה בקובץ). שורה חדשה בייבוא מקבלת מזהה בשרת.
+   · קודם גיבוי מאומת של שתי הלשוניות; "תלמידי הרשת" נכתבת דרך היומן
+     (netCommit_), "בית הספר" — כתיבה אחת וקריאה חוזרת. שורות של ישיבה
+     אחרת — לא זזות (נבדק אחרי הכתיבה). הריצה חוזרת על עצמה בבטחה.
+   `?netuni=pre|go|chk&inst=&key=` — בסיסמה, מספרים בלבד. */
+var NET_UNI_LOG_ = 'מאגר — לטיפול ידני';
+var NET_UNI_ID_ = 'מזהה תלמיד';
+var NET_SCH_BAK_ = 'גיבוי תלמידי בית הספר · ';
+function netUNm_(n) {
+  return String(n || '').replace(/["'׳״`]/g, '').replace(/[-־–]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function netUK_(inst, g, n) { return inst + '|' + chnGr_(g) + '|' + netUNm_(n); }
+/* הישיבות שאוחדו — שם "בית הספר" היא תחנת קליטה בלבד. */
+function netUniInsts_() {
+  try { return JSON.parse(prop_('NETUNI', '[]')) || []; } catch (e) { return []; }
+}
+function netUniId_() { return 'T' + Utilities.getUuid().replace(/-/g, '').slice(0, 10); }
+/* חתימה של כל השורות שאינן של הישיבה, ברוחב `w` — לבדוק שלא זזו. */
+function netUniOther_(rows, inst, w) {
+  var h = (rows[0] || []).map(function (x) { return String(x).trim(); }), ic = h.indexOf('קוד ישיבה');
+  return netSig_(rows.filter(function (r, i) {
+    return i > 0 && String(r[ic] == null ? '' : r[ic]).trim() !== inst;
+  }).map(function (r) {
+    var o = [];
+    for (var j = 0; j < w; j++) o.push(String(r[j] == null ? '' : r[j]).trim());
+    return o;
+  }));
+}
+function netUni_(inst, go) {
+  inst = String(inst || '').trim();
+  if (!inst) return { status: 'error', message: 'חסרה ישיבה' };
+  var healed = netHeal_();
+  if ((healed && healed.status === 'broken') || netJ_()) return { status: 'broken' };
+  var sh = sheet_(NET_TAB_), cur = netRows_(sh), ssh = sheet_(NET_SCH_TAB_), scur = netRows_(ssh);
+  var hd = cur.length ? cur[0].map(function (x) { return String(x).trim(); }) : [];
+  var sd = scur.length ? scur[0].map(function (x) { return String(x).trim(); }) : [];
+  if (hd.indexOf('קוד ישיבה') < 0) return { status: 'error', message: 'בתלמידי הרשת אין כותרות' };
+  var at = function (H, row, n) { var i = H.indexOf(n); return i < 0 ? '' : String(row[i] == null ? '' : row[i]).trim(); };
+  var NK = {}, SK = {}, nN = 0, sN = 0, r, k;
+  for (r = 1; r < cur.length; r++) {
+    if (at(hd, cur[r], 'קוד ישיבה') !== inst) continue;
+    nN++;
+    k = netUK_(inst, at(hd, cur[r], 'שכבה'), at(hd, cur[r], 'משפחה') + ' ' + at(hd, cur[r], 'פרטי'));
+    (NK[k] = NK[k] || []).push(r);
+  }
+  for (r = 1; r < scur.length; r++) {
+    if (at(sd, scur[r], 'קוד ישיבה') !== inst || !at(sd, scur[r], 'שם')) continue;
+    sN++;
+    k = netUK_(inst, at(sd, scur[r], 'שכבה'), at(sd, scur[r], 'שם'));
+    (SK[k] = SK[k] || []).push(r);
+  }
+  var drop = {}, fill = {}, moves = [], manual = [], n = { dup: 0, move: 0, man: 0, nameDiff: 0, twins: 0 };
+  for (k in SK) {
+    if (!SK.hasOwnProperty(k)) continue;
+    var sq = SK[k], nr = NK[k] || [], srow = scur[sq[0]];
+    if (sq.length === 1 && nr.length === 1) {
+      var nrow = cur[nr[0]];
+      if (!cOk_(at(sd, srow, 'כיתה'), at(hd, nrow, 'כיתה'))) {
+        manual.push([k, at(sd, srow, 'שכבה'), at(sd, srow, 'כיתה') + ' / ' + at(hd, nrow, 'כיתה'),
+                     at(sd, srow, 'שם'), 1, 1, 'כיתה סותרת — לא אוחד']);
+        continue;
+      }
+      drop[sq[0]] = 1; n.dup++;
+      var full = (at(hd, nrow, 'משפחה') + ' ' + at(hd, nrow, 'פרטי')).replace(/\s+/g, ' ').trim();
+      if (full !== at(sd, srow, 'שם').replace(/\s+/g, ' ')) n.nameDiff++;
+      if (!at(hd, nrow, 'פרטי') && at(sd, srow, 'פרטי')) fill[nr[0]] = at(sd, srow, 'פרטי');
+      continue;
+    }
+    if (sq.length === 1 && !nr.length) { drop[sq[0]] = 1; moves.push(sq[0]); n.move++; continue; }
+    manual.push([k, at(sd, srow, 'שכבה'), at(sd, srow, 'כיתה'), at(sd, srow, 'שם'), nr.length, sq.length,
+                 'שמות זהים באותה שכבה — לא אוחד']);
+  }
+  /* שמות זהים בתוך "תלמידי הרשת" עצמה (אחים, או שני תלמידים באותו שם) —
+     נשארים שתי רשומות; רק לתיעוד. */
+  for (k in NK) {
+    if (!NK.hasOwnProperty(k) || NK[k].length < 2 || SK[k]) continue;
+    n.twins++;
+    var tr = cur[NK[k][0]];
+    manual.push([k, at(hd, tr, 'שכבה'), at(hd, tr, 'כיתה'), at(hd, tr, 'משפחה') + ' ' + at(hd, tr, 'פרטי'),
+                 NK[k].length, 0, 'שמות זהים באותה שכבה — לא אוחד']);
+  }
+  n.man = manual.length;
+  var needId = 0;
+  for (r = 1; r < cur.length; r++) {
+    if (at(hd, cur[r], 'קוד ישיבה') === inst && !at(hd, cur[r], NET_UNI_ID_)) needId++;
+  }
+  var out = { status: 'ok', inst: inst, net: nN, sch: sN, dup: n.dup, move: n.move, manual: n.man,
+              twins: n.twins, nameDiff: n.nameDiff, ids: needId, after: nN + n.move,
+              schAfter: sN - n.dup - n.move };
+  if (!go) return out;
+
+  /* ---- 1. גיבוי של "בית הספר" (של "תלמידי הרשת" — בתוך netCommit_ למטה) ---- */
+  var ss = ssh.getParent(), sbak = '';
+  var schChange = Object.keys(drop).length > 0;
+  if (schChange) {
+    var base = NET_SCH_BAK_ + Utilities.formatDate(new Date(), 'Asia/Jerusalem', 'yyyy-MM-dd HH:mm:ss'), kk = 2;
+    sbak = base;
+    while (ss.getSheetByName(sbak)) sbak = base + ' #' + (kk++);
+    var cp = ssh.copyTo(ss).setName(sbak);
+    try { cp.hideSheet(); } catch (eH) {}
+    SpreadsheetApp.flush();
+    if (netSigN_(netRows_(cp)) !== netSigN_(scur)) {
+      try { ss.deleteSheet(cp); } catch (eD) {}
+      return { status: 'error', message: 'הגיבוי של תלמידי בית הספר לא הושלם — לא נעשה שינוי' };
+    }
+  }
+  /* ---- 2. "תלמידי הרשת": מזהים, פרטי חסר, ומי שעובר ---- */
+  var wOld = netW_(cur), H = hd.slice();
+  ['מקור', NET_UNI_ID_].forEach(function (c) { if (H.indexOf(c) < 0) H.push(c); });
+  var W = H.length, tgt = cur.map(function (x) { var y = x.slice(); while (y.length < W) y.push(''); return y; });
+  tgt[0] = H.slice();
+  var iId = H.indexOf(NET_UNI_ID_), iF = H.indexOf('פרטי'), iSrc = H.indexOf('מקור');
+  for (r = 1; r < tgt.length; r++) {
+    if (at(H, tgt[r], 'קוד ישיבה') !== inst) continue;
+    if (!String(tgt[r][iId] || '').trim()) tgt[r][iId] = netUniId_();
+    if (fill[r] && iF >= 0) tgt[r][iF] = fill[r];
+  }
+  moves.forEach(function (q) {
+    var row = scur[q], nm = at(sd, row, 'שם').replace(/\s+/g, ' '), f = at(sd, row, 'פרטי'), last = nm;
+    if (f && nm.length > f.length && nm.slice(-f.length - 1) === ' ' + f) last = nm.slice(0, -f.length - 1);
+    var o = []; for (var j = 0; j < W; j++) o.push('');
+    var put = function (c, v) { var i = H.indexOf(c); if (i >= 0) o[i] = v; };
+    put('קוד ישיבה', inst); put('שכבה', at(sd, row, 'שכבה')); put('כיתה', at(sd, row, 'כיתה'));
+    put('משפחה', last); put('פרטי', f);
+    o[iSrc] = NET_SCH_TAB_; o[iId] = netUniId_();
+    tgt.push(o);
+  });
+  var res = { status: 'ok', inst: inst };
+  if (netSigN_(tgt) !== netSigN_(cur)) {
+    var run = 'uni' + Date.now().toString(36), bak = netBackup_(sh, cur);
+    var done = { status: 'ok', kind: 'uni', backup: bak };
+    netRecSet_(run, { status: 'pending', h: 'uni', at: Date.now() });
+    var bad = netCommit_(sh, cur, tgt, { run: run, h: 'uni', kind: 'uni', bak: bak, done: done });
+    if (bad) return { status: 'error', step: 'net', message: bad.message || bad.status, sbak: sbak };
+    netBakGc_([bak]);
+    res.backup = bak;
+  }
+  var after = netRows_(sh);
+  if (netUniOther_(after, inst, wOld) !== netUniOther_(cur, inst, wOld)) {
+    return { status: 'error', step: 'other', message: 'שורות של ישיבה אחרת השתנו — עצרתי לפני תלמידי בית הספר' };
+  }
+  /* ---- 3. "בית הספר": בלי מה שאוחד או עבר ---- */
+  if (schChange) {
+    var keep = scur.filter(function (x, i) { return !drop[i]; });
+    netWrite_(ssh, keep, scur.length, netW_(scur));
+    if (netSigN_(netRows_(ssh)) !== netSigN_(keep)) {
+      return { status: 'error', step: 'sch', message: 'תלמידי בית הספר לא נשמרה כמצופה — הגיבוי: ' + sbak, sbak: sbak };
+    }
+    res.sbak = sbak;
+  }
+  /* ---- 4. לטיפול ידני — פעם אחת לכל מפתח ---- */
+  if (manual.length) {
+    try {
+      var lt = amdaTable_(NET_UNI_LOG_), had = {};
+      for (r = 1; r < lt.rows.length; r++) had[lt.c(lt.rows[r], 'מפתח')] = 1;
+      var now = new Date();
+      manual.forEach(function (m) {
+        if (had[m[0]]) return;
+        appendCols_(NET_UNI_LOG_, [['מתי', now], ['קוד ישיבה', inst], ['שכבה', m[1]], ['כיתה', m[2]],
+          ['שם', m[3]], ['בתלמידי הרשת', m[4]], ['בתלמידי בית הספר', m[5]], ['סיבה', m[6]], ['מפתח', m[0]]]);
+      });
+    } catch (eL) { res.logErr = String(eL); }
+  }
+  var list = netUniInsts_();
+  if (list.indexOf(inst) < 0) { list.push(inst); PropertiesService.getScriptProperties().setProperty('NETUNI', JSON.stringify(list)); }
+  netBumpVer_();
+  try { CacheService.getScriptCache().removeAll(['tzm:r', 'chn:c:' + inst]); } catch (eC) {}
+  try { ptsBust_(); } catch (eB) {}
+  for (k in out) if (out.hasOwnProperty(k) && !res.hasOwnProperty(k)) res[k] = out[k];
+  res.check = netUniChk_(inst);
+  PropertiesService.getScriptProperties().setProperty('NETUNI_LAST', JSON.stringify({ at: Date.now(), inst: inst, dup: n.dup, move: n.move, man: n.man }));
+  return res;
+}
+/* בדיקה אחרי: כמה רשומות לישיבה, כמה מפתחות כפולים, כמה עוד ב"בית הספר",
+   ומספר השורות לכל ישיבה בשתי הלשוניות (מספרים בלבד). */
+function netUniChk_(inst) {
+  var t = amdaTable_(NET_TAB_), s = amdaTable_(NET_SCH_TAB_), K = {}, per = {}, sper = {}, n = 0, dupK = 0, noId = 0;
+  for (var r = 1; r < t.rows.length; r++) {
+    var ic = t.c(t.rows[r], 'קוד ישיבה');
+    per[ic] = (per[ic] || 0) + 1;
+    if (ic !== inst) continue;
+    n++;
+    if (!t.c(t.rows[r], NET_UNI_ID_)) noId++;
+    var k = netUK_(inst, t.c(t.rows[r], 'שכבה'), t.c(t.rows[r], 'משפחה') + ' ' + t.c(t.rows[r], 'פרטי'));
+    K[k] = (K[k] || 0) + 1;
+  }
+  for (var q = 1; q < s.rows.length; q++) {
+    var sc = s.c(s.rows[q], 'קוד ישיבה');
+    sper[sc] = (sper[sc] || 0) + 1;
+    if (sc !== inst) continue;
+    var k2 = netUK_(inst, s.c(s.rows[q], 'שכבה'), s.c(s.rows[q], 'שם'));
+    K[k2] = (K[k2] || 0) + 1;
+  }
+  for (var x in K) if (K.hasOwnProperty(x) && K[x] > 1) dupK++;
+  return { status: 'ok', inst: inst, net: n, sch: sper[inst] || 0, dupKeys: dupK, noId: noId,
+           per: per, schPer: sper, uni: netUniInsts_() };
+}
+/* `table` ל"תלמידי בית הספר" (העמדה) — ישיבה שאוחדה עוברת מיד ל"תלמידי הרשת". */
+function netUniAfterSch_(rows, cols) {
+  try {
+    var list = netUniInsts_(), ci = (cols || []).indexOf('קוד ישיבה'), seen = {};
+    if (!list.length || ci < 0) return;
+    (rows || []).forEach(function (r) {
+      var ic = String(r[ci] || '').trim();
+      if (ic && list.indexOf(ic) >= 0 && !seen[ic]) { seen[ic] = 1; netUni_(ic, true); }
+    });
+  } catch (e) {}
 }
 /* ============================================================
    ייבוא חכם ל"תלמידי הרשת" — מיזוג, לא דריסה.
@@ -5848,9 +6094,12 @@ function netMerge_(d, run, h) {
     dels.forEach(function (r2) { dm[r2] = 1; gone.push(cur[r2 - 1]); });
     tgt = tgt.filter(function (x, i2) { return !dm[i2 + 1]; });
   }
+  /* ישיבה שאוחדה (netUni_) — תלמיד חדש מקבל "מזהה תלמיד" קבוע כבר בייבוא. */
+  var uniL = netUniInsts_(), iUid = hd.indexOf(NET_UNI_ID_);
   adds.forEach(function (a) {
     var nr = [];
     for (var j2 = 0; j2 < W; j2++) nr.push(a.hasOwnProperty(hd[j2]) ? String(a[hd[j2]] == null ? '' : a[hd[j2]]).trim() : '');
+    if (iUid >= 0 && !nr[iUid] && uniL.indexOf(String(a['קוד ישיבה'] || '')) >= 0) nr[iUid] = netUniId_();
     tgt.push(nr);
   });
   /* הגיבוי — לפני השינוי הראשון, ומאומת. נכשל — לא משנים. */
@@ -20275,7 +20524,9 @@ function chnCounts_(y) {
     add(B, s.c(s.rows[q], 'שכבה'), s.c(s.rows[q], 'כיתה'));
   }
   var out = [];
-  for (var k in meta) out.push([meta[k][0], meta[k][1], Math.max(A[k] || 0, B[k] || 0)]);
+  /* ישיבה שאוחדה (netUni_) — רשימה אחת, והשתיים אינן חופפות: סכום. */
+  var uni = netUniInsts_().indexOf(y) >= 0;
+  for (var k in meta) out.push([meta[k][0], meta[k][1], uni ? (A[k] || 0) + (B[k] || 0) : Math.max(A[k] || 0, B[k] || 0)]);
   var GO = 'זחטיכאבג';
   out.sort(function (a, b) {
     var ga = (a[0].length > 1 ? 10 : 0) + GO.indexOf(a[0].slice(-1)), gb = (b[0].length > 1 ? 10 : 0) + GO.indexOf(b[0].slice(-1));

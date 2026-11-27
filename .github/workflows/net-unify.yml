@@ -1,0 +1,38 @@
+# ============================================================
+# רשומה אחת לתלמיד (8.99.625) — netUni_ בשרת החי.
+# pre — מה ייעשה (מספרים בלבד) · go — האיחוד, עם גיבוי · chk — בדיקה אחרי.
+# הפעלה ידנית בלבד. בלי שמות בלוג.
+# ============================================================
+name: מאגר — רשומה אחת לתלמיד
+
+on:
+  workflow_dispatch:
+    inputs:
+      op:
+        description: 'pre / go / chk'
+        required: true
+        default: 'pre'
+      inst:
+        description: 'קוד ישיבה'
+        required: true
+        default: 'lapid'
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: הרצה
+        env:
+          READ_KEY: ${{ secrets.READ_KEY }}
+          OP: ${{ github.event.inputs.op }}
+          INST: ${{ github.event.inputs.inst }}
+        run: |
+          set -u
+          case "$OP" in pre|go|chk) ;; *) echo "::error::op לא מוכר"; exit 1;; esac
+          case "$INST" in *[!a-z0-9-]*|'') echo "::error::קוד ישיבה לא תקין"; exit 1;; esac
+          U=$(grep -o "https://script.google.com/macros/s/[A-Za-z0-9_-]*/exec" data.js | head -1)
+          if [ -z "${READ_KEY:-}" ] || [ -z "$U" ]; then echo "::error::חסר READ_KEY או הכתובת"; exit 1; fi
+          curl -sL -m 360 -o out.txt "$U?netuni=$OP&inst=$INST&key=$READ_KEY&t=$(date +%s)" || true
+          echo "תוצאה: $(head -c 3000 out.txt)"
+          grep -q '"status":"ok"' out.txt || { echo "::error::לא אושר"; exit 1; }

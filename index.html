@@ -3201,7 +3201,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.624';
+var APP_VERSION = '8.99.625';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -22977,15 +22977,38 @@ function amdaPushRoster(r) {
     })
     .then(function () { return amdaReadRoster(); })
     .then(function (got) {
-      var ok = got && amdaCount(got).n === n && (got.inst || '') === (r.inst || '');
+      /* הרשימה האחת של הישיבה מכילה את כל הקובץ, ואולי עוד (8.99.625). */
+      var ok = got && amdaCount(got).n >= n && (got.inst || '') === (r.inst || '');
       amdaMsg = amdaT(ok ? 'admSaved' : 'admNoSave', { n: n });
       admPane();
     });
 }
-/* null = הקריאה נכשלה או שאין רשימה; אז מה שבמכשיר נשאר. */
+/* null = הקריאה נכשלה או שאין רשימה; אז מה שבמכשיר נשאר.
+   **רשומה אחת לתלמיד (8.99.625).** כשהישיבה ידועה — הרשימה כמו אצל איש
+   הצוות (netroster בסיסמה): "תלמידי הרשת" ו"תלמידי בית הספר" של הישיבה.
+   בישיבה שאוחדה (netUni_ בשרת) זו הרשימה האחת. אין כזו — הקריאה הישנה. */
 function amdaReadRoster() {
   var key = (CFG.readKey || '').trim();
   if (!key) return Promise.resolve(null);
+  var inst = amdaInst() || ADM_INST || '';
+  var net = !inst ? Promise.resolve(null) : scriptGet({ netroster: inst, key: key }).then(function (d) {
+    if (!d || d.status !== 'ok' || !d.rows || !d.rows.length) return null;
+    var r = { at: Date.now(), inst: inst, g: {} };
+    d.rows.forEach(function (x) {
+      var g = amdaGK(x[0]), c = String(x[1] || ''), n = String(x[2] || '');
+      if (!g || !c || !n || !amdaGradeOk(g)) return;
+      if (x[3]) (r.f = r.f || {})[n] = String(x[3]);
+      if (!r.g[g]) r.g[g] = {};
+      (r.g[g][c] = r.g[g][c] || []).push(n);
+    });
+    Object.keys(r.g).forEach(function (g) {
+      Object.keys(r.g[g]).forEach(function (c) { r.g[g][c].sort(function (a, b) { return a.localeCompare(b, 'he'); }); });
+    });
+    return amdaCount(r).n ? r : null;
+  }).catch(function () { return null; });
+  return net.then(function (got) { return got || amdaReadSch(key); });
+}
+function amdaReadSch(key) {
   return scriptGet({ read: AMDA_ROSTER, key: key }).then(function (d) {
     if (!d || d.status !== 'ok' || !d.rows || d.rows.length < 2) return null;
     var h = d.rows[0], ig = h.indexOf('שכבה'), ic = h.indexOf('כיתה'), inn = h.indexOf('שם'),
@@ -24786,9 +24809,25 @@ function amdaRecSet(day, slot, k) {
   admPane();
   amdaFixRun(f, function () { admPane(); });
 }
+/* הרשימה שבמכשיר מתעדכנת מהשרת פעם אחת בטעינה, ורק כשהעמדה סגורה —
+   כך גם מכשיר שקרא את "תלמידי בית הספר" עובר לרשימה האחת (8.99.625). */
+var AMDA_RFR = 0;
+function amdaRosterRefresh(key) {
+  if (!key || AMDA_RFR || AMDA_STAFF || Store.get('amdaOn', 0) || !amdaInst()) return;
+  AMDA_RFR = 1;
+  amdaReadRoster().then(function (x) {
+    if (!x || AMDA_STAFF || Store.get('amdaOn', 0)) return;
+    var old = amdaRoster();
+    if (old && JSON.stringify(old.g) === JSON.stringify(x.g)) return;
+    x.inst = amdaInst() || x.inst;
+    Store.set('amdaRoster', x);
+    admPane();
+  });
+}
 function admAmda(body) {
   if (amdaRep.on) return amdaRepPaint(body);
   var r = amdaRoster(), cnt = amdaCount(r), key = (CFG.readKey || '').trim();
+  amdaRosterRefresh(key);
   var q = amdaQ(), slot = amdaSlotSel(), inst = amdaInst(), tracks = amdaTracks();
   var h = '<div class="adm-card" id="amda-adm"><h4>' + esc(amdaT('admH')) + '</h4>' +
     '<p class="h">' + esc(amdaT('admLead')) + '</p>' +
