@@ -35,7 +35,7 @@ ok(g({ bus: 'set', w: 'a', x: ad.a, k: kA, f: 'b', v: '1' }).status === 'ok', 'a
 ok(g({ bus: 'set', w: 'a', x: ad.a, k: kA, f: 'b', v: '9' }).status === 'error', 'bus out of range');
 ok(g({ bus: 'set', w: 'adm', key: 'k', k: kB, f: 'b', v: '2' }).status === 'ok', 'adm moves');
 // p: רק תלמידים, בלי אוטובוס
-var sp = g({ bus: 'st', w: 'p', x: ad.p });
+var sp = g({ bus: 'st', w: 'p', x: ad.p, v: 'p' });
 ok(sp.status === 'ok' && sp.p.length === 2 && !sp.buses && sp.p[0].length === 7, 'p view', sp);
 // אישור: ר"ם, אחר כך ניהול גובר
 ok(g({ bus: 'set', w: 'p', x: ad.p, k: kA, f: 'ap', v: 'y', by: R1 }).status === 'ok', 'rav approves');
@@ -55,7 +55,9 @@ var sb = g({ bus: 'st', w: 'b', x: ad.b, bn: '1' });
 ok(sb.p.length === 3 && sb.p.every(function (x) { return x[5] === 1; }), 'b view only bus 1', sb.p);
 ok(sb.p.filter(function (x) { return x[6]; }).length === 2, 'two arrived');
 // איפוס
-ok(g({ bus: 'rst', w: 'p', x: ad.p, bn: '1' }).status === 'denied', 'p cannot reset');
+// 8.99.619: קישור הר"מים = קישור הרבנים (שתי לשוניות) — גם איפוס מותר; אוטובוס לא קיים — שגיאה.
+ok(g({ bus: 'rst', w: 'p', x: ad.p, bn: '99' }).status === 'error', 'p link: reset allowed, bad bus');
+ok(g({ bus: 'st', w: 'b', x: ad.b, v: 'p' }).p[0].length === 7, 'b link: approvals view');
 var rs = g({ bus: 'rst', w: 'b', x: ad.b, bn: '1', by: R1 });
 ok(rs.status === 'ok' && rs.n === 2, 'reset', rs);
 sb = g({ bus: 'st', w: 'b', x: ad.b, bn: '1' });

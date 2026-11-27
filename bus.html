@@ -129,6 +129,17 @@ body.hasbar{padding-bottom:calc(env(safe-area-inset-bottom) + 110px)}
 .intro .net:empty,.intro .why:empty,.intro li:empty{display:none}
 .intro .go{display:block;width:100%;margin-top:16px;border:0;border-radius:14px;background:var(--ok);color:#fff;font:inherit;font-weight:900;font-size:1.15rem;padding:15px;cursor:pointer}
 .hero .again{border:0;background:none;color:#fff;font:inherit;font-weight:800;text-decoration:underline;padding:6px 0 0;cursor:pointer}
+/* 8.99.619: שתי לשוניות בראש המסך · חלון "אין אישור הורים" בעלייה · שורת "בלי אישור הורים" */
+.tabs2{display:flex;gap:8px;margin:10px 0 0}
+.tabs2 button{flex:1;border:2px solid #1F4E8C;border-radius:14px;background:#fff;color:#1F4E8C;font:inherit;font-weight:900;font-size:1.05rem;padding:12px 6px;cursor:pointer}
+.tabs2 button.on{background:#1F4E8C;color:#fff}
+#apm .bx p{font-size:1.15rem;color:var(--stop)}
+#apm .apy,#apm .apn{display:block;width:100%;border:0;border-radius:12px;font:inherit;font-weight:900;font-size:1.02rem;padding:13px;cursor:pointer;margin-top:10px}
+#apm .apy{background:var(--ok);color:#fff}
+#apm .apn{background:#EEE;color:var(--ink)}
+.noap{margin-bottom:12px;padding:10px 12px;border-radius:14px;background:#FDECEA;border:2px solid var(--stop)}
+.noap summary{font-weight:900;color:var(--stop);cursor:pointer}
+.noap div{padding:6px 0 0;font-weight:700}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -136,6 +147,7 @@ body.hasbar{padding-bottom:calc(env(safe-area-inset-bottom) + 110px)}
 <!-- כמו עמוד הצמאה: הפוסטר של צמאה בראש (חריג לכלל הלוגו). -->
 <header class="poster"><img src="tzama-logo.jpg" alt="" width="600" height="656"></header>
 <main class="wrap">
+  <div class="tabs2" id="tabs2" hidden></div>
   <div class="hero"><h2 id="ttl"></h2><p id="sub"></p><button class="again" id="inAgain" type="button" hidden></button></div>
   <div class="msg" id="msg"></div>
   <div class="say" id="say"></div>
@@ -145,6 +157,8 @@ body.hasbar{padding-bottom:calc(env(safe-area-inset-bottom) + 110px)}
 <div class="intro" id="intro" hidden><div class="ib"><img src="bus-intro.jpg" alt="" width="1000" height="563">
   <h2 id="inT"></h2><ol><li id="in1"></li><li id="in2"></li><li id="in3"></li><li id="in4"></li></ol>
   <p class="why" id="inWhy"></p><p class="net" id="inNet"></p><button class="go" id="inGo" type="button"></button></div></div>
+<div class="mdl" id="apm"><div class="bx"><p id="apQ"></p>
+  <button class="apy" id="apYes" type="button"></button><button class="apn" id="apNo" type="button"></button></div></div>
 <div class="mdl" id="mdl"><div class="bx"><p id="mQ"></p><label id="mL" for="mI"></label><input id="mI" autocomplete="off">
   <div class="bt"><button class="no" id="mNo" type="button"></button><button class="yes" id="mYes" type="button" disabled></button></div></div></div>
 <script src="data.js"></script>
@@ -176,6 +190,11 @@ var W = QS.w || '', X = QS.x || '';
 var KEY = W === 'adm' ? String((jget('df:cfg') || {}).readKey || '').trim() : '';
 var AUTH = W === 'adm' ? 'w=adm&key=' + encodeURIComponent(KEY) : 'w=' + encodeURIComponent(W) + '&x=' + encodeURIComponent(X);
 var FULL = W === 'a' || W === 'adm';
+/* 8.99.619: קישור הר"מים וקישור רבני האוטובוס = אותו מסך, שתי לשוניות. M = הלשונית: p אישור הורים · b עלייה.
+   הקישור קובע את הלשונית בפעם הראשונה; אחר כך המכשיר זוכר את האחרונה. */
+var U = W === 'p' || W === 'b';
+var TAB_K = 'df:busTab:' + X;
+var M = U ? (ls(TAB_K) === 'p' || ls(TAB_K) === 'b' ? ls(TAB_K) : W) : W;
 
 function api() { return String(ls('dfApi') || (typeof APPS_SCRIPT_URL !== 'undefined' ? APPS_SCRIPT_URL : '') || '').trim(); }
 function viaOk() { return typeof APPS_SCRIPT_URL !== 'undefined' && api() === APPS_SCRIPT_URL; }
@@ -272,7 +291,7 @@ function qSeen(d, t0) {
     var x = at[it.k], v;
     if (it.f === 'full') { var bo = (d.buses || [])[it.bn - 1]; return !bo || (bo.f ? '1' : '0') !== it.v; }
     if (!x) return false;
-    if (W === 'p') v = it.f === 'ap' ? x[6] : null;
+    if (S.dm === 'p') { if (it.f !== 'ap') return true; v = x[6]; }
     else v = it.f === 'h' ? (x[6] ? '1' : '0') : it.f === 'b' ? String(x[5] || '') : (W === 'adm' ? (x[8] ? x[7] : '') : x[9]);
     if (it.f === 'b' && it.v === '') return v !== '' && v !== '0';
     return v != null && String(v) !== String(it.v);
@@ -281,14 +300,14 @@ function qSeen(d, t0) {
 }
 window.addEventListener('online', function () { QFAIL = 0; qGo(0); });
 qSync();
-S.me = W === 'b' ? jget(ME_K) : null;
-(function () { var pc = W === 'p' ? jget(PC_K) : null; if (pc) { S.g = pc.g || ''; S.c = pc.c || ''; } })();
+S.me = U ? jget(ME_K) : null;
+(function () { var pc = U ? jget(PC_K) : null; if (pc) { S.g = pc.g || ''; S.c = pc.c || ''; } })();
 
 /* שורה: [מפתח, סוג, שכבה, כיתה, שם, אוטובוס, הגיע, אישור, ניהול, אישור הר"ם] (ב-p: [מפתח, שכבה, כיתה, שם, אישור, ניהול, ר"ם]) */
 function people() {
   var L = (S.d && S.d.p) || [];
   return L.map(function (x) {
-    var o = W === 'p' ? { k: x[0], t: 's', g: x[1], c: x[2], n: x[3], b: 0, h: 0, ap: x[4], ov: x[5], rv: x[6] }
+    var o = S.dm === 'p' ? { k: x[0], t: 's', g: x[1], c: x[2], n: x[3], b: 0, h: 0, ap: x[4], ov: x[5], rv: x[6] }
       : { k: x[0], t: x[1], g: x[2], c: x[3], n: x[4], b: x[5], h: x[6], ap: x[7], ov: x[8], rv: x[9], last: x[10] ? 1 : 0, mf: x[11] || 0 };
     if (PEND[o.k + '|h'] != null) o.h = PEND[o.k + '|h'];
     if (PEND[o.k + '|b'] != null) { if (PEND[o.k + '|mf'] != null) o.mf = PEND[o.k + '|mf']; o.b = PEND[o.k + '|b']; }
@@ -314,6 +333,26 @@ function counts() {
   var m = {}, P = people();
   P.forEach(function (o) { if (o.b) m[o.b] = (m[o.b] || 0) + 1; });
   return m;
+}
+
+/* ---------- שתי הלשוניות (8.99.619) ---------- */
+function tabsPaint() {
+  var el = $('tabs2');
+  el.hidden = false;
+  el.innerHTML = '<button type="button" data-mode="p"' + (M === 'p' ? ' class="on"' : '') + '>' + esc(UI.busTabP) + '</button>' +
+    '<button type="button" data-mode="b"' + (M === 'b' ? ' class="on"' : '') + '>' + esc(UI.busTabB) + '</button>';
+}
+function modeGo(m) {
+  if (m === M) return;
+  M = m; lset(TAB_K, m);
+  S.d = null; say('');
+  document.body.classList.remove('hasbar');
+  $('app').innerHTML = '<div class="msg">' + esc(UI.busLoad) + '</div>';
+  tabsPaint(); heroPaint();
+  window.scrollTo(0, 0);
+  if (M === 'b' && !ls(IN_K)) inShow(true);
+  load(true);
+  if (M === 'b' && S.me) logLoad(S.me.b);
 }
 
 /* ---------- ר"ם: אישור הורים ---------- */
@@ -449,6 +488,10 @@ function paintB() {
   var h = '<div class="card"><div class="top"><span class="t"><b>' + esc(tp(UI.busTab, { b: b }) + ' · ' + S.me.n) + '</b></span>' +
     '<button class="lnk" type="button" data-chg="1">' + esc(UI.busChgName) + '</button></div>' +
     '<div class="cnt" style="margin:6px 0 0">' + esc(tp(UI.busCount, { h: hh, t: L.length })) + '</div></div>';
+  /* מי שעוד לא עלה ואין לו אישור הורים — שורה בראש הרשימה, ולחיצה פותחת את השמות. */
+  var na = L.filter(function (o) { return o.t === 's' && !o.h && o.ap !== 'y'; }).sort(byName);
+  if (na.length) h += '<details class="noap"' + (S.naOpen ? ' open' : '') + ' id="noap"><summary>' + esc(tp(UI.busNoApN, { n: na.length })) + '</summary>' +
+    na.map(function (o) { return '<div>' + esc(o.n) + ' · ' + esc(clsD(o.g, o.c)) + '</div>'; }).join('') + '</details>';
   h += L.length ? groups(L, function (o) {
     return '<div class="row' + (o.h ? ' h' : '') + '"><div class="top"><span class="t"><b>' + esc(o.n) + '</b><small>' + esc(sub(o)) + '</small></span>' +
       flag(o) + hBtn(o) + '</div></div>';
@@ -476,7 +519,7 @@ function farHtml(b) {
   return h + '</div>';
 }
 function logLoad(b) {
-  if (W === 'p' || !b) return;
+  if ((U && M !== 'b') || !b) return;
   get('bus=log&' + AUTH + '&bn=' + b).then(function (d) {
     if (d && d.status === 'ok') { S.log = { b: b, l: d.log || [] }; paint(); }
   }, function () {});
@@ -485,7 +528,8 @@ function logLoad(b) {
 function paint() {
   if (!S.d) return;
   $('msg').hidden = true;
-  if (W === 'p') paintP(); else if (W === 'b') paintB(); else paintA();
+  if (U) tabsPaint();
+  if (U ? M === 'p' : W === 'p') { document.body.classList.remove('hasbar'); paintP(); } else if (U) paintB(); else paintA();
 }
 
 /* ---------- כתיבה ---------- */
@@ -493,7 +537,7 @@ function setF(k, f, v, o) {
   o = o || {};
   var cur = people().filter(function (x) { return x.k === k; })[0];
   qAdd({ k: k, f: f, v: v, ov: o.ov ? 1 : 0, mf: f === 'b' ? (o.ov ? (cur ? cur.b : 0) : 0) : null,
-    bn: f === 'h' && W === 'b' && S.me ? S.me.b : 0, qb: cur ? cur.b : 0, by: o.by || '', t: Date.now() });
+    bn: f === 'h' && U && S.me ? S.me.b : 0, qb: cur ? cur.b : 0, by: o.by || '', t: Date.now() });
 }
 $('app').addEventListener('click', function (ev) {
   var t = ev.target.closest ? ev.target.closest('button,[data-me]') : ev.target;
@@ -510,6 +554,8 @@ $('app').addEventListener('click', function (ev) {
   if (t.getAttribute('data-chg')) { S.me = null; lset(ME_K, 'null'); load(); return; }
   if ((a = t.getAttribute('data-h')) != null) {
     var cur = people().filter(function (x) { return x.k === a; })[0];
+    /* בעלייה: תלמיד בלי אישור הורים — שאלה לפני הסימון (8.99.619). */
+    if (cur && U && M === 'b' && !cur.h && cur.t === 's' && cur.ap !== 'y') { apOpen(cur); return; }
     if (cur) setF(a, 'h', cur.h ? '0' : '1');
     return;
   }
@@ -534,7 +580,7 @@ $('app').addEventListener('click', function (ev) {
   }
   if ((a = t.getAttribute('data-ap')) != null) {
     var v2 = t.getAttribute('data-v');
-    setF(a, 'ap', v2, { by: W === 'p' ? tp(UI.busApBy, { cls: clsD(S.g, S.c) }) : '' });
+    setF(a, 'ap', v2, { by: U ? tp(UI.busApBy, { cls: clsD(S.g, S.c) }) : '' });
     return;
   }
   if ((a = t.getAttribute('data-rst')) != null) { mOpen(+a); return; }
@@ -548,6 +594,30 @@ $('app').addEventListener('click', function (ev) {
     }, function () { say(UI.busFail); t.disabled = false; });
   }
 });
+/* חלון "אין אישור הורים" בדלת האוטובוס: "ההורים אישרו עכשיו" = אישור + הגעה; "לא עולה עדיין" = כלום. */
+var APK = '';
+function apOpen(o) {
+  APK = o.k;
+  $('apQ').textContent = tp(UI.busNoApQ, { n: o.n });
+  $('apYes').textContent = UI.busNoApYes;
+  $('apNo').textContent = UI.busNoApNo;
+  $('apm').className = 'mdl on';
+}
+function apClose() { $('apm').className = 'mdl'; APK = ''; }
+$('apNo').onclick = apClose;
+$('apm').addEventListener('click', function (ev) { if (ev.target === this) apClose(); });
+$('apYes').onclick = function () {
+  var k = APK;
+  apClose();
+  if (!k) return;
+  setF(k, 'ap', 'y', { by: tp(UI.busApAtBus, { n: S.me ? S.me.n : '' }) });
+  setF(k, 'h', '1');
+};
+$('tabs2').addEventListener('click', function (ev) {
+  var t = ev.target.closest ? ev.target.closest('[data-mode]') : null;
+  if (t) modeGo(t.getAttribute('data-mode'));
+});
+$('app').addEventListener('toggle', function (ev) { if (ev.target && ev.target.id === 'noap') S.naOpen = ev.target.open; }, true);
 /* חלון האיפוס — בתוך העמוד (לא confirm). "כן, אפס" נפתח רק אחרי הקלדת המילה. */
 var MB = 0;
 function mOpen(b) {
@@ -585,13 +655,16 @@ var BUSY = false;
 function load(force) {
   if (BUSY && !force) return Promise.resolve();
   BUSY = true;
-  var q = 'bus=st&' + AUTH + (W === 'b' && S.me ? '&bn=' + S.me.b : ''), t0 = Date.now();
+  var m0 = U ? M : W;
+  var q = 'bus=st&' + AUTH + (U && M === 'p' ? '&v=p' : U && S.me ? '&bn=' + S.me.b : ''), t0 = Date.now();
   return get(q).then(function (d) {
     BUSY = false;
+    if ((U ? M : W) !== m0) return;
+    if (d && d.status === 'ok') d.m = m0;
     if (d && d.status === 'ok') qSeen(d, t0);
     if (d && d.status === 'denied') { $('msg').textContent = UI.busDenied; $('msg').hidden = false; $('app').innerHTML = ''; STOP = 1; return; }
     if (!d || d.status !== 'ok') throw new Error('bad');
-    S.d = d;
+    S.d = d; S.dm = d.m === 'p' ? 'p' : '';
     paint();
   }, function () {
     BUSY = false;
@@ -602,7 +675,7 @@ var STOP = 0;
 /* הקריאה ממשיכה גם כשיש תור — הסימונים שבתור מוצגים מעל מה שהשרת מחזיר. */
 setInterval(function () {
   if (STOP || document.hidden || QBUSY) return;
-  if ($('mdl').className.indexOf('on') >= 0) return;
+  if ($('mdl').className.indexOf('on') >= 0 || $('apm').className.indexOf('on') >= 0) return;
   load();
 }, 5000);
 document.addEventListener('visibilitychange', function () { if (!document.hidden && !STOP) { load(); QFAIL = 0; qGo(0); } });
@@ -614,24 +687,29 @@ function inShow(on) {
   document.documentElement.style.overflow = on ? 'hidden' : '';
   if (on) try { $('intro').scrollTop = 0; } catch (e) {}
 }
-if (W === 'b' && X) {
+if (U && X) {
   $('inT').textContent = UI.busInT || '';
   ['1', '2', '3', '4'].forEach(function (i) { $('in' + i).textContent = UI['busIn' + i] || ''; });
   $('inWhy').textContent = UI.busInWhy || '';
   $('inNet').textContent = UI.busInNet || '';
   $('inGo').textContent = UI.busInGo || '';
   $('inAgain').textContent = UI.busInAgain || '';
-  $('inAgain').hidden = !UI.busInAgain;
+  $('inAgain').hidden = !(M === 'b' && UI.busInAgain);
   $('inGo').onclick = function () { lset(IN_K, '1'); inShow(false); window.scrollTo(0, 0); };
   $('inAgain').onclick = function () { inShow(true); };
-  if (!ls(IN_K)) inShow(true);
+  if (M === 'b' && !ls(IN_K)) inShow(true);
 }
-$('ttl').textContent = W === 'p' ? UI.busTtlP : W === 'a' ? UI.busTtlA : W === 'b' ? UI.busTtlB : UI.busTtlAdm;
-$('sub').textContent = W === 'p' ? UI.busSubP : W === 'b' ? UI.busSubB : UI.busSubA;
+function heroPaint() {
+  var m = U ? M : W;
+  $('ttl').textContent = m === 'p' ? UI.busTtlP : m === 'a' ? UI.busTtlA : m === 'b' ? UI.busTtlB : UI.busTtlAdm;
+  $('sub').textContent = m === 'p' ? UI.busSubP : m === 'b' ? UI.busSubB : UI.busSubA;
+  if ($('inAgain')) $('inAgain').hidden = !(U && M === 'b' && UI.busInAgain);
+}
+heroPaint();
 $('q').placeholder = UI.busSearch;
 $('tools').hidden = !FULL;
 if ((W !== 'p' && W !== 'a' && W !== 'b' && W !== 'adm') || (W === 'adm' ? !KEY : !X)) { $('msg').textContent = UI.busDenied; STOP = 1; }
-else { $('msg').textContent = UI.busLoad; load(); qGo(500); if (FULL) logLoad(S.tab); if (W === 'b' && S.me) logLoad(S.me.b); }
+else { $('msg').textContent = UI.busLoad; load(); qGo(500); if (FULL) logLoad(S.tab); if (U && M === 'b' && S.me) logLoad(S.me.b); }
 </script>
 </body>
 </html>

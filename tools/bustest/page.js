@@ -66,7 +66,7 @@ function qEmpty(p) {
     await pb.waitForSelector('.fl');
     var t = await pb.textContent('#app');
     ok(t.indexOf(A) >= 0 && t.indexOf(B) < 0, 'only own bus', t);
-    ok((await pb.textContent('.fl.n')) === 'אין אישור', 'red flag');
+    ok((await pb.textContent('.fl.n')) === 'אין אישור הורים', 'red flag');
     // ר"ם מאשר
     var pp = await page(b, port, W, '/bus?w=p&x=' + ad.p);
     await pp.waitForSelector('[data-g]');

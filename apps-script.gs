@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 288;
+var SCRIPT_VERSION = 289;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -21208,7 +21208,9 @@ function busRole_(P) {
   if (w === 'adm') return READ_KEY && String(P.key || '') === READ_KEY ? 'adm' : '';
   if (w !== 'p' && w !== 'a' && w !== 'b') return '';
   var k = busKeyOf_(w, false);
-  return k && String(P.x || '') === k ? w : '';
+  /* 8.99.619: קישור אחד לרבנים, שתי לשוניות — קישור הר"מים וקישור רבני האוטובוס פותחים את אותו מסך
+     ונושאים את אותן הרשאות (אישור הורים + עלייה). התצוגה נבחרת ב-v (p = אישור הורים, אחרת עלייה). */
+  return k && String(P.x || '') === k ? (w === 'p' ? 'b' : w) : '';
 }
 function busHead_(tab, cols) {
   var sh = sheet_(tab);
@@ -21331,7 +21333,7 @@ function busBust_() { try { CacheService.getScriptCache().remove('bus:st'); } ca
 function busView_(role, P) {
   var S = busState_();
   if (!S) return { status: 'busy' };
-  if (role === 'p') return { status: 'ok', p: S.p.filter(function (x) { return x[1] === 's'; }).map(function (x) { return [x[0], x[2], x[3], x[4], x[7], x[8], x[9]]; }) };
+  if (role === 'p' || (role === 'b' && String(P.v) === 'p')) return { status: 'ok', p: S.p.filter(function (x) { return x[1] === 's'; }).map(function (x) { return [x[0], x[2], x[3], x[4], x[7], x[8], x[9]]; }) };
   var p = S.p;
   /* הרב רואה גם מי שהועבר מהאוטובוס שלו (אפור, בלי סימון). */
   if (role === 'b' && +P.bn > 0) p = p.filter(function (x) { return x[5] === +P.bn || x[11] === +P.bn; });
@@ -21340,7 +21342,7 @@ function busView_(role, P) {
 /* כתיבה לשורה אחת לפי מפתח, וקריאה חוזרת. */
 function busSet_(role, P) {
   var f = String(P.f || ''), key = String(P.k || '');
-  var ok = { h: { a: 1, b: 1, adm: 1 }, ap: { p: 1, adm: 1 }, b: { a: 1, adm: 1 } }[f];
+  var ok = { h: { a: 1, b: 1, adm: 1 }, ap: { p: 1, b: 1, adm: 1 }, b: { a: 1, adm: 1 } }[f];
   if (!ok || !ok[role] || !key) return { status: 'denied' };
   var lk = busLock_();
   if (!lk.tryLock(10000)) return { status: 'busy' };
@@ -21383,7 +21385,7 @@ function busBatch_(role, P) {
         done.push({ i: i, full: R, col: col, on: on });
         return;
       }
-      var ok = { h: { a: 1, b: 1, adm: 1 }, ap: { p: 1, adm: 1 }, b: { a: 1, adm: 1 } }[Q.f];
+      var ok = { h: { a: 1, b: 1, adm: 1 }, ap: { p: 1, b: 1, adm: 1 }, b: { a: 1, adm: 1 } }[Q.f];
       if (!ok || !ok[role] || !Q.k) { res[i] = 'denied'; return; }
       var r = busPut_(role, Q, sh, at);
       if (r.status !== 'ok') { res[i] = r.status; return; }

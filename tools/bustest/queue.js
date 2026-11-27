@@ -21,6 +21,8 @@ function world() {
   for (var b = 1; b <= BUSES; b++) bt.getRange(b + 1, 2).setValue(rav(b));
   c.busBust_();
   for (i = 0; i < BUSES * PER; i++) c.doGet({ parameter: { bus: 'set', w: 'adm', key: 'k', k: 's|ח|2|' + nm(i), f: 'b', v: String(1 + Math.floor(i / PER)) } });
+  /* כולם עם אישור הורים — בלעדיו "סימון הגעה" פותח את חלון "אין אישור הורים" (8.99.619, נבדק ב-unify.js). */
+  for (i = 0; i < BUSES * PER; i++) c.doGet({ parameter: { bus: 'set', w: 'adm', key: 'k', k: 's|ח|2|' + nm(i), f: 'ap', v: 'y' } });
   W.ad = ad;
   return W;
 }
@@ -128,7 +130,7 @@ function arrived(W) {
     rr = JSON.parse(W.ctx.doGet({ parameter: { bus: 'batch', w: 'b', x: ad.b, ops: JSON.stringify([['s|ח|2|' + nm(5), 'h', '0', 0, 2], ['s|ח|2|' + nm(5), 'b', '3', 0, 1], ['', 'full', '1', 0, 1], ['x', 'h', '1', 0, 1]]) } }).t);
     ok(rr.res.join() === 'denied,denied,ok,none', 'batch roles', rr);
     rr = JSON.parse(W.ctx.doGet({ parameter: { bus: 'batch', w: 'p', x: ad.p, ops: JSON.stringify([['', 'full', '1', 0, 1]]) } }).t);
-    ok(rr.res[0] === 'denied', 'p cannot full');
+    ok(rr.res[0] === 'ok', 'p link = rabbis link (8.99.619): full allowed');
     ok(JSON.parse(W.ctx.doGet({ parameter: { bus: 'batch', w: 'a', x: 'bad', ops: '[]' } }).t).status === 'denied', 'bad link');
     // 5) המנהל רואה בזמן אמת את כל השישה
     var pa = await page(br, port, W, '/bus?w=a&x=' + ad.a);
