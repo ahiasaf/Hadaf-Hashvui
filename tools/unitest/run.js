@@ -13,7 +13,7 @@ Object.getPrototypeOf(net).copyTo = function (ss) { var s = ss.insertSheet('tmp'
 Object.getPrototypeOf(net).setName = function (nm) { delete this.ss.tabs[this.name]; this.name = nm; this.ss.tabs[nm] = this; return this; };
 net.appendRow(['קוד ישיבה', 'שכבה', 'כיתה', 'משפחה', 'פרטי', 'טלפון', 'מקור']);
 // ישיבה אחרת — לא אמורה לזוז
-net.appendRow(['givat', 'ז', '1', 'אחר', 'ראשון', '0500000001', 'קובץ']);
+net.appendRow(['givat', 'ז', '1', 'אחר', 'ראשון', '055' + '0000001', 'קובץ']);
 net.appendRow(['givat', 'ח', '2', 'אחר', 'שני', '', 'קובץ']);
 // לפיד: הקובץ של 23.11 (ז–יב)
 var L = [['ז', '1', 'כהן', 'אבי'], ['ז', '2', 'לוי', 'משה'], ['ח', '3', 'בן דוד', 'יוסף'], ['ט', '1', 'שרון', 'דני'],
@@ -90,11 +90,15 @@ ok(Object.keys(k).filter(function (x) { return k[x] > 1; }).length === 1, 'netro
 ok(nr.rows.some(function (x) { return x[2] === 'כהן אבי' && x[3] === 'אבי'; }), 'netroster — שם פרטי');
 
 // ייבוא: תלמיד חדש בלפיד מקבל מזהה; בגבעת שמואל — לא
+function addRow(inst, f) {
+  var o = {}, v = [inst, 'ז', '5', 'נוסף', f, 'x'];
+  ['קוד ישיבה', 'שכבה', 'כיתה', 'משפחה', 'פרטי', 'מקור'].forEach(function (k, i) { o[k] = v[i]; });
+  return o;
+}
 var cur = c.netRows_(net);
 var im = post({ action: 'netMerge', key: 'K', run: 'r1', base: c.netSig_(cur), insts: JSON.stringify(['lapid', 'givat']),
   cols: JSON.stringify(['קוד ישיבה', 'שכבה', 'כיתה', 'משפחה', 'פרטי', 'מקור']),
-  ops: JSON.stringify([{ k: 'add', row: { 'קוד ישיבה': 'lapid', 'שכבה': 'ז', 'כיתה': '5', 'משפחה': 'נוסף', 'פרטי': 'בייבוא', 'מקור': 'x' } },
-                      { k: 'add', row: { 'קוד ישיבה': 'givat', 'שכבה': 'ז', 'כיתה': '5', 'משפחה': 'נוסף', 'פרטי': 'בגבעת', 'מקור': 'x' } }]) });
+  ops: JSON.stringify([{ k: 'add', row: addRow('lapid', 'בייבוא') }, { k: 'add', row: addRow('givat', 'בגבעת') }]) });
 ok(im.status === 'ok' && im.add === 2, 'ייבוא', im);
 var a1 = net.d.filter(function (r) { return r[4] === 'בייבוא'; })[0], a2 = net.d.filter(function (r) { return r[4] === 'בגבעת'; })[0];
 ok(a1 && /^T/.test(a1[iI]), 'ייבוא לפיד — מזהה');
