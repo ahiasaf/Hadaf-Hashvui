@@ -3201,7 +3201,7 @@ if (InterOn() && /[?&]st=1(&|$)/.test(location.search)) document.title = (JOIN.i
 <script src="lock.js"></script>
 <script src="trip.js"></script>
 <script>
-var APP_VERSION = '8.99.620';
+var APP_VERSION = '8.99.621';
 
 var API    = localStorage.getItem('dfApi') || APPS_SCRIPT_URL || '';
 var myInst = localStorage.getItem('dfInst') || '';
@@ -18376,7 +18376,7 @@ function busAdmHtml() {
   return '<div style="margin-bottom:16px;padding:12px;border-radius:14px;background:#EEF2F8">' +
     '<p class="h" style="margin:0 0 10px"><b style="font-size:1.1rem">' + esc(UI.busAdmH) + '</b></p>' +
     '<a class="btn" style="display:block;text-align:center;text-decoration:none;padding:12px;margin-bottom:12px" href="/bus?w=adm" target="_blank" rel="noopener">' + esc(UI.busAdmOpen) + '</a>' +
-    lk(UI.busAdmP, o + 'p&x=' + encodeURIComponent(d.p)) + lk(UI.busAdmA, o + 'a&x=' + encodeURIComponent(d.a)) + lk(UI.busAdmB, o + 'b&x=' + encodeURIComponent(d.b)) +
+    lk(UI.busAdmP, o + 'p&x=' + encodeURIComponent(d.p)) + lk(UI.busAdmA, o + 'a&x=' + encodeURIComponent(d.a)) +
     '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:8px">' +
     '<label style="flex:1;font-weight:700;font-size:.9rem">' + esc(UI.busAdmCap) + '<input id="bus-cap" type="number" min="1" max="199" oninput="BUSA.ed.cap=this.value" value="' + esc(BUSA.ed.cap != null ? BUSA.ed.cap : d.cap) + '" style="display:block;width:100%;box-sizing:border-box;padding:8px;border:1px solid #ddd;border-radius:8px"></label>' +
     '<label style="flex:1;font-weight:700;font-size:.9rem">' + esc(UI.busAdmCnt) + '<input id="bus-cnt" type="number" min="1" max="39" oninput="BUSA.ed.cnt=this.value" value="' + esc(BUSA.ed.cnt != null ? BUSA.ed.cnt : d.cnt) + '" style="display:block;width:100%;box-sizing:border-box;padding:8px;border:1px solid #ddd;border-radius:8px"></label>' +
