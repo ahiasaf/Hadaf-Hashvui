@@ -838,6 +838,14 @@ body.prj #cards{display:grid;gap:10px;margin-top:14px}
 .aldl-card b{display:block;font-size:1.02rem;font-weight:800;color:var(--blue-d)}
 .aldl-card small{display:block;font-size:.8rem;font-weight:700;color:var(--ink-2);margin-top:2px}
 .aldl-card i{flex:none;font-style:normal;font-size:1.4rem;color:var(--ink-3)}
+/* הכניסה הקבועה למאגר העלונים בשאר ימי השבוע (8.99.626) — אותו מקום של כרטיס יום שישי. */
+.aldl-row{display:flex;align-items:center;gap:10px;margin-top:12px;padding:9px 13px;border-radius:var(--r);
+  background:var(--surface);border:1px solid var(--rule);text-decoration:none;color:var(--blue-d)}
+.aldl-row .aldl-ic{flex:none;width:30px;height:30px;border-radius:8px;border:2px solid var(--blue);
+  display:flex;align-items:center;justify-content:center;color:var(--blue)}
+.aldl-row .aldl-ic svg{width:18px;height:18px}
+.aldl-row b{flex:1;font-size:.95rem;font-weight:800}
+.aldl-row i{flex:none;font-style:normal;font-size:1.3rem;color:var(--ink-3)}
 .mytk{margin-top:12px;padding:15px 15px 6px;border-radius:var(--r);background:var(--surface);
   box-shadow:var(--sh-1);color:var(--ink);text-align:right}
 .mytk[hidden]{display:none}
@@ -1828,7 +1836,7 @@ body:not(.land) #gstx{display:none}
     <div id="wk"></div>
     <!-- הכניסה העצמאית בלבד — ההנצחה מתחת לבאנר (interMem). -->
     <div id="imem"></div>
-    <!-- עלונים להורדה — רק בימי שישי, ורק כשיש עלון שפורסם (alonim.js, 8.99.449). -->
+    <!-- עלונים להורדה — כשיש עלון שפורסם: בשישי כרטיס, בשאר הימים שורה קבועה (alonim.js, 8.99.626). -->
     <div id="aldl"></div>
     <div id="rail"></div>
     <!-- הזמנה לצמאה לבעלי התווית "הדף השבועי" ולהוריהם (tzmInvDraw, 8.99.578). -->

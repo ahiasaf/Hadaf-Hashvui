@@ -1,7 +1,7 @@
 /* ============================================================
    מאגר העלונים להורדה — הלקוח (8.99.449). בריף 3.11, חלק א׳.
    ============================================================
-   משותף ל-join.html (כרטיס בבית בימי שישי), alonim.html (המאגר)
+   משותף ל-join.html (כרטיס בבית בימי שישי, שורה קבועה בשאר הימים), alonim.html (המאגר)
    ו-index.html (הכפתור המרחף באזור הניהול האישי, ההעלאה בניהול).
    הרשימה וההורדה עוברות דרך הסקריפט (?alon=list|get), שמזהה את
    המכשיר לפי התפקיד שלו בשרת — ראו aldlRoute_ ב-apps-script.gs.
@@ -111,14 +111,22 @@
             'stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2.5"/>' +
             '<path d="M8.5 8h7M8.5 11.5h7M8.5 15h4.5"/></svg>';
   function pageUrl() { return /\.html$/.test(location.pathname) ? 'alonim.html' : 'alonim'; }
-  /* הכרטיס בבית (join): רק ביום שישי, ורק כשיש לפחות עלון אחד. */
+  /* הכניסה בבית (join), לתלמיד ולהורה, כשיש לפחות עלון אחד:
+     ביום שישי — הכרטיס הגדול (כמו שהיה); בשאר הימים — שורה קבועה באותו מקום,
+     שמובילה לאותו מאגר (8.99.626 — "מקום ברור וקבוע בדף הראשי"). */
   function card(el) {
     if (!el) return;
     el.innerHTML = '';
-    if (!friday() || !dev()) return;
+    if (!dev()) return;
     var paint = function (rows) {
-      if (!rows || !rows.length || !friday()) { el.innerHTML = ''; return; }
+      if (!rows || !rows.length) { el.innerHTML = ''; return; }
       var U = window.UI || {};
+      if (!friday()) {
+        el.innerHTML = '<a class="aldl-row" href="' + pageUrl() + '">' +
+          '<span class="aldl-ic">' + DOC + '</span><b>' + esc(U.aldlCardH) + '</b>' +
+          '<i aria-hidden="true">‹</i></a>';
+        return;
+      }
       el.innerHTML = '<a class="aldl-card" href="' + pageUrl() + '">' +
         '<span class="aldl-ic">' + DOC + '</span>' +
         '<span class="aldl-tx"><b>' + esc(U.aldlCardH) + '</b><small>' + esc(U.aldlCardSub) + '</small></span>' +

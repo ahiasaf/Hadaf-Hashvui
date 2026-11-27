@@ -101,7 +101,7 @@
 /* מספר שמוצג ב"בדיקת חיבור". אם מה שרואים במסך הניהול נמוך מזה —
    הפריסה בגוגל ישנה, ויש ללחוץ Deploy ← Manage deployments ←
    עריכה ← New version. */
-var SCRIPT_VERSION = 290;
+var SCRIPT_VERSION = 291;
 
 /* ============================================================
    הגיליון הפרטי — מלאו כאן פעם אחת.
@@ -7410,6 +7410,14 @@ function aldlDAdd_(P) {
   if (res) { res.via = via; if (apiWhy) res.api = apiWhy; }
   return res;
 }
+/* "ז" → 7, "י\"א" → 11, "ה-ו" → 5. לא מזוהה — 0 (בסוף). */
+function aldlDafN_(d) {
+  var V = { 'א': 1, 'ב': 2, 'ג': 3, 'ד': 4, 'ה': 5, 'ו': 6, 'ז': 7, 'ח': 8, 'ט': 9, 'י': 10, 'כ': 20, 'ך': 20,
+            'ל': 30, 'מ': 40, 'ם': 40, 'נ': 50, 'ן': 50, 'ס': 60, 'ע': 70, 'פ': 80, 'ף': 80, 'צ': 90, 'ץ': 90, 'ק': 100 };
+  var t = String(d || '').split(/[-–]/)[0], n = 0;
+  for (var i = 0; i < t.length; i++) n += V[t.charAt(i)] || 0;
+  return n;
+}
 function aldlPub_() {
   var C = CacheService.getScriptCache(), hit = C.get('aldl:list');
   if (hit) { try { return JSON.parse(hit); } catch (x) {} }
@@ -7417,7 +7425,13 @@ function aldlPub_() {
     return { id: o['מזהה'], mas: o['מסכת'], daf: o['דף'], t: o['כותרת'],
              pg: +o['עמודים'] || 0, sz: +o['גודל'] || 0, at: o['פורסם'] };
   });
-  out.sort(function (a, b) { return a.at < b.at ? 1 : a.at > b.at ? -1 : 0; });
+  /* סדר הלימוד, החדש למעלה (8.99.626): לפי הדף — שתי המסכתות באותו דף באותו שבוע —
+     ובאותו דף לפי מועד הפרסום. העלאה מרוכזת של כמה עלונים לא מבלבלת את הסדר. */
+  out.sort(function (a, b) {
+    var da = aldlDafN_(a.daf), db = aldlDafN_(b.daf);
+    if (da !== db) return db - da;
+    return a.at < b.at ? 1 : a.at > b.at ? -1 : 0;
+  });
   try { C.put('aldl:list', JSON.stringify(out), 600); } catch (x) {}
   return out;
 }
@@ -7550,58 +7564,154 @@ function aldlDrvList_(root) {
   walk(root, 0, '');
   return out;
 }
+/* ---- שתי דרכים לקרוא את "לפרסום" (8.99.626 · SCRIPT_VERSION 291) ----
+   1. DriveApp — כשה-Drive API פעיל בפרויקט הגוגל של הסקריפט.
+   2. **קישור ציבורי לתיקייה** — כשהראשונה נכשלת ("Permission denied while enabling
+      APIs: drive"): רשימת הקבצים מ-embeddedfolderview והקובץ מ-uc?export=download
+      (pubFetch_), בלי Drive API ובלי הרשאה. עובדת רק כשהתיקייה "לפרסום" משותפת
+      "לכל מי שיש לו הקישור — צפייה". "טיוטות" לא משותפת ולא נקראת.
+   הגרסה בדרך 2 — md5 של הקובץ ("pub:<md5>"); הקובץ יורד רק כשהשם/התאריך ברשימה
+   השתנו, או פעם בשש שעות (ALDL_PUB_STAMP). */
+var ALDL_PUB_STAMP_KEY_ = 'ALDL_PUB_STAMP';
+var ALDL_PUB_RECHECK_MS_ = 6 * 3600 * 1000;
+function aldlHtmlTx_(s) {
+  return String(s || '').replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&quot;/g, '"')
+    .replace(/&#39;|&#x27;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\s+/g, ' ').trim();
+}
+/* רשימת התיקייה מהקישור הציבורי. זורק כשהתיקייה אינה משותפת או שהתשובה לא מוכרת. */
+function aldlPubFolder_(id) {
+  var r = UrlFetchApp.fetch('https://drive.google.com/embeddedfolderview?id=' + encodeURIComponent(id),
+                            { muteHttpExceptions: true, followRedirects: true });
+  var code = r.getResponseCode(), html = String(r.getContentText() || '');
+  if (code !== 200 || html.indexOf('flip-entries') < 0) {
+    throw new Error('התיקייה אינה משותפת בקישור (HTTP ' + code + ')');
+  }
+  var out = [], parts = html.split('id="entry-');
+  for (var i = 1; i < parts.length; i++) {
+    var ch = parts[i], m = /^([A-Za-z0-9_-]{10,})"/.exec(ch);
+    if (!m) continue;
+    var t = /class="flip-entry-title"[^>]*>([\s\S]*?)<\/div>/.exec(ch);
+    var d = /class="flip-entry-last-modified"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/.exec(ch) ||
+            /class="flip-entry-last-modified"[^>]*>([\s\S]*?)<\/div>/.exec(ch);
+    out.push({ id: m[1], name: t ? aldlHtmlTx_(t[1]) : '', mod: d ? aldlHtmlTx_(d[1]) : '',
+               dir: /\/drive\/(?:u\/\d+\/)?folders\//.test(ch) });
+  }
+  return out;
+}
+function aldlPubList_(rootId) {
+  var out = [];
+  var walk = function (id, depth, dirName) {
+    aldlPubFolder_(id).forEach(function (e) {
+      if (e.dir) {
+        if (depth < 2) { try { walk(e.id, depth + 1, e.name); } catch (x) {} }
+        return;
+      }
+      if (!/\.pdf$/i.test(e.name)) return;
+      out.push({ id: e.id, name: e.name, dir: dirName, stamp: e.name + '|' + e.mod, pub: true });
+    });
+  };
+  walk(rootId, 0, '');
+  return out;
+}
+function aldlMd5_(bytes) {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, bytes).map(function (b) {
+    var h = (b & 255).toString(16); return h.length < 2 ? '0' + h : h;
+  }).join('');
+}
 function aldlDrvSync_() {
   var C = CacheService.getScriptCache();
   if (C.get('aldl:drv:run')) return { status: 'busy' };
   C.put('aldl:drv:run', '1', 330);
   var t0 = Date.now(), st = { ok: false, n: 0, add: 0, rep: 0, err: 0, skip: 0 };
+  var PS = PropertiesService.getScriptProperties();
   try {
-    var root;
-    try { root = DriveApp.getFolderById(aldlDrvDir_()); root.getName(); }
-    catch (e) {
-      st.code = 'access';
-      st.why = 'אין גישה לתיקיית העלונים בדרייב: ' + String(e && e.message || e).slice(0, 200);
-      aldlDrvStSet_(st);
-      return st;
-    }
-    var files;
-    try { files = aldlDrvList_(root); }
-    catch (e) {
-      st.code = 'list';
-      st.why = 'רשימת הקבצים בתיקייה לא נקראה: ' + String(e && e.message || e).slice(0, 200);
-      aldlDrvStSet_(st);
-      return st;
+    /* הרשימה: קודם DriveApp; נכשל — הקישור הציבורי. שניהם נכשלו — שום דבר לא זז. */
+    var files = null, apiWhy = '';
+    try {
+      var root = DriveApp.getFolderById(aldlDrvDir_());
+      root.getName();
+      files = aldlDrvList_(root).map(function (x) {
+        var f = x.f;
+        return { id: f.getId(), name: String(f.getName() || ''), dir: x.dir, size: f.getSize(),
+                 ver: String(f.getLastUpdated().getTime()) + ':' + String(f.getSize()),
+                 bytes: function () { return f.getBlob().getBytes(); } };
+      });
+      st.via = 'drive';
+    } catch (e) {
+      apiWhy = String(e && e.message || e).slice(0, 200);
+      try {
+        files = aldlPubList_(aldlDrvDir_());
+        st.via = 'link';
+        st.api = apiWhy;
+      } catch (e2) {
+        st.code = 'access';
+        st.why = 'אין גישה לתיקיית העלונים בדרייב: ' + apiWhy + ' · וגם בקישור: ' +
+                 String(e2 && e2.message || e2).slice(0, 160);
+        aldlDrvStSet_(st);
+        return st;
+      }
     }
     st.n = files.length;
     var live = {};
-    files.forEach(function (x) { live[x.f.getId()] = 1; });
+    files.forEach(function (x) { live[x.id] = 1; });
+    var stamps = {};
+    try { stamps = JSON.parse(PS.getProperty(ALDL_PUB_STAMP_KEY_) || '{}') || {}; } catch (es) { stamps = {}; }
+    var stampsDirty = false;
     var M = aldlMeta_(), bySrc = {};
     M.rows.forEach(function (o, i) {
       if (!o['מקור']) return;
       (bySrc[o['מקור']] = bySrc[o['מקור']] || []).push({ o: o, r: i + 2 });
     });
+    var seenSt = function (h) { return h.o['מצב'] === 'פורסם' || h.o['מצב'] === 'שגיאה' || h.o['מצב'] === 'הוחלף'; };
+    /* גרסה שנרשמה בדרך האחרת — לפי התוכן/הגודל, בלי פרסום מחדש: רק עדכון "גרסת מקור". */
+    var verCol = ALDL_COLS_.indexOf('גרסת מקור') + 1;
     for (var k = 0; k < files.length; k++) {
       /* עד ~4 דקות להרצה; השאר — בהרצה הבאה. */
       if (Date.now() - t0 > 240000) { st.skip = files.length - k; break; }
-      var x = files[k], f = x.f, fid = f.getId(), nm = String(f.getName() || '');
-      var ver = String(f.getLastUpdated().getTime()) + ':' + String(f.getSize());
-      var had = bySrc[fid] || [], same = false;
-      had.forEach(function (h) {
-        if (h.o['גרסת מקור'] === ver && (h.o['מצב'] === 'פורסם' || h.o['מצב'] === 'שגיאה' || h.o['מצב'] === 'הוחלף')) same = true;
-      });
-      if (same) continue;
+      var x = files[k], fid = x.id, nm = x.name;
+      var had = bySrc[fid] || [], same = false, bytes = null;
+      if (!x.pub) {
+        had.forEach(function (h) { if (h.o['גרסת מקור'] === x.ver && seenSt(h)) same = true; });
+        if (same) continue;
+        var pubRow = null;
+        had.forEach(function (h) { if (/^pub:/.test(h.o['גרסת מקור']) && h.o['מצב'] === 'פורסם') pubRow = h; });
+        if (pubRow) {
+          try { bytes = x.bytes(); } catch (de0) { st.err++; st.lastWhy = 'הורדה נכשלה: ' + String(de0 && de0.message || de0).slice(0, 160); continue; }
+          if ('pub:' + aldlMd5_(bytes) === pubRow.o['גרסת מקור']) {
+            try { M.sh.getRange(pubRow.r, verCol).setNumberFormat('@').setValue(x.ver); } catch (we) {}
+            continue;
+          }
+        }
+      } else {
+        var sp = stamps[fid];
+        if (sp && sp[0] === x.stamp && Date.now() - (+sp[1] || 0) < ALDL_PUB_RECHECK_MS_ &&
+            had.some(seenSt)) continue;
+        var pr = pubFetch_(fid);
+        if (!pr || pr.status !== 'ok') { st.err++; st.lastWhy = 'הורדה מהקישור נכשלה: ' + nm.slice(0, 80); continue; }
+        try { bytes = Utilities.base64Decode(pr.data); } catch (bd) { bytes = null; }
+        if (!bytes) { st.err++; st.lastWhy = 'הורדה מהקישור נכשלה: ' + nm.slice(0, 80); continue; }
+        x.size = bytes.length;
+        x.ver = 'pub:' + aldlMd5_(bytes);
+        had.forEach(function (h) {
+          var v = h.o['גרסת מקור'];
+          /* אותה גרסה — או גרסה מ-DriveApp באותו גודל בדיוק. */
+          if (seenSt(h) && (v === x.ver || (!/^pub:/.test(v) && v.split(':')[1] === String(bytes.length)))) same = true;
+        });
+        stamps[fid] = [x.stamp, Date.now()]; stampsDirty = true;
+        if (same) continue;
+      }
       var base = nm.replace(/\.pdf$/i, '').trim();
       var mas = aldlDrvMas_(base, x.dir), daf = aldlDrvDaf_(base);
-      var id = 'D' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, fid + '|' + ver))
+      var id = 'D' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, fid + '|' + x.ver))
                  .replace(/[^0-9A-Za-z]/g, '').slice(0, 14);
       var row = { 'מזהה': id, 'מסכת': mas, 'דף': daf, 'כותרת': base.slice(0, 200), 'קובץ': nm.slice(0, 120),
-                  'נוצר': aldlNow_(), 'מקור': fid, 'גרסת מקור': ver };
+                  'נוצר': aldlNow_(), 'מקור': fid, 'גרסת מקור': x.ver };
       var why = '', data = '', size = 0, pages = 0;
       if (!mas || !daf) why = 'לא זוהו מסכת ודף משם הקובץ או מהתיקייה';
-      else if (f.getSize() > ALDL_MAX_) why = 'הקובץ גדול מ-12MB';
+      else if ((x.size || 0) > ALDL_MAX_) why = 'הקובץ גדול מ-20MB';
       if (!why) {
         try {
-          var bytes = f.getBlob().getBytes();
+          if (!bytes) bytes = x.bytes();
           size = bytes.length;
           if (String.fromCharCode(bytes[0] & 255, bytes[1] & 255, bytes[2] & 255, bytes[3] & 255) !== '%PDF') why = 'הקובץ אינו PDF';
           else {
@@ -7613,17 +7723,18 @@ function aldlDrvSync_() {
         } catch (de) {
           /* הורדה שנכשלה — לא שורה ולא שינוי; ננסה שוב בהרצה הבאה. */
           st.err++; st.lastWhy = 'הורדה נכשלה: ' + String(de && de.message || de).slice(0, 160);
+          if (x.pub) { delete stamps[fid]; }
           continue;
         }
       }
       if (!why) {
         /* שמירה שנכשלה — זמנית: בלי שורה, וננסה שוב בהרצה הבאה. */
         var sw = aldlStore_(id, data);
-        if (sw) { st.err++; st.lastWhy = sw; continue; }
+        if (sw) { st.err++; st.lastWhy = sw; if (x.pub) delete stamps[fid]; continue; }
       }
       var lock = LockService.getScriptLock();
       /* השרת עסוק — לא נכתבת שורה; ננסה שוב בהרצה הבאה (הלשונית f_ נדרסת אז). */
-      if (!lock.tryLock(30000)) { st.err++; st.lastWhy = 'השרת עסוק'; continue; }
+      if (!lock.tryLock(30000)) { st.err++; st.lastWhy = 'השרת עסוק'; if (x.pub) delete stamps[fid]; continue; }
       try {
         if (why) {
           row['מצב'] = 'שגיאה'; row['סיבה'] = why; st.err++;
@@ -7639,7 +7750,7 @@ function aldlDrvSync_() {
         /* קריאה חוזרת: השורה החדשה קיימת ו"פורסם" — ורק אז הקודמת יורדת. */
         var M2 = aldlMeta_(), okNew = false;
         M2.rows.forEach(function (o) { if (o['מזהה'] === id && o['מצב'] === 'פורסם') okNew = true; });
-        if (!okNew) { st.err++; st.lastWhy = 'השורה החדשה לא נמצאה בקריאה חוזרת'; continue; }
+        if (!okNew) { st.err++; st.lastWhy = 'השורה החדשה לא נמצאה בקריאה חוזרת'; if (x.pub) delete stamps[fid]; continue; }
         var replaced = 0;
         M2.rows.forEach(function (o, i) {
           /* אותו קובץ בדרייב — או קובץ חדש באותו שם, כשהקודם כבר אינו בתיקייה. */
@@ -7652,6 +7763,11 @@ function aldlDrvSync_() {
         });
         if (replaced) st.rep++; else st.add++;
       } finally { lock.releaseLock(); }
+    }
+    if (stampsDirty) {
+      var keep = {};
+      Object.keys(stamps).forEach(function (f) { if (live[f]) keep[f] = stamps[f]; });
+      try { PS.setProperty(ALDL_PUB_STAMP_KEY_, JSON.stringify(keep)); } catch (xs) {}
     }
     if (st.add || st.rep || st.err) { try { C.remove('aldl:list'); } catch (x2) {} }
     st.ok = true;

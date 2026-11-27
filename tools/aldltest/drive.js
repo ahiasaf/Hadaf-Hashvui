@@ -26,7 +26,7 @@ function pdf(tag, kb) {
 }
 // הדרייב המדומה: תיקייה ← תת-תיקייה "תענית" ← קבצים.
 var blocked = false, dlFail = false;
-function F(id, name, buf, t) { return { id: id, name: name, buf: buf, t: t, mime: 'application/pdf' }; }
+function F(id, name, buf, t) { return { id: id + 'xxxxxxxxxxxx', name: name, buf: buf, t: t, mime: 'application/pdf' }; }
 var root = { name: 'לפרסום', files: [], dirs: [{ name: 'תענית', files: [], dirs: [] }] };
 function file(o) {
   return { getId: function () { return o.id; }, getName: function () { return o.name; }, getMimeType: function () { return o.mime; },
@@ -123,6 +123,98 @@ ok(!list().some(function (r) { return r.t === 'משהו בלי פרטים'; }), 
 root.files.push(F('fid4', 'עלון למסכת מגילה דף ג.pdf', pdf('m'), 6000));
 s = sync();
 ok(s.add === 1 && list().some(function (r) { return r.mas === 'מגילה' && r.daf === 'ג'; }), 'mas from file name at root', s);
+
+
+// 12. (8.99.626) DriveApp חסום — הקישור הציבורי לתיקייה. embeddedfolderview + uc?export=download.
+var shared = false, fetches = { list: 0, dl: 0 }, modTx = {};
+function htmlOf(d) {
+  return '<html><body><div class="flip-entries">' + d.dirs.map(function (x, i) {
+    return '<div class="flip-entry" id="entry-DIR' + i + 'xxxxxxxxxxxx" tabindex="0"><div class="flip-entry-info">' +
+      '<a href="https://drive.google.com/drive/folders/DIR' + i + 'xxxxxxxxxxxx" target="_blank"><div class="flip-entry-title">' + x.name + '</div></a></div>' +
+      '<div class="flip-entry-last-modified"><div>Nov 4</div></div></div>';
+  }).join('') + d.files.map(function (f) {
+    return '<div class="flip-entry" id="entry-' + f.id + '" tabindex="0"><div class="flip-entry-info">' +
+      '<a href="https://drive.google.com/file/d/' + f.id + 'xxxxxxxxxxxx/view?usp=drive_web" target="_blank">' +
+      '<div class="flip-entry-title">' + f.name.replace(/&/g, '&amp;') + '</div></a></div>' +
+      '<div class="flip-entry-last-modified"><div>' + (modTx[f.id] || 'Nov 20') + '</div></div></div>';
+  }).join('') + '</div></body></html>';
+}
+function byLong(id) {
+  var all = root.files.concat(root.dirs[0].files);
+  return all.filter(function (f) { return f.id === id; })[0];
+}
+c.UrlFetchApp = c.UrlFetchApp || {};
+c.UrlFetchApp.fetch = function (u) {
+  var m = /embeddedfolderview\?id=([^&]+)/.exec(u), m2 = /export=download&id=([^&]+)/.exec(u);
+  var resp = function (code, txt, buf, hd) {
+    return { getResponseCode: function () { return code; }, getContentText: function () { return txt || ''; },
+      getHeaders: function () { return hd || {}; },
+      getBlob: function () { return { getContentType: function () { return buf ? 'application/pdf' : 'text/html'; },
+        getBytes: function () { return Array.prototype.slice.call(buf || Buffer.from(txt || '')).map(function (b) { return b > 127 ? b - 256 : b; }); } }; } };
+  };
+  if (m) {
+    fetches.list++;
+    if (!shared) return resp(200, '<html>Sign in — accounts.google.com</html>');
+    var id = decodeURIComponent(m[1]);
+    if (id === c.aldlDrvDir_()) return resp(200, htmlOf(root));
+    if (id === 'DIR0xxxxxxxxxxxx') return resp(200, htmlOf(root.dirs[0]));
+    return resp(404, '');
+  }
+  if (m2) {
+    fetches.dl++;
+    var f = byLong(decodeURIComponent(m2[1]));
+    if (!shared || !f || dlFail) return resp(200, '<html>no</html>');
+    return resp(200, '', f.buf, { 'Content-Disposition': "attachment; filename*=UTF-8''x.pdf" });
+  }
+  return resp(404, '');
+};
+blocked = true;
+// א. לא משותפת — שני הנתיבים נכשלו, כלום לא זז, הסיבה כוללת את שניהם.
+before = JSON.stringify(list());
+s = sync();
+ok(!s.ok && s.code === 'access' && /Permission denied/.test(s.why) && /בקישור/.test(s.why), 'both paths fail → access', s);
+ok(JSON.stringify(list()) === before, 'not shared: nothing removed');
+// ב. משותפת — הקבצים שכבר פורסמו מ-DriveApp באותו גודל לא מתפרסמים שוב.
+shared = true;
+var rowsB = get({ alon: 'adm', key: 'k' }).rows.length;
+s = sync();
+ok(s.ok && s.via === 'link' && s.add === 0 && s.rep === 0, 'link path: same files not republished', s);
+ok(get({ alon: 'adm', key: 'k' }).rows.length === rowsB && JSON.stringify(list()) === before, 'link path: no new rows');
+// ג. בלי שינוי ברשימה — אין הורדה.
+var dl0 = fetches.dl; s = sync();
+ok(s.ok && fetches.dl === dl0, 'unchanged listing = no download', [fetches.dl, dl0]);
+// ד. עלון חדש בקישור (עם פסיק בשם — כמו בדרייב האמיתי).
+var f5 = F('fid5', 'עלון לשבת, תענית דף ז.pdf', pdf('z7', 90), 7000);
+root.files.push(f5);
+s = sync();
+L = list();
+var z = L.filter(function (r) { return r.mas === 'תענית' && r.daf === 'ז'; })[0];
+ok(s.add === 1 && z && get({ alon: 'get', id: z.id, dev: 'DKIDAAA1' }).data === f5.buf.toString('base64'), 'link: new leaflet published', s);
+// ה. גרסה חדשה של אותו קובץ (התאריך ברשימה השתנה) — מחליפה.
+f5.buf = pdf('z7b', 95); modTx[f5.id] = '11:02 AM';
+s = sync();
+var z2 = list().filter(function (r) { return r.mas === 'תענית' && r.daf === 'ז'; });
+ok(s.rep === 1 && z2.length === 1 && z2[0].id !== z.id, 'link: new version replaces', s);
+// ו. התאריך התחלף (למחרת) אבל הקובץ זהה — הורדה, ובלי פרסום חדש.
+modTx[f5.id] = 'Nov 27';
+s = sync();
+ok(s.add === 0 && s.rep === 0 && list().filter(function (r) { return r.daf === 'ז'; })[0].id === z2[0].id, 'link: same bytes, new date text → nothing', s);
+// ז. הורדה שנכשלה בקישור — הקיים נשאר.
+modTx[f5.id] = 'Nov 28'; f5.buf = pdf('z7c', 99); dlFail = true;
+s = sync(); dlFail = false;
+ok(s.err === 1 && list().filter(function (r) { return r.daf === 'ז'; })[0].id === z2[0].id, 'link: failed download keeps current', s);
+s = sync();
+ok(s.rep === 1, 'link: retried next run', s);
+// ח. DriveApp חוזר לעבוד — עלון שפורסם מהקישור לא מתפרסם שוב (אותו תוכן).
+blocked = false;
+var z3 = list().filter(function (r) { return r.daf === 'ז'; })[0].id;
+s = sync();
+ok(s.via === 'drive' && s.add === 0 && s.rep === 0 && list().filter(function (r) { return r.daf === 'ז'; })[0].id === z3, 'drive back: no republish', s);
+s = sync();
+ok(s.add === 0 && s.rep === 0, 'drive back: stable', s);
+// ט. סדר: לפי הדף, החדש למעלה (ז לפני ה לפני ג לפני ב).
+var ord = list().map(function (r) { return r.daf; });
+ok(ord.indexOf('ז') < ord.indexOf('ה') && ord.indexOf('ה') < ord.indexOf('ג') && ord.indexOf('ג') < ord.indexOf('ב'), 'order by daf, newest first', ord);
 
 // 11. הידני מ-1 עדיין שם.
 ok(list().some(function (r) { return r.id === 'Aman111'; }), 'manual leaflet untouched');
