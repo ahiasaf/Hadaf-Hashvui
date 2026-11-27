@@ -283,6 +283,15 @@ body.mark.gsel #clearsel{display:inline-block}
 .splitbox{position:fixed;inset:0;z-index:70;display:none;align-items:center;
   justify-content:center;padding:20px;background:rgba(11,37,80,.55)}
 .splitbox.on{display:flex}
+#askbar{position:fixed;left:12px;right:12px;bottom:12px;z-index:90;display:none;
+  background:#1f2a44;color:#fff;border-radius:14px;padding:14px;box-shadow:0 6px 24px rgba(0,0,0,.3);
+  max-width:560px;margin:0 auto;font-size:15px;line-height:1.5}
+#askbar.on{display:block}
+#askbar .ab-t{white-space:pre-line}
+#askbar .ab-b{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+#askbar button{border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:700;cursor:pointer}
+#askbar .ab-y{background:#f3c64a;color:#1f2a44}
+#askbar .ab-n{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5)}
 .splitbox .sh{background:var(--surface);border-radius:16px;padding:18px;
   max-width:34rem;width:100%;max-height:80vh;overflow:auto;
   box-shadow:0 16px 50px rgba(11,37,80,.4)}
@@ -314,6 +323,7 @@ body.mark.gsel #clearsel{display:inline-block}
 #ssh{background:transparent;border:1.5px solid currentColor;font-size:.78rem;font-weight:800;
   padding:4px 10px;border-radius:9px;color:inherit}
 #ssh.ss-fail,#ssh.ss-conflict{background:#A5382D;border-color:#A5382D;color:#fff}
+#unsaved.ss-orph,#ssh.ss-orph{background:#A5382D !important;border-color:#A5382D;color:#fff !important}
 #ssh.ss-left,#ssh.ss-wait{border-style:dashed}
 body.mark #ssh{display:none !important}
 /* רשימת הקטעים בתוך היריעה. אותה רשימה שיושבת בפאנל הצדדי
@@ -1979,7 +1989,7 @@ function jsonp(url) {
    זה המספר היחיד שאומר לרכז איזו גרסה רצה אצלו — וכשהוא נשאר
    מאחור הוא משקר בדיוק ברגע שבו סומכים עליו. `tools/preflight.py`
    בודק שכל השלושה תואמים. */
-var STUDIO_VER = '8.99.618';
+var STUDIO_VER = '8.99.619';
 window.addEventListener('DOMContentLoaded', function () {
   document.getElementById('ver').textContent = 'v' + STUDIO_VER;
   /* מה שנשמר מקומית ולא הגיע לגיליון חוזר מיד, עוד לפני שהגיליון
@@ -3477,8 +3487,11 @@ function showSteps() {
   var html = '<div class="sh" id="stl"><b>הקטעים בעמוד הזה</b>' +
     '<p>הקשה על קטע מציגה אותו על הדף. 🔗 מאחד אותו עם הקטע שאחריו — ' +
     'הפירוש, ההקלטות והשאלות של שניהם נשארים. ✕ מוחק אותו: השורות ' +
-    'שלו עוברות לקטע שאחריו, ומה ששויך לו לא יוצג יותר.</p>';
+    'שלו עוברות לקטע שאחריו, ומה ששויך לו מוצג איתו ברצף, כמו באיחוד.</p>';
   if (!STEPS.length) html += '<div class="s0">עדיין אין קטעים בעמוד הזה.</div>';
+  var oo = oldOrph_();
+  if (oo && oo.n) html += '<div class="dup"><b>' + esc(T_('ssOrphOldH')) + '</b><div>' +
+    esc(fill_(T_('ssOrphOldB'), { what: kindsTxt_(oo.ts) })) + '</div></div>';
   var orph = orphanKeys();
   if (orph.length) {
     var on = 0;
@@ -3555,6 +3568,214 @@ function removeStep(i) {
      שום דבר לא נכתב ללשוניות התוכן, ושום קטע אחר לא זז.
    ============================================================ */
 var NEW_IDS = {};   /* קטעים שסומנו בכניסה הזו — ביטולם אינו מנתק דבר */
+/* ============================================================
+   פירוש שמתנתק מקטע (מזהה יתום) — 27.11.2026.
+   ============================================================
+   הפירוש, השאלות והשקפים שמורים לפי מזהה הקטע. איחוד שומר את
+   המזהה הנבלע ב-`also`; מחיקה וסימון מחדש ניתקו אותו — התוכן נשאר
+   בגיליון ושום קטע לא הצביע אליו (תענית ה׳ 31.10, תענית ח׳ 23.11).
+   · מחיקה — המזהה ו-`also` שלו עוברים ל-`also` של הקטע הבא באותו
+     דף (או הקודם), כמו באיחוד (`idsMove_`).
+   · סימון מחדש באותן שורות בכניסה הזו — מקבל את המזהה הישן בחזרה
+     (`GONE_IDS` → SidAdopt ב-stepid.js).
+   · שמירה שעדיין מנתקת מזהה עם תוכן — נעצרת (`orphCheck_`).
+   לזרוק — רק בלחיצה מפורשת "הפירוש לא יוצג יותר" (`ORPH_OK`).
+   מפתחות יתומים שכבר בגיליון — לא נמחקים; מוצגים ברשימת הקטעים.
+   ============================================================ */
+var GONE_IDS = {};  /* עמוד → [{ id, also, g, to }] — מה שנמחק בכניסה הזו */
+var ORPH_OK = {};   /* "מסכת|מזהה" — אושר במפורש שלא יוצג */
+/* הקטע שיקבל את המזהים של קטע i: הבא באותו דף, ואם אין — הקודם.
+   קטע המשך אינו נושא מזהה. */
+function idsHome_(i) {
+  var rec = BOOK[PKEY] || {}, pv = rec.prev > 0 ? rec.prev : 0;
+  var side = function (j) { return j < pv ? 0 : 1; }, me = side(i), j;
+  for (j = i + 1; j < STEPS.length; j++)
+    if (side(j) === me && !STEPS[j].cont) return STEPS[j];
+  for (j = i - 1; j >= 0; j--)
+    if (side(j) === me && !STEPS[j].cont) return STEPS[j];
+  return null;
+}
+function idsOf_(st) {
+  return st && !st.cont ? [st.id].concat(st.also || []).filter(Boolean) : [];
+}
+/* לפני ש-STEPS[i] יוצא: נרשם ב-GONE_IDS, ועם `keep` — המזהים עוברים */
+function idsMove_(i, keep) {
+  var st = STEPS[i], ids = idsOf_(st);
+  if (!ids.length) return null;
+  var to = keep ? idsHome_(i) : null;
+  if (to) {
+    if (!to.id) { to.id = SidNew(studioTaken_()); NEW_IDS[to.id] = 1; }
+    var al = (to.also || []).slice();
+    ids.forEach(function (a) { if (a !== to.id && al.indexOf(a) < 0) al.push(a); });
+    if (al.length) to.also = al;
+  }
+  if (st.id && !NEW_IDS[st.id] || st.also) {
+    (GONE_IDS[PKEY] = GONE_IDS[PKEY] || []).push({ id: st.id, also: (st.also || []).slice(),
+      g: JSON.parse(JSON.stringify(st.g)), to: to ? to.id : '' });
+  }
+  return to;
+}
+function orphDrop_(ids) {
+  var mas = selVal('mas');
+  (ids || []).forEach(function (d) { ORPH_OK[mas + '|' + d] = 1; });
+}
+/* שאלה עם שתי תשובות אמיתיות — שני כפתורים במסך, בלי ספירה לאחור */
+function askBar_(msg, yesT, onYes, noT, onNo) {
+  var b = document.getElementById('askbar');
+  if (!b) {
+    b = document.createElement('div');
+    b.id = 'askbar';
+    document.body.appendChild(b);
+  }
+  b.innerHTML = '<div class="ab-t"></div><div class="ab-b"><button class="ab-y"></button>' +
+    (noT ? '<button class="ab-n"></button>' : '') + '</div>';
+  b.querySelector('.ab-t').textContent = msg;
+  b.querySelector('.ab-y').textContent = yesT;
+  var close = function () { b.className = ''; };
+  b.querySelector('.ab-y').onclick = function () { close(); if (onYes) onYes(); };
+  if (noT) {
+    b.querySelector('.ab-n').textContent = noT;
+    b.querySelector('.ab-n').onclick = function () { close(); if (onNo) onNo(); };
+  }
+  b.className = 'on';
+}
+function kindsTxt_(ts) {
+  var nm = [T_('ssKOwn'), T_('ssKQ'), T_('ssKDeck')], out = [];
+  (ts || []).forEach(function (t) { if (out.indexOf(nm[t]) < 0) out.push(nm[t]); });
+  return out.join(', ');
+}
+/* מה שויך לכל מזהה במסכת — כל הדפים. null — הקריאה נכשלה. */
+var CHAS = null;
+function contentHas_(mas) {
+  if (CHAS && CHAS.mas === mas && Date.now() - CHAS.at < 60000) return Promise.resolve(CHAS);
+  return Promise.all(['פירוש', 'שאלות בדף', 'מצגת'].map(function (t) { return sheetCsv(t); }))
+    .then(function (res) {
+      var out = { mas: mas, at: Date.now(), has: {}, daf: {} };
+      for (var ti = 0; ti < res.length; ti++) {
+        if (!res[ti]) return null;
+        res[ti].slice(1).forEach(function (r) {
+          if (r[0] !== mas) return;
+          var v;
+          try { v = JSON.parse(r[2]); } catch (e) { return; }
+          if (!v || typeof v !== 'object' || !v.__ids) return;
+          for (var q in v) if (v.hasOwnProperty(q) && q.indexOf('__') !== 0 && hasVal_(v[q])) {
+            var h = out.has[q] || (out.has[q] = []);
+            if (h.indexOf(ti) < 0) h.push(ti);
+            out.daf[q] = SidDaf(r[1]);
+          }
+        });
+      }
+      CHAS = out;
+      return out;
+    }).catch(function () { return null; });
+}
+/* כל המזהים שקטע כלשהו במסכת מציג — במכשיר, ובגיליון בעמודים אחרים */
+function idsShown_(mas, skipSrv) {
+  var t = {}, add = function (steps) {
+    (steps || []).forEach(function (x) { idsOf_(x).forEach(function (d) { t[d] = 1; }); });
+  };
+  for (var k in BOOK) if (k.indexOf(mas + '|') === 0) add((BOOK[k] || {}).steps);
+  for (var q in SRV) if (q.indexOf(mas + '|') === 0 && q !== skipSrv && SRV[q].rec) add(SRV[q].rec.steps);
+  return t;
+}
+/* מזהים שבגיליון בעמוד k ושום קטע לא יציג אחרי השמירה */
+function lostIds_(k) {
+  var sv = SRV[k] && SRV[k].rec, mas = String(k).split('|')[0];
+  if (!sv || !sv.steps) return [];
+  var here = idsShown_(mas, k), out = [];
+  sv.steps.forEach(function (x) {
+    idsOf_(x).forEach(function (d) {
+      if (!here[d] && !ORPH_OK[mas + '|' + d] && out.indexOf(d) < 0) out.push(d);
+    });
+  });
+  return out;
+}
+/* שמירה שמנתקת מזהה — בודקים אם יש לו תוכן. יש — עוצרים ושואלים. */
+function orphCheck_(k, lost) {
+  var s = SAVE[k] || (SAVE[k] = {}), mas = String(k).split('|')[0];
+  s.busy = true; s.st = 'saving'; saveChip_();
+  contentHas_(mas).then(function (info) {
+    s.busy = false;
+    if (!info) { failPut_(k, s); return; }
+    var bad = [], ts = [];
+    lost.forEach(function (d) {
+      if (!info.has[d]) { ORPH_OK[mas + '|' + d] = 1; return; }   /* בלי תוכן — אין מה לנתק */
+      bad.push(d);
+      info.has[d].forEach(function (t) { if (ts.indexOf(t) < 0) ts.push(t); });
+    });
+    if (!bad.length) { putPage_(k); return; }
+    s.st = 'orph'; s.orphT = BOOK[k] ? BOOK[k].t : 0; s.orph = bad;
+    saveChip_();
+    var n = 0, sv = SRV[k].rec.steps || [];
+    sv.forEach(function (x) { if (idsOf_(x).some(function (d) { return bad.indexOf(d) >= 0; })) n++; });
+    askBar_(fill_(T_('ssOrphMsg'), { page: keyShort_(k), what: kindsTxt_(ts), n: n || bad.length }),
+      T_('ssOrphJoin'), function () { orphJoin_(k, bad); },
+      T_('ssOrphDrop'), function () {
+        bad.forEach(function (d) { ORPH_OK[mas + '|' + d] = 1; });
+        s.st = ''; s.orph = null; saveChip_(); autoKick_(true);
+      });
+  });
+}
+/* החיבור: כל מזהה עובר ל-`also` של הקטע שמכסה עכשיו את השורה שבה
+   התחיל הקטע הישן — באותו דף (לפני/אחרי הקטעים של הדף הקודם). */
+function orphJoin_(k, bad) {
+  var rec = BOOK[k], sv = SRV[k] && SRV[k].rec, s = SAVE[k] || (SAVE[k] = {});
+  if (!rec || !sv) return;
+  var steps = rec.steps || [], pv = rec.prev > 0 ? rec.prev : 0, spv = sv.prev > 0 ? sv.prev : 0;
+  var left = [];
+  bad.forEach(function (d) {
+    var oi = -1;
+    (sv.steps || []).forEach(function (x, j) { if (oi < 0 && idsOf_(x).indexOf(d) >= 0) oi = j; });
+    if (oi < 0) { left.push(d); return; }
+    var og = sv.steps[oi].g, side = oi < spv ? 0 : 1, best = null, bd = 1e9;
+    steps.forEach(function (x, j) {
+      if (x.cont || !x.g || (j < pv ? 0 : 1) !== side) return;
+      var L = og.from.line, dd = L < x.g.from.line ? x.g.from.line - L : L > x.g.to.line ? L - x.g.to.line : 0;
+      if (dd < bd) { bd = dd; best = x; }
+    });
+    if (!best) { left.push(d); return; }
+    if (!best.id) { best.id = SidNew(studioTaken_()); NEW_IDS[best.id] = 1; }
+    if (best.id === d) return;
+    var al = (best.also || []).slice();
+    if (al.indexOf(d) < 0) al.push(d);
+    best.also = al;
+  });
+  if (left.length) { say(T_('ssOrphNoHome'), 1); }
+  if (left.length === bad.length) return;
+  rec.t = Date.now(); DIRTY[k] = 1;
+  s.st = ''; s.orph = null;
+  keepLocal();
+  if (k === PKEY) { STEPS = rec.steps; markDraw(); markPanel(); stepsRefresh_(); }
+  saveChip_();
+  if (!left.length) say(T_('ssOrphJoined'));
+  autoKick_(true);
+}
+/* יתומים מימים קודמים — לדף שעל המסך. רק מוצגים. */
+var OLD_ORPH = null;
+function oldOrph_() {
+  var mas = selVal('mas'), rec = BOOK[PKEY] || {};
+  var dafs = [SidDaf(selVal('daf'))];
+  if (rec.prev > 0 && rec.prevDaf) dafs.push(SidDaf(rec.prevDaf));
+  var key = mas + '|' + dafs.join(',');
+  if (OLD_ORPH && OLD_ORPH.key === key && Date.now() - OLD_ORPH.at < 60000) return OLD_ORPH;
+  if (OLD_ORPH && OLD_ORPH.key === key && OLD_ORPH.busy) return OLD_ORPH;
+  if (!SRV_OK) return null;
+  OLD_ORPH = { key: key, at: Date.now(), busy: 1, ts: [] };
+  var me = OLD_ORPH;
+  contentHas_(mas).then(function (info) {
+    me.busy = 0;
+    if (!info) { me.at = 0; return; }
+    var shown = idsShown_(mas, ''), ts = [], n = 0;
+    for (var d in info.has) {
+      if (!info.has.hasOwnProperty(d) || shown[d] || dafs.indexOf(info.daf[d]) < 0) continue;
+      n++;
+      info.has[d].forEach(function (t) { if (ts.indexOf(t) < 0) ts.push(t); });
+    }
+    me.n = n; me.ts = ts;
+    if (n) stepsRefresh_();
+  });
+  return me;
+}
 function studioTaken_() {
   var mas = selVal('mas'), recs = [];
   for (var k in BOOK) if (k.indexOf(mas + '|') === 0) recs.push({ mas: mas, d: BOOK[k] });
@@ -3730,10 +3951,11 @@ function deleteStep(i) {
       return;
     }
   }
-  var go = function () {
+  var go = function (keep, what) {
     /* מחיקה אחרת שהסתיימה לפניה מזיזה את המיקום — מחפשים את הקטע עצמו */
     i = STEPS.indexOf(st);
     if (i < 0) { say('הקטעים השתנו בינתיים — לא נמחק.', 1); return; }
+    var to = idsMove_(i, keep);
     if (rec.prev > i) rec.prev--;
     if (typeof rec.upto === 'number' && rec.upto >= i) {
       rec.upto--;
@@ -3742,29 +3964,34 @@ function deleteStep(i) {
     removeStep(i);
     markPanel();
     stepsRefresh_();
-    say('✓ נמחק. נשמר במכשיר — "שמירה" מעלה לגיליון.');
+    if (to && what) say(fill_(T_('stDelMoved'), { what: what, n: STEPS.indexOf(to) + 1 }));
+    else say('✓ נמחק. נשמר במכשיר — "שמירה" מעלה לגיליון.');
   };
   /* קטע המשך אינו נושא תוכן משלו, וקטע שסומן עכשיו — עוד אין לו */
-  var ids = st.cont ? [] : [st.id].concat(st.also || []).filter(Boolean);
-  if (!ids.length || (NEW_IDS[st.id] && !st.also)) { go(); return; }
+  var ids = idsOf_(st);
+  if (!ids.length || (NEW_IDS[st.id] && !st.also)) { go(false); return; }
   say('בודק מה שויך לקטע…');
   studioContent_().then(function (info) {
-    var names = ['פירוש או הקלטה', 'שאלות', 'שקף שמתחיל בו'], got = [];
+    var ts = [];
     ids.forEach(function (d) {
-      ((info.has || {})[d] || []).forEach(function (t) {
-        if (got.indexOf(names[t]) < 0) got.push(names[t]);
-      });
+      ((info.has || {})[d] || []).forEach(function (t) { if (ts.indexOf(t) < 0) ts.push(t); });
     });
-    var msg = '';
-    if (!info.read) msg = 'לא הצלחתי לבדוק אם יש לקטע פירוש, הקלטות או שאלות. ' +
-      'אם יש — הם לא יוצגו יותר.\n\nלמחוק בכל זאת?';
-    else if (info.legacy) msg = '⚠ הדף הזה עוד לא הוסב למזהים קבועים. המחיקה תזיז את ' +
-      'הפירוש, השאלות והשקפים של כל הקטעים שאחריו.\n\nלמחוק בכל זאת?';
-    else if (got.length) msg = 'למחוק את הקטע?\n\nיש לו ' + got.join(', ') +
-      '. אחרי המחיקה הם לא יוצגו יותר לאף אחד.\n\n' +
-      'כדי לשמור עליהם — "ביטול", ואז 🔗 לאיחוד עם הקטע שאחריו.';
-    if (!msg) { go(); return; }
-    SureThen(go, function () { say('לא נמחק.'); }, msg);
+    var what = kindsTxt_(ts), home = idsHome_(STEPS.indexOf(st));
+    if (info.read && info.legacy) {
+      SureThen(function () { go(true); }, function () { say('לא נמחק.'); },
+        '⚠ הדף הזה עוד לא הוסב למזהים קבועים. המחיקה תזיז את ' +
+        'הפירוש, השאלות והשקפים של כל הקטעים שאחריו.');
+      return;
+    }
+    /* יש לו תוכן (או שלא הצלחנו לבדוק) — המזהה עובר לקטע שבמקומו, כמו באיחוד */
+    if (!info.read || ts.length) {
+      if (home) { go(true, what || T_('ssKOwn')); return; }
+      askBar_(fill_(T_('stDelNoHome'), { what: what || T_('ssKOwn') }),
+        T_('stDelDrop'), function () { orphDrop_(ids); go(false); },
+        T_('stDelKeep'), function () { say('לא נמחק.'); });
+      return;
+    }
+    go(false);
   });
 }
 
@@ -4115,6 +4342,10 @@ function autoRun_() {
     if (!sessionEdit_(k)) continue;
     var s = SAVE[k] || (SAVE[k] = {});
     if (s.busy || s.st === 'conflict') continue;
+    if (s.st === 'orph') {
+      if (s.orphT === BOOK[k].t) continue;
+      s.st = ''; s.orph = null;          /* נערך מאז — בודקים מחדש */
+    }
     if (s.st === 'saved' && s.sentT === BOOK[k].t) continue;
     if (t - (BOOK[k].t || 0) < 2000 || (s.next && t < s.next)) { later = true; continue; }
     putPage_(k);
@@ -4153,9 +4384,13 @@ function putPage_(k, del) {
     if (!rec) return;
     /* ניסיון חוזר לאותו שינוי — אותו מזהה, כדי שהשרת יזהה אותו */
     if (!s.pend || s.pend.t !== rec.t || s.pend.base !== base) {
-      /* מה שבגיליון כבר נושא מזהה — נשאר עם אותו מזהה. ראו SidAdopt. */
-      if (SRV[k] && SRV[k].rec && SidAdopt(rec.steps, SRV[k].rec.steps, NEW_IDS) &&
+      /* מה שבגיליון כבר נושא מזהה — נשאר עם אותו מזהה; קטע שנמחק
+         וסומן מחדש בכניסה הזו — מקבל את המזהה שלו בחזרה. ראו SidAdopt. */
+      if (SidAdopt(rec.steps, SRV[k] && SRV[k].rec ? SRV[k].rec.steps : [], NEW_IDS, GONE_IDS[k]) &&
           k === PKEY) STEPS = rec.steps;
+      /* שמירה שתשאיר פירוש, שאלות או שקף בלי קטע — לא יוצאת */
+      var lost = lostIds_(k);
+      if (lost.length) { s.pend = null; orphCheck_(k, lost); return; }
       var out = JSON.parse(JSON.stringify(rec));
       out.rv = Math.random().toString(36).slice(2, 9);
       s.pend = { t: rec.t, base: base, val: JSON.stringify(out) };
@@ -4243,7 +4478,7 @@ function leftKeys_() {
 /* המצב של עמוד אחד */
 function pageState_(k) {
   var s = SAVE[k] || {};
-  if (s.st === 'conflict' || s.st === 'fail' || s.st === 'wait') return s.st;
+  if (s.st === 'conflict' || s.st === 'fail' || s.st === 'wait' || s.st === 'orph') return s.st;
   if (s.busy || (DIRTY[k] && sessionEdit_(k))) return 'saving';
   if (leftKeys_().indexOf(k) >= 0) return 'left';
   if (s.st === 'saved') return 'saved';
@@ -4260,7 +4495,7 @@ function pageState_(k) {
 function saveState_() {
   var here = PKEY ? pageState_(PKEY) : '';
   if (here && here !== 'saved') return { st: here, k: PKEY };
-  var order = { conflict: 3, fail: 2, wait: 1 }, best = '', bk = '';
+  var order = { orph: 3, conflict: 3, fail: 2, wait: 1 }, best = '', bk = '';
   for (var k in SAVE) {
     if (k === PKEY) continue;
     var st = pageState_(k);
@@ -4278,7 +4513,8 @@ var CHIP_K = '';
 function saveChip_() {
   var s = saveState_();
   var txt = { saving: T_('ssSaving'), saved: T_('ssSaved'), wait: T_('ssWait'),
-              fail: T_('ssFail'), conflict: T_('ssConflict'), left: T_('ssLeft') }[s.st] || '';
+              fail: T_('ssFail'), conflict: T_('ssConflict'), left: T_('ssLeft'),
+              orph: T_('ssOrph') }[s.st] || '';
   if (txt && s.k && s.k !== PKEY) txt = fill_(T_('ssElse'), { st: txt, page: keyShort_(s.k) });
   CHIP_K = s.k || PKEY;
   ['unsaved', 'ssh'].forEach(function (id) {
@@ -4641,7 +4877,8 @@ function flushHidden_() {
   for (var k in DIRTY) {
     if (!sessionEdit_(k)) continue;
     var s = SAVE[k] || {}, a = k.split('|');
-    if (wkey && a.length >= 4 && !s.busy && s.st !== 'conflict' && SRV_OK) {
+    if (wkey && a.length >= 4 && !s.busy && s.st !== 'conflict' && s.st !== 'orph' && SRV_OK &&
+        !lostIds_(k).length) {
       var base = BASE.hasOwnProperty(k) ? BASE[k] : (SRV[k] ? '?' : '');
       if (!s.pend || s.pend.t !== BOOK[k].t || s.pend.base !== base) {
         var out = JSON.parse(JSON.stringify(BOOK[k]));
@@ -5968,8 +6205,14 @@ document.getElementById('waitadd').onclick = function () { addWait_(); };
 
 /* תפריט הפעולות הנדירות */
 /* החלון של העמוד שהכפתור מדבר עליו — ראו saveChip_ */
-document.getElementById('unsaved').onclick = function () { openSave_(CHIP_K); };
-document.getElementById('ssh').onclick = function () { openSave_(CHIP_K); };
+/* שמירה שנעצרה כי פירוש יתנתק — ההקשה מחזירה את השאלה */
+function chipGo_() {
+  var s = SAVE[CHIP_K];
+  if (s && s.st === 'orph' && s.orph) { s.st = ''; orphCheck_(CHIP_K, s.orph); return; }
+  openSave_(CHIP_K);
+}
+document.getElementById('unsaved').onclick = chipGo_;
+document.getElementById('ssh').onclick = chipGo_;
 document.getElementById('steplist').onclick = function () { showSteps(); };
 document.getElementById('splitpara').onclick = function () {
   if (!CHV) { say('החברותא עדיין לא נטענה.', 1); return; }
@@ -6031,12 +6274,22 @@ document.getElementById('undo').onclick = function unStep() {
     return;
   }
   /* ביטול של מה שסומן עכשיו — כמו תמיד. קטע שכבר נשמר נושא אולי
-     פירוש, הקלטות ושאלות, והמחיקה שלו תנתק אותם: שואלים. */
-  if (last.id && !NEW_IDS[last.id] && !SureLater(unStep, this, arguments, null,
-      'הקטע האחרון כבר שמור בגיליון, ואולי יש לו פירוש, הקלטות או שאלות. ' +
-      'מחיקה תשאיר את השטח לא מסומן ותנתק ממנו את מה ששויך. ' +
-      'לאחד אותו עם הקטע שלפניו — "ביטול" כאן, ואז 🔗.')) return;
-  removeStep(STEPS.length - 1);
+     פירוש, הקלטות ושאלות: המזהה שלו עובר לקטע שלפניו, כמו באיחוד.
+     אין קטע כזה באותו דף — רק בלחיצה מפורשת "הפירוש לא יוצג יותר". */
+  var n = STEPS.length - 1, ids = idsOf_(last);
+  if (!ids.length || (NEW_IDS[last.id] && !last.also)) { idsMove_(n, false); removeStep(n); return; }
+  if (idsHome_(n)) {
+    var to = idsMove_(n, true);
+    removeStep(n);
+    say(fill_(T_('stDelMoved'), { what: T_('ssKOwn'), n: STEPS.indexOf(to) + 1 }));
+    return;
+  }
+  askBar_(fill_(T_('stDelNoHome'), { what: T_('ssKOwn') }),
+    T_('stDelDrop'), function () {
+      if (STEPS[STEPS.length - 1] !== last) { say('הקטעים השתנו בינתיים — לא נמחק.', 1); return; }
+      orphDrop_(ids); idsMove_(STEPS.length - 1, false); removeStep(STEPS.length - 1);
+    },
+    T_('stDelKeep'), function () { say('לא נמחק.'); });
 };
 /* פס הקטע הקיים */
 [].forEach.call(document.querySelectorAll('[data-inudge]'), function (b) {

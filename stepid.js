@@ -264,8 +264,14 @@ function SidEnsure(steps, taken) {
    לפני שעמוד נכתב: קטע שמתחיל באותה נקודה בגמרא כמו קטע בעמוד
    שבגיליון — מקבל את המזהה שלו. לא נוגעים בקטע שהמזהה שלו כבר
    בגיליון, ולא בקטע שנולד בכניסה הזו (`fresh`, פיצול או סימון
-   חדש). מחזיר כמה קטעים קיבלו מזהה. */
-function SidAdopt(steps, there, fresh) {
+   חדש). מחזיר כמה קטעים קיבלו מזהה.
+
+   `gone` — קטעים שנמחקו בכניסה הזו בעמוד הזה ({ id, also, g }).
+   קטע שסומן עכשיו (`fresh`, או בלי מזהה) באותן שורות בקירוב (עד
+   שורה אחת בתחילה ובסוף) — מקבל את המזהה הישן ואת `also` שלו, וכך
+   הפירוש, השאלות והשקפים חוזרים אליו. מה שהועבר במחיקה ל-`also`
+   של קטע שכן — יוצא משם. (27.11.2026, תענית ה׳ ו-ח׳) */
+function SidAdopt(steps, there, fresh, gone) {
   var at = {}, have = {}, used = {}, n = 0;
   (there || []).forEach(function (s) {
     if (!s || s.cont || !s.id || !s.g) return;
@@ -282,6 +288,37 @@ function SidAdopt(steps, there, fresh) {
     s.id = o.id;
     if (o.also && o.also.length) s.also = o.also.slice(); else delete s.also;
     used[o.id] = 1; n++;
+  });
+  n += SidAdoptGone_(steps, fresh, gone);
+  return n;
+}
+function SidAdoptGone_(steps, fresh, gone) {
+  var n = 0;
+  (gone || []).forEach(function (o) {
+    if (!o || !o.id || o.used || !o.g || !o.g.from || !o.g.to) return;
+    var on = false;
+    (steps || []).forEach(function (s) { if (s && s.id === o.id) on = true; });
+    if (on) { o.used = 1; return; }
+    var best = null, bd = 99;
+    (steps || []).forEach(function (s) {
+      if (!s || s.cont || !s.g || !s.g.from || !s.g.to) return;
+      if (s.id && !(fresh && fresh[s.id])) return;
+      var a = Math.abs(s.g.from.line - o.g.from.line), b = Math.abs(s.g.to.line - o.g.to.line);
+      if (a > 1 || b > 1) return;
+      if (a + b < bd) { bd = a + b; best = s; }
+    });
+    if (!best) return;
+    var mine = [o.id].concat(o.also || []);
+    (steps || []).forEach(function (s) {
+      if (!s || s === best || !s.also) return;
+      s.also = s.also.filter(function (a) { return mine.indexOf(a) < 0; });
+      if (!s.also.length) delete s.also;
+    });
+    var al = (o.also || []).filter(function (a) { return a && a !== o.id; });
+    (best.also || []).forEach(function (a) { if (a && a !== o.id && al.indexOf(a) < 0) al.push(a); });
+    best.id = o.id;
+    if (al.length) best.also = al; else delete best.also;
+    o.used = 1; n++;
   });
   return n;
 }
